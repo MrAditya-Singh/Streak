@@ -64,6 +64,14 @@ export interface UserProfile {
   uid?: string;
   email?: string;
   name: string;
+  age?: number;
+  bloodGroup?: string;
+  height?: string;
+  weight?: string;
+  resident?: string;
+  phoneNumber?: string;
+  bio?: string;
+  avatarUrl?: string;
   overallStreak: number;
   longestStreak: number;
   lastActiveDate: string; // YYYY-MM-DD

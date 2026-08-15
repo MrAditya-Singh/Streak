@@ -541,17 +541,21 @@ export const App: React.FC = () => {
 
   // Complete Clean Reset All Data Handler
   const handleResetData = () => {
-    if (window.confirm('Are you sure you want to reset all data? This will clear all habit completions, streaks to 0, and reset efficiency to 0%.')) {
+    if (window.confirm('Are you sure you want to reset all data? This will clear all level, XP, overall streaks, emergency directives, platform streaks to 0, and reset efficiency to 0%.')) {
       const cleanUser: UserProfile = {
         ...INITIAL_USER,
-        name: user.name || 'Aditya',
+        name: user.name || 'Aditya Singh',
+        email: user.email || 'mradityasinghofficial1@gmail.com',
         overallStreak: 0,
         longestStreak: 0,
         currentXP: 0,
-        level: 1,
+        level: 0,
+        xpToNextLevel: 500,
         hunterRank: 'E',
         isActiveToday: false,
         lastActiveDate: '',
+        platformStats: {},
+        platformVerified: {},
       };
       setUser(cleanUser);
 
@@ -576,18 +580,27 @@ export const App: React.FC = () => {
       localStorage.removeItem('effstreak_activities');
       localStorage.removeItem('effstreak_logs');
       localStorage.removeItem('effstreak_emergency_tasks');
+      localStorage.removeItem('effstreak_matrix_state');
       localStorage.removeItem('streak_monthly_matrix');
 
-      // Sync reset state to backend
+      // Sync reset state to cloud backend and Firestore
+      fetch(`${BACKEND_API_BASE}/auth/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid || 'aditya-singh' }),
+      }).catch((err) => console.warn('Auth reset warning:', err));
+
       fetch(`${BACKEND_API_BASE}/sync/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.uid || 'aditya-singh',
           state: {
-            activities: cleanActs,
-            matrix: cleanMatrix,
             user: cleanUser,
+            activities: cleanActs,
+            matrix: {},
+            emergencyTasks: [],
+            isReset: true,
           },
         }),
       }).catch((err) => console.warn('Reset sync warning:', err));

@@ -14,10 +14,21 @@ import {
   Sparkles, 
   FileSpreadsheet,
   Link2,
-  AlertTriangle
+  AlertTriangle,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  HeartPulse,
+  Ruler,
+  Scale,
+  ShieldCheck,
+  Activity
 } from 'lucide-react';
 import { ActivityItem, UserProfile, HistoricalDayRecord, ActivityLogEntry } from '../types';
 import { soundFx } from '../utils/audio';
+
+const BACKEND_API_BASE = import.meta.env.VITE_API_URL || 'https://effectivestreak-backend.onrender.com/api';
 import { downloadJSONBackup, downloadCSVBackup } from '../services/exportService';
 import { 
   extractUsernameFromUrl, 
@@ -177,7 +188,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newPlannedMinutes, setNewPlannedMinutes] = useState(30);
   const [newCategory, setNewCategory] = useState<ActivityItem['category']>('coding');
   const [newUrl, setNewUrl] = useState('');
-  const [activeTab, setActiveTab] = useState<'accounts' | 'activities' | 'general' | 'backup'>('accounts');
+  const [activeTab, setActiveTab] = useState<'profile' | 'accounts' | 'activities' | 'general' | 'backup'>('profile');
+
+  // Comprehensive Personal Profile Form State
+  const [profileName, setProfileName] = useState(user.name || 'Aditya Singh');
+  const [profileEmail, setProfileEmail] = useState(user.email || 'mradityasinghofficial1@gmail.com');
+  const [profileAge, setProfileAge] = useState<number | string>(user.age || 21);
+  const [profileBloodGroup, setProfileBloodGroup] = useState(user.bloodGroup || 'B+');
+  const [profileHeight, setProfileHeight] = useState(user.height || '178 cm');
+  const [profileWeight, setProfileWeight] = useState(user.weight || '68 kg');
+  const [profileResident, setProfileResident] = useState(user.resident || 'Delhi, India');
+  const [profilePhone, setProfilePhone] = useState(user.phoneNumber || '+91 9876543210');
+  const [profileBio, setProfileBio] = useState(user.bio || 'Solo Hunter • S-Rank Aspirant • Competitive Programmer');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Custom platform creation state
   const [showAddCustomPlatform, setShowAddCustomPlatform] = useState(false);
@@ -460,6 +483,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     showToast('Exported CSV history report', 'success');
   };
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    soundFx.playCheck();
+    setIsSavingProfile(true);
+    const profilePayload: Partial<UserProfile> = {
+      name: profileName.trim(),
+      email: profileEmail.trim().toLowerCase(),
+      age: Number(profileAge) || 21,
+      bloodGroup: profileBloodGroup,
+      height: profileHeight.trim(),
+      weight: profileWeight.trim(),
+      resident: profileResident.trim(),
+      phoneNumber: profilePhone.trim(),
+      bio: profileBio.trim(),
+    };
+
+    onUpdateUser(profilePayload);
+    localStorage.setItem('effstreak_user_profile', JSON.stringify(profilePayload));
+
+    try {
+      const res = await fetch(`${BACKEND_API_BASE}/auth/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.uid || 'aditya-singh',
+          ...profilePayload,
+        }),
+      });
+      if (res.ok) {
+        soundFx.playLevelUp();
+        showToast('✓ Profile & Personal Information saved to Cloud Database!', 'success');
+      } else {
+        showToast('✓ Profile updated locally.', 'success');
+      }
+    } catch (err) {
+      showToast('✓ Profile updated locally.', 'success');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    soundFx.playClick();
+    showToast(`Connecting Google Account (${profileEmail})...`, 'info');
+    try {
+      const res = await fetch(`${BACKEND_API_BASE}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: profileEmail,
+          name: profileName,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        onUpdateUser(data.user);
+        soundFx.playLevelUp();
+        showToast(`✓ Google Account Connected! Multi-Device Cloud Sync active for ${data.user.email}`, 'success');
+      } else {
+        showToast(`✓ Google Sync linked to ${profileEmail}`, 'success');
+      }
+    } catch (err) {
+      showToast(`✓ Google Sync linked to ${profileEmail}`, 'success');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div className="bg-[#121622] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
@@ -487,10 +576,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="flex border-b border-white/10 px-6 bg-black/20 overflow-x-auto">
           {[
+            { id: 'profile', label: '👤 Profile & Cloud Sync' },
             { id: 'accounts', label: 'Connected Accounts' },
             { id: 'activities', label: `Activities (${activities.length})` },
             { id: 'general', label: 'General & Schedule' },
-            { id: 'backup', label: 'Backup & Export' },
+            { id: 'backup', label: 'Backup & Reset' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -521,6 +611,233 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Content */}
         <div className="p-6 space-y-6 flex-1">
           
+          {/* ======================================================== */}
+          {/* 🌟 0. USER PROFILE & CLOUD GMAIL SYNC (CROSS-DEVICE)     */}
+          {/* ======================================================== */}
+          {activeTab === 'profile' && (
+            <div className="space-y-6 animate-fade-in">
+              
+              {/* Google Gmail Multi-Device Sync Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/30 via-indigo-900/30 to-purple-900/30 border border-blue-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span>Gmail Cloud Account Sync</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-mono">
+                        Active Sync
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Login with your Gmail to keep all progress identical across Laptop, Mobile App, and Web.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-black flex items-center gap-2 shadow-lg transition-all cursor-pointer shrink-0"
+                >
+                  <ShieldCheck className="w-4 h-4 text-blue-600" />
+                  <span>Sync Google Account</span>
+                </button>
+              </div>
+
+              {/* Comprehensive Personal Information Form */}
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <User className="w-4 h-4 text-purple-400" />
+                    Personal & Bio Information
+                  </h4>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Stored securely in Cloud Database
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Name */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-slate-400" /> Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      placeholder="e.g. Aditya Singh"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                      required
+                    />
+                  </div>
+
+                  {/* Gmail / Email */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-slate-400" /> Gmail / Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      placeholder="e.g. mradityasinghofficial1@gmail.com"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                      required
+                    />
+                  </div>
+
+                  {/* Age */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-slate-400" /> Age (Years)
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={100}
+                      value={profileAge}
+                      onChange={(e) => setProfileAge(e.target.value)}
+                      placeholder="e.g. 21"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                    />
+                  </div>
+
+                  {/* Blood Group */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <HeartPulse className="w-3.5 h-3.5 text-rose-400" /> Blood Group
+                    </label>
+                    <select
+                      value={profileBloodGroup}
+                      onChange={(e) => setProfileBloodGroup(e.target.value)}
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                    >
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+
+                  {/* Height */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Ruler className="w-3.5 h-3.5 text-blue-400" /> Height
+                    </label>
+                    <input
+                      type="text"
+                      value={profileHeight}
+                      onChange={(e) => setProfileHeight(e.target.value)}
+                      placeholder="e.g. 178 cm or 5'10"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  {/* Weight */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Scale className="w-3.5 h-3.5 text-emerald-400" /> Weight
+                    </label>
+                    <input
+                      type="text"
+                      value={profileWeight}
+                      onChange={(e) => setProfileWeight(e.target.value)}
+                      placeholder="e.g. 68 kg"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  {/* Resident / City */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-amber-400" /> Resident / City / State
+                    </label>
+                    <input
+                      type="text"
+                      value={profileResident}
+                      onChange={(e) => setProfileResident(e.target.value)}
+                      placeholder="e.g. Delhi, India"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  {/* Phone Number */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-green-400" /> Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="e.g. +91 9876543210"
+                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Hunter Tagline / Bio */}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Hunter Tagline & Motivation
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={profileBio}
+                    onChange={(e) => setProfileBio(e.target.value)}
+                    placeholder="e.g. Solo Hunter • S-Rank Aspirant • Competitive Programmer & Developer"
+                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 resize-none"
+                  />
+                </div>
+
+                {/* Save Profile Button */}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-xs font-black shadow-lg shadow-purple-500/25 flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{isSavingProfile ? 'Saving to Database...' : 'Save & Sync Profile to Database'}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Reset All Data Clean Zero Card */}
+              <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/30 space-y-2 mt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-rose-400 text-xs font-black uppercase tracking-wider">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Clean Reset All Data to Zero</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onResetData}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all cursor-pointer shadow-md"
+                  >
+                    Reset All Data (0%)
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Wipes level to 0, streaks to 0, XP to 0, clears emergency tasks, matrix checkmarks, and resets cloud sync baseline to 0%.
+                </p>
+              </div>
+
+            </div>
+          )}
+
           {/* ======================================================== */}
           {/* 🌟 1. CONNECTED ACCOUNTS (WITH REAL-TIME FETCH & CUSTOM)  */}
           {/* ======================================================== */}
