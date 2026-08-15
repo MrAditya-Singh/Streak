@@ -48,6 +48,7 @@ interface SettingsModalProps {
   onToggleActivityStreakInclusion: (id: string) => void;
   onResetData: () => void;
   onSyncActivities?: (updates: { id: string; completed: boolean }[]) => void;
+  onApplyFullSync?: (payload: { habits?: ActivityItem[]; matrixState?: Record<string, boolean[]>; user?: Partial<UserProfile> }) => void;
 }
 
 interface PlatformConfig {
@@ -169,6 +170,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleActivityStreakInclusion,
   onResetData,
   onSyncActivities,
+  onApplyFullSync,
 }) => {
   // Activity creation form state
   const [newActivityName, setNewActivityName] = useState('');
@@ -370,15 +372,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       });
 
       if (backendSync && backendSync.data) {
-        if (backendSync.data.user) {
-          onUpdateUser(backendSync.data.user);
-        }
-        if (backendSync.data.habits && onSyncActivities) {
-          const updates = backendSync.data.habits.map((h: any) => ({
-            id: h.id,
-            completed: h.completed,
-          }));
-          onSyncActivities(updates);
+        if (onApplyFullSync) {
+          onApplyFullSync({
+            habits: backendSync.data.habits,
+            matrixState: backendSync.data.matrixState,
+            user: backendSync.data.user,
+          });
+        } else {
+          if (backendSync.data.user) {
+            onUpdateUser(backendSync.data.user);
+          }
+          if (backendSync.data.habits && onSyncActivities) {
+            const updates = backendSync.data.habits.map((h: any) => ({
+              id: h.id,
+              completed: h.completed,
+            }));
+            onSyncActivities(updates);
+          }
         }
         soundFx.playLevelUp();
         showToast(

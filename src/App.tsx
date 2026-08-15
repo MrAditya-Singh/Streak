@@ -455,6 +455,31 @@ export const App: React.FC = () => {
     setActivities(updatedActivities);
   };
 
+  const handleApplyFullSync = (payload: {
+    habits?: ActivityItem[];
+    matrixState?: Record<string, boolean[]>;
+    user?: Partial<UserProfile>;
+  }) => {
+    if (payload.habits && payload.habits.length > 0) {
+      setActivities(payload.habits);
+      localStorage.setItem('effstreak_activities', JSON.stringify(payload.habits));
+    }
+    if (payload.matrixState && Object.keys(payload.matrixState).length > 0) {
+      setMatrixState((prev) => {
+        const next = { ...prev, ...payload.matrixState };
+        localStorage.setItem('effstreak_matrix_state', JSON.stringify(next));
+        return next;
+      });
+    }
+    if (payload.user) {
+      setUser((prev) => {
+        const next = { ...prev, ...payload.user };
+        localStorage.setItem('effstreak_user', JSON.stringify(next));
+        return next;
+      });
+    }
+  };
+
   const handleAddActivity = (newAct: ActivityItem) => {
     setActivities((prev) => {
       const exists = prev.some((a) => a.id === newAct.id);
@@ -765,6 +790,7 @@ export const App: React.FC = () => {
         onToggleActivityStreakInclusion={handleToggleActivityStreakInclusion}
         onResetData={handleResetData}
         onSyncActivities={handleSyncActivities}
+        onApplyFullSync={handleApplyFullSync}
       />
 
       <AddHabitModal

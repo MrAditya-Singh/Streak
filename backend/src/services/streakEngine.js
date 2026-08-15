@@ -157,10 +157,36 @@ export function evaluateHabitsAndStreaks({
     };
   });
 
-  // 4. Update the 30-Day Monthly Matrix state
+  // 4. Update the 31-Day Monthly Matrix state with real daily activity from platforms
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthNum = now.getMonth() + 1;
+  const currentMonthStr = String(currentMonthNum).padStart(2, '0');
+
   const updatedMatrix = { ...matrixState };
   updatedHabits.forEach((habit) => {
-    const existingRow = updatedMatrix[habit.id] ? [...updatedMatrix[habit.id]] : Array.from({ length: 30 }, () => false);
+    const existingRow = updatedMatrix[habit.id] ? [...updatedMatrix[habit.id]] : Array.from({ length: 31 }, () => false);
+    
+    const sourcePlatform = habit.source?.type || habit.source ||
+      (habit.id.includes('github') ? 'github' :
+       habit.id.includes('leetcode') ? 'leetcode' :
+       habit.id.includes('codeforces') ? 'codeforces' :
+       habit.id.includes('atcoder') ? 'atcoder' :
+       habit.id.includes('gfg') ? 'gfg' :
+       habit.id.includes('hackerrank') ? 'hackerrank' :
+       habit.id.includes('youtube') ? 'youtube' : null);
+
+    if (sourcePlatform && platformMap[sourcePlatform]) {
+      const dailyMap = platformMap[sourcePlatform].dailyActivity || platformMap[sourcePlatform].activity || {};
+      for (let day = 1; day <= 31; day++) {
+        const dayDateStr = `${currentYear}-${currentMonthStr}-${String(day).padStart(2, '0')}`;
+        if ((dailyMap[dayDateStr] || 0) > 0) {
+          existingRow[day - 1] = true;
+        }
+      }
+    }
+
+    // Set today's value
     existingRow[dayIndex] = habit.completed;
     updatedMatrix[habit.id] = existingRow;
   });
