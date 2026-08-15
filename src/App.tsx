@@ -418,22 +418,33 @@ export const App: React.FC = () => {
 
   const addLogEntry = (activityId: string, activityName: string, category: ActivityItem['category'], completed: boolean) => {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setLogs((prev) => [
-      {
-        id: Date.now().toString(),
-        activityId,
-        activityName,
-        category,
-        timeStr,
-        timestamp: Date.now(),
-        completed,
-        source: 'manual',
-      },
-      ...prev.slice(0, 9),
-    ]);
+    setLogs((prev) => {
+      const filtered = prev.filter((l) => l.activityId !== activityId);
+      if (completed) {
+        const nextLogs = [
+          {
+            id: `log_${activityId}_${Date.now()}`,
+            activityId,
+            activityName,
+            category,
+            timeStr,
+            timestamp: Date.now(),
+            completed: true,
+            source: 'manual' as any,
+          },
+          ...filtered,
+        ];
+        localStorage.setItem('effstreak_logs', JSON.stringify(nextLogs));
+        return nextLogs;
+      } else {
+        localStorage.setItem('effstreak_logs', JSON.stringify(filtered));
+        return filtered;
+      }
+    });
   };
 
   const handleSyncActivities = (updates: { id: string; completed: boolean }[]) => {
+    const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const updatedActivitiesList = activities.map((act) => {
       const update = updates.find((u) => u.id === act.id);
       if (update && !act.completed && update.completed) {
@@ -444,7 +455,7 @@ export const App: React.FC = () => {
           completed: true,
           isAutoDetected: true,
           streak: act.streak + 1,
-          completedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          completedAt: nowTimeStr,
         };
       }
       return act;
@@ -460,9 +471,37 @@ export const App: React.FC = () => {
     matrixState?: Record<string, boolean[]>;
     user?: Partial<UserProfile>;
   }) => {
+    const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (payload.habits && payload.habits.length > 0) {
       setActivities(payload.habits);
       localStorage.setItem('effstreak_activities', JSON.stringify(payload.habits));
+
+      setLogs((prevLogs) => {
+        const syncedLogs = [...prevLogs];
+        payload.habits?.forEach((habit) => {
+          if (habit.completed) {
+            const existingIdx = syncedLogs.findIndex((l) => l.activityId === habit.id);
+            const logEntry: ActivityLogEntry = {
+              id: `sync_${habit.id}_${Date.now()}`,
+              activityId: habit.id,
+              activityName: habit.name,
+              category: habit.category,
+              timeStr: habit.completedAt || nowTimeStr,
+              timestamp: Date.now(),
+              completed: true,
+              source: (habit.source || 'manual') as any,
+              isAutoDetected: !!habit.isAutoDetected,
+            };
+            if (existingIdx >= 0) {
+              syncedLogs[existingIdx] = logEntry;
+            } else {
+              syncedLogs.unshift(logEntry);
+            }
+          }
+        });
+        localStorage.setItem('effstreak_logs', JSON.stringify(syncedLogs));
+        return syncedLogs;
+      });
     }
     if (payload.matrixState && Object.keys(payload.matrixState).length > 0) {
       setMatrixState((prev) => {
@@ -752,29 +791,26 @@ export const App: React.FC = () => {
           {showFullWidgetsPanel && (
             <div className="space-y-5 animate-fade-in">
               
-              {/* Today's Plan Checklist + Today's Activity Timeline + Efficiency Gauge Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <TodayPlanCard
-                  activities={activities}
-                  onToggleActivity={handleToggleActivity}
-                  onAddActivity={handleAddActivity}
-                  onDeleteActivity={handleDeleteActivity}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                />
+              {/* Today's Live Activity Timeline (8-col) + Compact Efficiency Gauge (4-col) Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-8">
+                  <TodayActivityTimeline
+                    logs={logs}
+                    activities={activities}
+                    onToggleActivity={handleToggleActivity}
+                    onOpenAll={() => setIsTodayActivityOpen(true)}
+                  />
+                </div>
 
-                <TodayActivityTimeline
-                  logs={logs}
-                  activities={activities}
-                  onOpenAll={() => setIsTodayActivityOpen(true)}
-                />
-
-                <EfficiencyGauge
-                  efficiencyPct={summary.efficiencyPct}
-                  changeFromYesterday={summary.efficiencyChangeFromYesterday}
-                  plannedMinutes={summary.plannedMinutes}
-                  completedMinutes={summary.completedMinutes}
-                  onOpenEfficiencyAnalytics={() => setIsEfficiencyAnalyticsOpen(true)}
-                />
+                <div className="lg:col-span-4">
+                  <EfficiencyGauge
+                    efficiencyPct={summary.efficiencyPct}
+                    changeFromYesterday={summary.efficiencyChangeFromYesterday}
+                    plannedMinutes={summary.plannedMinutes}
+                    completedMinutes={summary.completedMinutes}
+                    onOpenEfficiencyAnalytics={() => setIsEfficiencyAnalyticsOpen(true)}
+                  />
+                </div>
               </div>
 
               {/* Showcase Connected Platform Streak Cards */}
