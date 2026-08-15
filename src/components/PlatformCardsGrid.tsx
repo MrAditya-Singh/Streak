@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityItem } from '../types';
 import { soundFx } from '../utils/audio';
-import { ExternalLink, Flame, CheckCircle2, Globe, Sparkles } from 'lucide-react';
+import { ExternalLink, Flame, CheckCircle2, Sparkles, Zap, ArrowUpRight } from 'lucide-react';
 
 interface PlatformCardsGridProps {
   activities: ActivityItem[];
@@ -10,60 +10,60 @@ interface PlatformCardsGridProps {
 interface PlatformMeta {
   image: string;
   tag: string;
-  badgeBg: string;
-  ringColor: string;
-  bgGradient: string;
-  statsLabel: string;
+  tagBg: string;
+  neonGlow: string;
+  accentColor: string;
+  categoryDesc: string;
 }
 
 const PLATFORM_META: Record<string, PlatformMeta> = {
   leetcode: {
     image: '/images/char_leetcode.jpg',
     tag: '#CODEHUNTER',
-    badgeBg: 'bg-amber-500/15 text-amber-900 border-amber-300 dark:text-amber-300 dark:border-amber-500/30',
-    ringColor: 'ring-amber-400',
-    bgGradient: 'from-amber-500/10 via-white to-orange-500/5',
-    statsLabel: 'Algorithms & Daily POTD',
+    tagBg: 'bg-amber-500/20 text-amber-300 border-amber-400/40 shadow-amber-500/20',
+    neonGlow: 'group-hover:border-amber-400 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.35)]',
+    accentColor: 'text-amber-400',
+    categoryDesc: 'Daily POTD & Problem Solves',
   },
   codeforces: {
     image: '/images/char_codeforces.jpg',
     tag: '#GRANDMASTER',
-    badgeBg: 'bg-blue-500/15 text-blue-900 border-blue-300 dark:text-blue-300 dark:border-blue-500/30',
-    ringColor: 'ring-blue-400',
-    bgGradient: 'from-blue-500/10 via-white to-cyan-500/5',
-    statsLabel: 'Contest Submissions',
+    tagBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40 shadow-cyan-500/20',
+    neonGlow: 'group-hover:border-cyan-400 group-hover:shadow-[0_0_30px_rgba(6,182,212,0.35)]',
+    accentColor: 'text-cyan-400',
+    categoryDesc: 'Contests & Rating Arena',
   },
   gfg: {
     image: '/images/char_gfg.jpg',
     tag: '#DSAEXPERT',
-    badgeBg: 'bg-emerald-500/15 text-emerald-900 border-emerald-300 dark:text-emerald-300 dark:border-emerald-500/30',
-    ringColor: 'ring-emerald-400',
-    bgGradient: 'from-emerald-500/10 via-white to-teal-500/5',
-    statsLabel: 'Practice & POTD Solved',
+    tagBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-emerald-500/20',
+    neonGlow: 'group-hover:border-emerald-400 group-hover:shadow-[0_0_30px_rgba(16,185,129,0.35)]',
+    accentColor: 'text-emerald-400',
+    categoryDesc: 'Practice & Algorithmic Track',
   },
   github: {
     image: '/images/char_github.jpg',
     tag: '#OPENSOURCE',
-    badgeBg: 'bg-purple-500/15 text-purple-900 border-purple-300 dark:text-purple-300 dark:border-purple-500/30',
-    ringColor: 'ring-purple-400',
-    bgGradient: 'from-purple-500/10 via-white to-indigo-500/5',
-    statsLabel: 'Commits & Contributions',
+    tagBg: 'bg-purple-500/20 text-purple-300 border-purple-400/40 shadow-purple-500/20',
+    neonGlow: 'group-hover:border-purple-400 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.35)]',
+    accentColor: 'text-purple-400',
+    categoryDesc: 'Commits & Repo Activity',
   },
   youtube: {
     image: '/images/char_youtube.jpg',
     tag: '#CONTENTKING',
-    badgeBg: 'bg-rose-500/15 text-rose-900 border-rose-300 dark:text-rose-300 dark:border-rose-500/30',
-    ringColor: 'ring-rose-400',
-    bgGradient: 'from-rose-500/10 via-white to-pink-500/5',
-    statsLabel: 'Video Feed & Creator Activity',
+    tagBg: 'bg-rose-500/20 text-rose-300 border-rose-400/40 shadow-rose-500/20',
+    neonGlow: 'group-hover:border-rose-400 group-hover:shadow-[0_0_30px_rgba(244,63,94,0.35)]',
+    accentColor: 'text-rose-400',
+    categoryDesc: 'Video Stream & Feed Updates',
   },
   atcoder: {
     image: '/images/char_hero.jpg',
     tag: '#ATCODER',
-    badgeBg: 'bg-indigo-500/15 text-indigo-900 border-indigo-300 dark:text-indigo-300 dark:border-indigo-500/30',
-    ringColor: 'ring-indigo-400',
-    bgGradient: 'from-indigo-500/10 via-white to-violet-500/5',
-    statsLabel: 'Weekly Contest Solves',
+    tagBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40 shadow-indigo-500/20',
+    neonGlow: 'group-hover:border-indigo-400 group-hover:shadow-[0_0_30px_rgba(99,102,241,0.35)]',
+    accentColor: 'text-indigo-400',
+    categoryDesc: 'Weekly Contest Solves',
   },
 };
 
@@ -87,68 +87,79 @@ export const PlatformCardsGrid: React.FC<PlatformCardsGridProps> = ({ activities
                 window.open(item.url, '_blank');
               }
             }}
-            className={`p-4 rounded-3xl bg-gradient-to-br ${meta.bgGradient} border border-slate-200 hover:border-purple-400 shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col justify-between cursor-pointer relative overflow-hidden`}
+            className={`group relative h-64 sm:h-72 rounded-3xl overflow-hidden border border-slate-700/60 shadow-lg transition-all duration-500 hover:-translate-y-1.5 cursor-pointer select-none ${meta.neonGlow}`}
           >
-            {/* Top Row: Tag Badge + External Launcher */}
-            <div className="flex items-center justify-between mb-3">
-              <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shadow-2xs ${meta.badgeBg}`}>
+            {/* 1. FULL-BLEED BACKGROUND IMAGE WITH ZOOM EFFECT */}
+            <img
+              src={meta.image}
+              alt={item.name}
+              className="absolute inset-0 w-full h-full object-cover object-center transform group-hover:scale-110 transition-transform duration-700 ease-out"
+            />
+
+            {/* 2. CINEMATIC GRADIENT & VIGNETTE OVERLAYS */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#060813] via-[#0b0f19]/60 to-black/30 backdrop-blur-[0.5px] transition-opacity duration-300 group-hover:via-[#0b0f19]/40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
+
+            {/* 3. FLOATING TOP BAR: HOLOGRAPHIC TAG & EXTERNAL LINK */}
+            <div className="relative z-10 p-4 flex items-center justify-between">
+              <span className={`px-3 py-1 rounded-xl text-[10px] font-black tracking-wider uppercase border backdrop-blur-md shadow-md ${meta.tagBg}`}>
                 {meta.tag}
               </span>
 
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 group-hover:text-purple-600 font-bold transition-colors">
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity">Open Profile</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+              <div className="w-8 h-8 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-white/80 group-hover:text-white group-hover:bg-white/20 group-hover:border-white/30 flex items-center justify-center transition-all duration-300 shadow-sm">
+                <ArrowUpRight className="w-4 h-4 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
               </div>
             </div>
 
-            {/* Middle Row: Professionally Framed Picture + Platform Title + Stats */}
-            <div className="flex items-center gap-3.5 my-1">
-              {/* Picture Frame with Glowing Ring */}
-              <div className="relative flex-shrink-0">
-                <div className={`w-14 h-14 rounded-2xl overflow-hidden ring-2 ${meta.ringColor} shadow-md group-hover:scale-105 transition-transform duration-300 bg-slate-900`}>
-                  <img
-                    src={meta.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover object-center"
-                  />
+            {/* 4. BOTTOM FLOATING CONTENT: TITLE, STREAK & LIVE STATUS */}
+            <div className="absolute bottom-0 inset-x-0 p-4 z-10 space-y-2.5">
+              
+              {/* Platform Title + Live Dot */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-lg font-black text-white tracking-wide flex items-center gap-1.5 drop-shadow-md">
+                    <span>{item.name}</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                  </h4>
+                  <p className="text-[11px] font-medium text-slate-300/90 drop-shadow-sm">
+                    {meta.categoryDesc}
+                  </p>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+
+                {/* Cloud Verified Badge */}
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 text-emerald-300 text-[10px] font-bold">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Verified</span>
                 </div>
               </div>
 
-              {/* Title & Stats */}
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-black text-slate-900 group-hover:text-purple-900 transition-colors truncate">
-                  {item.name}
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium truncate">
-                  {meta.statsLabel}
-                </p>
-                <div className="flex items-center gap-1 text-[10px] text-emerald-700 font-bold mt-0.5">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  <span>Cloud Verified</span>
+              {/* Streak Counter & Daily Status Pill */}
+              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                {/* Flame Streak Pill */}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/50 backdrop-blur-md border border-white/15 shadow-inner">
+                  <Flame className={`w-4 h-4 ${item.streak > 0 ? 'text-amber-400 animate-flame' : 'text-slate-400'}`} />
+                  <span className="text-base font-black text-white font-mono leading-none">
+                    {item.streak || 0}
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                    Days
+                  </span>
                 </div>
+
+                {/* Status Indicator */}
+                <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black tracking-wide uppercase border backdrop-blur-md ${
+                  item.completed
+                    ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                    : 'bg-white/10 text-slate-300 border-white/15'
+                }`}>
+                  {item.completed ? '✓ Active Today' : 'Pending Today'}
+                </span>
               </div>
+
             </div>
 
-            {/* Bottom Row: Streak Badge + Activity Status */}
-            <div className="mt-3 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
-              <div className="flex items-center gap-1 text-slate-800">
-                <Flame className={`w-4 h-4 ${item.streak > 0 ? 'text-orange-500 animate-flame' : 'text-slate-400'}`} />
-                <span className="font-mono font-black text-sm">{item.streak || 0}</span>
-                <span className="text-[11px] font-bold text-slate-500">Days</span>
-              </div>
-
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md font-mono ${
-                item.completed
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                  : 'bg-slate-100 text-slate-500'
-              }`}>
-                {item.completed ? '✓ Done Today' : 'Pending Today'}
-              </span>
-            </div>
-
+            {/* 5. TOP SUBTLE NEON LIGHT HIGHLIGHT */}
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
         );
       })}

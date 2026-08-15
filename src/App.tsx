@@ -842,9 +842,6 @@ export const App: React.FC = () => {
                 </div>
                 <PlatformCardsGrid activities={activities} />
               </div>
-
-              {/* Bottom Quick Stats */}
-              <QuickStatsBar summary={summary} user={user} />
             </div>
           )}
         </div>
