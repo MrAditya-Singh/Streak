@@ -135,72 +135,20 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
           </div>
         </div>
 
-        {/* Center Section: Smooth Mountain Continuous Progress Curve Chart */}
+        {/* Center Section: Premium Visual Aesthetic Showcase Banner */}
         <div className="lg:col-span-6 flex flex-col items-center justify-center">
-          <div className="w-full h-28 sm:h-32 relative rounded-2xl overflow-hidden bg-gradient-to-b from-blue-50/60 to-indigo-50/20 dark:from-blue-950/20 dark:to-slate-900/40 border border-blue-100/90 dark:border-blue-900/40 p-2.5 shadow-inner">
-            <svg className="w-full h-full" viewBox="0 0 500 120" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="waveFillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#bfdbfe" stopOpacity="0.85" />
-                  <stop offset="100%" stopColor="#e0e7ff" stopOpacity="0.15" />
-                </linearGradient>
-                <linearGradient id="waveStrokeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#60a5fa" />
-                  <stop offset="40%" stopColor="#818cf8" />
-                  <stop offset="70%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#38bdf8" />
-                </linearGradient>
-              </defs>
-              
-              {/* Smooth mountain wave fill */}
-              <path
-                d="M 0,120 L 0,35 Q 35,10 70,30 T 140,45 T 210,15 T 280,25 T 350,10 T 420,20 Q 460,40 500,120 Z"
-                fill="url(#waveFillGrad)"
-              />
-              
-              {/* Mountain ridge stroke line */}
-              <path
-                d="M 0,35 Q 35,10 70,30 T 140,45 T 210,15 T 280,25 T 350,10 T 420,20 Q 460,40 500,120"
-                fill="none"
-                stroke="url(#waveStrokeGrad)"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-              
-              {/* Peak interactive markers */}
-              <circle
-                cx="70" cy="30" r="4.5"
-                className="fill-blue-500 hover:fill-blue-400 hover:r-6 transition-all cursor-pointer"
-                onMouseEnter={() => setHoveredWavePoint({ x: 70, y: 30, label: 'Week 1 Peak', value: '78.5%' })}
-                onMouseLeave={() => setHoveredWavePoint(null)}
-              />
-              <circle
-                cx="210" cy="15" r="5"
-                className="fill-indigo-500 hover:fill-indigo-400 hover:r-6 transition-all cursor-pointer"
-                onMouseEnter={() => setHoveredWavePoint({ x: 210, y: 15, label: 'Mid-Month Peak', value: '92.0%' })}
-                onMouseLeave={() => setHoveredWavePoint(null)}
-              />
-              <circle
-                cx="350" cy="10" r="5.5"
-                className="fill-purple-500 hover:fill-purple-400 hover:r-6 transition-all cursor-pointer"
-                onMouseEnter={() => setHoveredWavePoint({ x: 350, y: 10, label: 'Monthly High', value: '95.4%' })}
-                onMouseLeave={() => setHoveredWavePoint(null)}
-              />
-            </svg>
-
-            {/* Hover Tooltip on curve */}
-            {hoveredWavePoint && (
-              <div
-                className="absolute px-2.5 py-1 rounded-lg bg-slate-900/90 text-white text-[10px] font-bold border border-slate-700 shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full"
-                style={{ left: `${(hoveredWavePoint.x / 500) * 100}%`, top: `${(hoveredWavePoint.y / 120) * 100}%` }}
-              >
-                {hoveredWavePoint.label}: {hoveredWavePoint.value}
-              </div>
-            )}
-
-            <div className="absolute bottom-2 right-3 text-[10px] font-mono font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-blue-500" />
-              Continuous Consistency Curve • {selectedMonth}
+          <div className="w-full h-28 sm:h-32 relative rounded-2xl overflow-hidden border border-pink-200/70 dark:border-pink-900/40 shadow-sm group">
+            <img
+              src="/images/header_aesthetic.png"
+              alt="Visual Aesthetic Banner"
+              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+            />
+            {/* Subtle Gradient Vignette Overlay for Depth */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+            
+            <div className="absolute bottom-2 right-3 text-[10px] font-mono font-semibold text-white/90 drop-shadow-md flex items-center gap-1.5 bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/15">
+              <Sparkles className="w-3 h-3 text-pink-300 animate-pulse" />
+              <span>Effective Streak • {selectedMonth}</span>
             </div>
           </div>
         </div>
