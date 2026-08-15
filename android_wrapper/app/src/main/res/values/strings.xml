@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Streak</string>
+    <string name="widget_description">Glanceable cross-platform habit streak and efficiency widget</string>
+</resources>

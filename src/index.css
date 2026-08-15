@@ -1,0 +1,187 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0d14;
+  --bg-card: #131822;
+  --bg-card-subtle: rgba(26, 33, 48, 0.6);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(88, 204, 2, 0.4);
+  --duo-green: #58cc02;
+  --duo-green-dark: #46a302;
+  --duo-green-light: #61e002;
+  --streak-orange: #ff5c00;
+  --duo-yellow: #ffc800;
+  --duo-blue: #1cb0f6;
+  --duo-purple: #af4bfb;
+  --duo-red: #ff4b4b;
+  
+  /* Reference UI Pastel Tokens */
+  --pastel-week1: #bfdbfe; /* Sky blue */
+  --pastel-week2: #fbcfe8; /* Pink rose */
+  --pastel-week3: #99f6e4; /* Mint teal */
+  --pastel-week4: #fef08a; /* Yellow butter */
+  --pastel-week5: #e9d5ff; /* Lavender */
+}
+
+.font-serif-title {
+  font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+}
+
+.font-calligraphy {
+  font-family: 'Cormorant Garamond', 'Playfair Display', cursive, serif;
+}
+
+.font-cold {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.font-cold-mono {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.03em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #F7F5F0;
+  color: #0F172A;
+  font-family: 'Plus Jakarta Sans', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 85% 20%, rgba(244, 114, 182, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(20, 184, 166, 0.02) 0%, transparent 50%);
+}
+
+html.dark body {
+  background-color: #0b0e14;
+  color: #f1f5f9;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Glassmorphism Card Style */
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
+  border-radius: 20px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html.dark .glass-card {
+  background: linear-gradient(135deg, rgba(22, 28, 38, 0.95) 0%, rgba(16, 21, 30, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.08);
+}
+
+html.dark .glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 30px -5px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-interactive {
+  cursor: pointer;
+}
+
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(88, 204, 2, 0.35);
+  box-shadow: 0 12px 28px -5px rgba(88, 204, 2, 0.15), 0 0 15px -3px rgba(88, 204, 2, 0.2);
+}
+
+/* Custom Glow Effects */
+.glow-orange-text {
+  text-shadow: 0 0 20px rgba(255, 92, 0, 0.6);
+}
+
+.glow-green-text {
+  text-shadow: 0 0 15px rgba(88, 204, 2, 0.6);
+}
+
+.shadow-glow-green {
+  box-shadow: 0 0 25px -5px rgba(88, 204, 2, 0.4);
+}
+
+.shadow-glow-orange {
+  box-shadow: 0 0 25px -5px rgba(255, 92, 0, 0.4);
+}
+
+.shadow-glow-purple {
+  box-shadow: 0 0 25px -5px rgba(175, 75, 251, 0.4);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232936;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #343d52;
+}
+
+/* Heatmap cell transitions */
+.heatmap-cell {
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.35);
+  z-index: 10;
+  filter: drop-shadow(0 0 6px #58cc02);
+}
+
+/* Animations */
+@keyframes flameJiggle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.08) rotate(-4deg); }
+  75% { transform: scale(1.04) rotate(3deg); }
+}
+
+.animate-flame {
+  animation: flameJiggle 2s infinite ease-in-out;
+  display: inline-block;
+  transform-origin: bottom center;
+}
+
+@keyframes floatBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-mascot {
+  animation: floatBob 3.5s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 8px rgba(88, 204, 2, 0.4)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 18px rgba(88, 204, 2, 0.8)); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
