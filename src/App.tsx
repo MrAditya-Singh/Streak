@@ -791,9 +791,9 @@ export const App: React.FC = () => {
           {showFullWidgetsPanel && (
             <div className="space-y-5 animate-fade-in">
               
-              {/* Today's Live Activity Timeline (8-col) + Compact Efficiency Gauge (4-col) Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                <div className="lg:col-span-8">
+              {/* Today's Live Activity Timeline (7-col) + [Efficiency Gauge + PlanStreakStatsRibbon] (5-col) Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                <div className="lg:col-span-7">
                   <TodayActivityTimeline
                     logs={logs}
                     activities={activities}
@@ -802,7 +802,7 @@ export const App: React.FC = () => {
                   />
                 </div>
 
-                <div className="lg:col-span-4">
+                <div className="lg:col-span-5 space-y-4">
                   <EfficiencyGauge
                     efficiencyPct={summary.efficiencyPct}
                     changeFromYesterday={summary.efficiencyChangeFromYesterday}
@@ -810,8 +810,29 @@ export const App: React.FC = () => {
                     completedMinutes={summary.completedMinutes}
                     onOpenEfficiencyAnalytics={() => setIsEfficiencyAnalyticsOpen(true)}
                   />
+
+                  {/* Placed directly beneath Efficiency Gauge */}
+                  <PlanStreakStatsRibbon
+                    user={user}
+                    totalTasks={activities.length}
+                    completedTasks={activities.filter((a) => a.completed).length}
+                    onFreezeStreak={() => {
+                      if (user.currentXP >= 500) {
+                        setUser((prev) => ({ ...prev, currentXP: prev.currentXP - 500 }));
+                        soundFx.playLevelUp();
+                      }
+                    }}
+                  />
                 </div>
               </div>
+
+              {/* Emergency Directives */}
+              <EmergencyWorkCard
+                tasks={emergencyTasks}
+                onAddTask={handleAddEmergencyTask}
+                onCompleteTask={handleCompleteEmergencyTask}
+                onDeleteTask={handleDeleteEmergencyTask}
+              />
 
               {/* Showcase Connected Platform Streak Cards */}
               <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm">
@@ -820,27 +841,6 @@ export const App: React.FC = () => {
                   Connected Competitive Platforms & Streaks
                 </div>
                 <PlatformCardsGrid activities={activities} />
-              </div>
-
-              {/* Emergency Directives & Plan Ribbon */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <EmergencyWorkCard
-                  tasks={emergencyTasks}
-                  onAddTask={handleAddEmergencyTask}
-                  onCompleteTask={handleCompleteEmergencyTask}
-                  onDeleteTask={handleDeleteEmergencyTask}
-                />
-
-                <PlanStreakStatsRibbon
-                  user={user}
-                  totalTasks={activities.length}
-                  completedTasks={activities.filter((a) => a.completed).length}
-                  onFreezeStreak={() => {
-                    if (user.currentXP >= 500) {
-                      setUser((prev) => ({ ...prev, currentXP: prev.currentXP - 500 }));
-                    }
-                  }}
-                />
               </div>
 
               {/* Activity Heatmap Grid */}
