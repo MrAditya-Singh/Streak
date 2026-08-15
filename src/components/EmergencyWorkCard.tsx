@@ -9,7 +9,9 @@ import {
   Sparkles, 
   ShieldAlert, 
   Trash2, 
-  Zap 
+  Zap,
+  Flame,
+  Check
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -66,12 +68,12 @@ export const EmergencyWorkCard: React.FC<EmergencyWorkCardProps> = ({
     setTimeout(() => {
       onCompleteTask(task.id);
       setCompletingId(null);
-    }, 700);
+    }, 500);
   };
 
   const formatRemainingTime = (deadlineAt: number) => {
     const diffMs = deadlineAt - now;
-    if (diffMs <= 0) return { text: '🚨 Expired / Critical', isExpired: true };
+    if (diffMs <= 0) return { text: '🚨 Expired', isExpired: true };
 
     const hours = Math.floor(diffMs / (3600 * 1000));
     const mins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
@@ -85,24 +87,25 @@ export const EmergencyWorkCard: React.FC<EmergencyWorkCardProps> = ({
   };
 
   return (
-    <div className="relative rounded-3xl p-5 md:p-6 transition-all duration-300 border bg-[#FFF1F2] border-rose-200 shadow-sm overflow-hidden">
-      {/* Header Bar */}
-      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-600 flex items-center justify-center shadow-md shadow-rose-600/20">
-            <ShieldAlert className="w-5 h-5 text-white" />
+    <div className="rounded-3xl p-4 sm:p-5 transition-all duration-300 border bg-gradient-to-r from-rose-50/80 via-white to-rose-50/50 border-rose-200 shadow-sm">
+      
+      {/* Compact Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3.5 pb-2.5 border-b border-rose-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-md shadow-rose-600/20">
+            <ShieldAlert className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-black tracking-wide text-rose-900 flex items-center gap-2">
-                EMERGENCY WORK
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-200 text-rose-900 border border-rose-300">
-                24-48H DIRECTIVE
+              <h3 className="text-xs font-black uppercase tracking-wider text-rose-900 flex items-center gap-1.5">
+                Emergency Directives
+              </h3>
+              <span className="px-2 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+                24-48H Fast Track
               </span>
             </div>
-            <p className="text-xs text-slate-600 font-medium">
-              Urgent tasks with countdown timers • <span className="text-amber-700 font-bold">+5 XP reward</span> on finish • <span className="text-slate-500">No streaks</span>
+            <p className="text-[11px] text-slate-500 font-medium">
+              Urgent tasks with countdowns • <span className="text-amber-700 font-bold">+5 XP on finish</span>
             </p>
           </div>
         </div>
@@ -110,10 +113,10 @@ export const EmergencyWorkCard: React.FC<EmergencyWorkCardProps> = ({
         {/* Action: Add Emergency Work */}
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-xs cursor-pointer active:scale-95"
         >
           {isAdding ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-          {isAdding ? 'Cancel' : '+ Add Emergency Work'}
+          <span>{isAdding ? 'Cancel' : '+ Add Directive'}</span>
         </button>
       </div>
 
@@ -121,194 +124,138 @@ export const EmergencyWorkCard: React.FC<EmergencyWorkCardProps> = ({
       {isAdding && (
         <form
           onSubmit={handleCreateTask}
-          className="relative z-10 mb-4 p-4 rounded-2xl bg-white border border-rose-200 space-y-3 shadow-sm"
+          className="mb-3.5 p-3.5 rounded-2xl bg-white border border-rose-200 space-y-2.5 shadow-sm animate-fade-in"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase text-rose-900 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-500" /> Deploy Emergency Directive
+            <span className="text-[11px] font-black uppercase text-rose-900 flex items-center gap-1">
+              <Zap className="w-3 h-3 text-amber-500" /> Deploy Fast Directive
             </span>
-            <span className="text-[11px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+            <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.2 rounded border border-amber-200">
               Reward: +5 XP
             </span>
           </div>
 
-          <div>
-            <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-              Emergency Task Name *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Submit urgent assignment, Resolve critical server bug..."
-              value={taskTitle}
-              onChange={(e) => setTaskTitle(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl text-sm font-semibold bg-slate-50 border border-slate-200 text-[#0f172a] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
-              autoFocus
-            />
-          </div>
+          <input
+            type="text"
+            required
+            placeholder="Directive title (e.g. Submit Project / Assignment Report)"
+            value={taskTitle}
+            onChange={(e) => setTaskTitle(e.target.value)}
+            className="w-full px-3 py-2 text-xs bg-slate-50 border border-rose-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-rose-500"
+          />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                Time Limit (24 - 48 Hours)
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDeadlineHours(24)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
-                    deadlineHours === 24
-                      ? 'bg-rose-600 text-white border-rose-500 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" /> 24 Hours
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeadlineHours(48)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border cursor-pointer ${
-                    deadlineHours === 48
-                      ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" /> 48 Hours
-                </button>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-600">Deadline:</span>
+              <button
+                type="button"
+                onClick={() => setDeadlineHours(24)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                  deadlineHours === 24 ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-700 border-slate-200'
+                }`}
+              >
+                24 Hours
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeadlineHours(48)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
+                  deadlineHours === 48 ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-700 border-slate-200'
+                }`}
+              >
+                48 Hours
+              </button>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                Priority Rating (1 - 5)
-              </label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[1, 2, 3, 4, 5].map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setPriority(lvl)}
-                    className={`py-2 rounded-xl text-xs font-black transition-all border cursor-pointer ${
-                      priority === lvl
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {lvl === 5 ? '🔥5' : lvl}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setIsAdding(false)}
-              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
-            >
-              Cancel
-            </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl text-xs font-black uppercase text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
-              + Deploy Task (+5 XP)
+              Deploy Directive
             </button>
           </div>
         </form>
       )}
 
-      {/* Task List */}
-      <div className="relative z-10 space-y-2.5">
+      {/* Compact Directives Task List */}
+      <div className="space-y-2">
         {tasks.length === 0 ? (
-          <div className="text-center py-6 px-4 rounded-2xl border border-dashed border-rose-300 bg-white/70">
-            <ShieldAlert className="w-7 h-7 text-rose-500 mx-auto mb-1.5" />
-            <p className="text-xs font-bold text-slate-800">No Active Emergency Directives</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Add time-sensitive (24-48h) emergency tasks whenever urgent duties arise.
-            </p>
+          <div className="text-center py-4 bg-white/70 rounded-2xl border border-rose-100">
+            <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1 opacity-70" />
+            <p className="text-xs font-bold text-slate-600">No emergency tasks pending</p>
+            <p className="text-[10px] text-slate-400">All fast-track directives cleared.</p>
           </div>
         ) : (
           tasks.map((task) => {
             const timeInfo = formatRemainingTime(task.deadlineAt);
-            const isCompleting = completingId === task.id;
+            const isDone = completingId === task.id;
 
             return (
               <div
                 key={task.id}
-                className={`group relative rounded-2xl p-3.5 transition-all duration-300 border ${
-                  isCompleting
-                    ? 'scale-95 opacity-0 bg-emerald-100 border-emerald-400'
-                    : 'bg-white border-rose-150 hover:border-rose-300 shadow-xs'
+                className={`p-3 rounded-2xl bg-white border border-rose-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all shadow-2xs hover:border-rose-300 ${
+                  isDone ? 'scale-98 opacity-50 bg-emerald-50' : ''
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  {/* Left: Urgency Icon + Title + Tags */}
-                  <div className="flex items-start gap-2.5 flex-1">
-                    <div className="mt-0.5 w-7 h-7 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center flex-shrink-0">
-                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
-                    </div>
-
-                    <div className="space-y-0.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-xs font-bold text-[#0f172a] group-hover:text-rose-700 transition-colors">
-                          {task.title}
-                        </span>
-
-                        <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase bg-rose-100 text-rose-900 border border-rose-200">
-                          {task.deadlineHours}H LIMIT
-                        </span>
-
-                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${
-                          task.priority >= 4
-                            ? 'bg-red-100 text-red-900 border border-red-200'
-                            : 'bg-amber-100 text-amber-900 border border-amber-200'
-                        }`}>
-                          P{task.priority}
-                        </span>
-
-                        <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200 flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5" /> +5 XP
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-500">
-                        <Clock className="w-3 h-3 text-amber-600" />
-                        <span className={timeInfo.isExpired ? 'text-red-600 font-bold' : 'text-amber-700 font-bold'}>
-                          {timeInfo.text}
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-slate-400 text-[10px]">No streak count</span>
-                      </div>
-                    </div>
+                {/* Left: Task Name + Priority + Time pill */}
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-3.5 h-3.5" />
                   </div>
 
-                  {/* Right Actions */}
-                  <div className="flex items-center gap-2 self-end sm:self-center">
-                    <button
-                      onClick={() => handleComplete(task)}
-                      disabled={isCompleting}
-                      className="px-3 py-1.5 rounded-xl font-black text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      {isCompleting ? 'Claiming...' : 'Done (+5 XP)'}
-                    </button>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900">
+                        {task.title}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-100 text-rose-800">
+                        {task.tag || '24H LIMIT'}
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600">
+                        P{task.priority || 5}
+                      </span>
+                    </div>
 
-                    <button
-                      onClick={() => onDeleteTask(task.id)}
-                      title="Remove Emergency Task"
-                      className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-medium">
+                      <span className={`flex items-center gap-1 font-mono font-bold ${
+                        timeInfo.isExpired ? 'text-rose-600' : 'text-amber-700'
+                      }`}>
+                        <Clock className="w-3 h-3" />
+                        {timeInfo.text}
+                      </span>
+                      <span>•</span>
+                      <span className="text-emerald-700 font-bold font-mono">+{task.xpReward || 5} XP</span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Right: Quick Done Action + Delete */}
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <button
+                    onClick={() => handleComplete(task)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Done (+5 XP)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      soundFx.playClick();
+                      onDeleteTask(task.id);
+                    }}
+                    title="Dismiss directive"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
     </div>
   );
 };

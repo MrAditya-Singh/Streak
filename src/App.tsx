@@ -843,9 +843,6 @@ export const App: React.FC = () => {
                 <PlatformCardsGrid activities={activities} />
               </div>
 
-              {/* Activity Heatmap Grid */}
-              <ActivityHeatmap data={heatmapData} />
-
               {/* Bottom Quick Stats */}
               <QuickStatsBar summary={summary} user={user} />
             </div>
