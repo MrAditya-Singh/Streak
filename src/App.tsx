@@ -38,6 +38,7 @@ import { SoloLevelingModal } from './components/SoloLevelingModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TodayActivityModal } from './components/TodayActivityModal';
 import { EfficiencyAnalyticsModal } from './components/EfficiencyAnalyticsModal';
+import { AddHabitModal } from './components/AddHabitModal';
 import { AuthModal } from './components/AuthModal';
 import { ChevronDown, ChevronUp, Sparkles, LayoutGrid, Layers } from 'lucide-react';
 
@@ -116,6 +117,7 @@ export const App: React.FC = () => {
   const [isEfficiencyAnalyticsOpen, setIsEfficiencyAnalyticsOpen] = useState(false);
   const [isEmergencyWorkOpen, setIsEmergencyWorkOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -617,7 +619,7 @@ export const App: React.FC = () => {
           activities={activities}
           matrixState={matrixState}
           onToggleMatrixCell={handleToggleMatrixCell}
-          onAddHabit={() => setIsSettingsOpen(true)}
+          onAddHabit={() => setIsAddHabitOpen(true)}
           onDeleteHabit={handleDeleteActivity}
           isDarkMode={isDarkMode}
           daysInMonth={daysInMonth}
@@ -763,6 +765,13 @@ export const App: React.FC = () => {
         onToggleActivityStreakInclusion={handleToggleActivityStreakInclusion}
         onResetData={handleResetData}
         onSyncActivities={handleSyncActivities}
+      />
+
+      <AddHabitModal
+        isOpen={isAddHabitOpen}
+        onClose={() => setIsAddHabitOpen(false)}
+        onAddHabit={handleAddActivity}
+        isDarkMode={isDarkMode}
       />
 
       <AuthModal
