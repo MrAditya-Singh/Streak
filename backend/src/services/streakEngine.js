@@ -162,6 +162,7 @@ export function evaluateHabitsAndStreaks({
   const currentYear = now.getFullYear();
   const currentMonthNum = now.getMonth() + 1;
   const currentMonthStr = String(currentMonthNum).padStart(2, '0');
+  const todayDay = now.getDate();
 
   const updatedMatrix = { ...matrixState };
   updatedHabits.forEach((habit) => {
@@ -178,11 +179,12 @@ export function evaluateHabitsAndStreaks({
 
     if (sourcePlatform && platformMap[sourcePlatform]) {
       const dailyMap = platformMap[sourcePlatform].dailyActivity || platformMap[sourcePlatform].activity || {};
-      for (let day = 1; day <= 31; day++) {
+      
+      // Strict synchronization: Tick if work done (> 0), Uncheck if no work done (== 0)
+      for (let day = 1; day <= todayDay; day++) {
         const dayDateStr = `${currentYear}-${currentMonthStr}-${String(day).padStart(2, '0')}`;
-        if ((dailyMap[dayDateStr] || 0) > 0) {
-          existingRow[day - 1] = true;
-        }
+        const count = dailyMap[dayDateStr] || 0;
+        existingRow[day - 1] = count > 0;
       }
     }
 
