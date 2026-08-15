@@ -56,7 +56,26 @@ export async function fetchGitHubData(rawInput, customToken) {
       avatarUrl = uData.avatar_url || avatarUrl;
     }
 
-    // 2. Fetch public events timeline for daily activity
+    // 2. Fetch full GitHub contribution calendar (365 days of true daily commits)
+    try {
+      const calRes = await fetch(`https://github-contributions-api.jogruber.de/v4/${encodeURIComponent(username)}?y=last`, {
+        signal: AbortSignal.timeout(6000),
+      });
+      if (calRes.ok) {
+        const calData = await calRes.json();
+        if (Array.isArray(calData.contributions)) {
+          calData.contributions.forEach((dayItem) => {
+            if (dayItem.date && dayItem.count > 0) {
+              dailyActivity[dayItem.date] = dayItem.count;
+            }
+          });
+        }
+      }
+    } catch (calErr) {
+      console.warn(`[GitHub Adapter] Contribution calendar notice: ${calErr.message}`);
+    }
+
+    // 3. Fetch public events timeline for real-time push & PR timestamps
     const eventsRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`, {
       headers: getHeaders(customToken),
       signal: AbortSignal.timeout(6000),

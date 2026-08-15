@@ -91,18 +91,31 @@ export function evaluateHabitsAndStreaks({
   const updatedHabits = habits.map((habit) => {
     let isAutoCompleted = false;
     let externalEventCount = 0;
+    const nameLower = (habit.name || '').toLowerCase();
+    const idLower = (habit.id || '').toLowerCase();
+    const rawSource = (typeof habit.source === 'string' ? habit.source : habit.source?.type) || '';
+    const srcLower = rawSource.toLowerCase();
 
-    const sourcePlatform = habit.source?.type || habit.source ||
-      (habit.id.includes('github') ? 'github' :
-       habit.id.includes('leetcode') ? 'leetcode' :
-       habit.id.includes('codeforces') ? 'codeforces' :
-       habit.id.includes('atcoder') ? 'atcoder' :
-       habit.id.includes('gfg') ? 'gfg' :
-       habit.id.includes('hackerrank') ? 'hackerrank' :
-       habit.id.includes('youtube') ? 'youtube' : null);
+    let sourcePlatform = null;
+    if (srcLower.includes('github') || idLower.includes('github') || nameLower.includes('github')) {
+      sourcePlatform = 'github';
+    } else if (srcLower.includes('leetcode') || idLower.includes('leetcode') || nameLower.includes('leetcode')) {
+      sourcePlatform = 'leetcode';
+    } else if (srcLower.includes('codeforces') || idLower.includes('codeforces') || nameLower.includes('codeforces')) {
+      sourcePlatform = 'codeforces';
+    } else if (srcLower.includes('atcoder') || idLower.includes('atcoder') || nameLower.includes('atcoder')) {
+      sourcePlatform = 'atcoder';
+    } else if (srcLower.includes('gfg') || srcLower.includes('geeks') || idLower.includes('gfg') || nameLower.includes('gfg') || nameLower.includes('geeksforgeeks')) {
+      sourcePlatform = 'gfg';
+    } else if (srcLower.includes('hackerrank') || idLower.includes('hackerrank') || nameLower.includes('hackerrank')) {
+      sourcePlatform = 'hackerrank';
+    } else if (srcLower.includes('youtube') || idLower.includes('youtube') || nameLower.includes('youtube')) {
+      sourcePlatform = 'youtube';
+    }
 
-    if (sourcePlatform && platformMap[sourcePlatform]) {
-      const pData = platformMap[sourcePlatform];
+    const pData = sourcePlatform ? (platformMap[sourcePlatform] || (sourcePlatform === 'gfg' ? platformMap['geeksforgeeks'] : null)) : null;
+
+    if (pData) {
       const todayCount = pData.dailyActivity?.[todayStr] || pData.activity?.[todayStr] || (pData.hasActivityToday ? 1 : 0);
       const minRequired = habit.source?.minimumActivity || 1;
 
@@ -131,21 +144,12 @@ export function evaluateHabitsAndStreaks({
         eventCount: externalEventCount,
         xpAwarded: reward,
         syncedAt: new Date().toISOString(),
+        completedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        verified: true,
       });
     }
 
-    // Determine habit-specific streak
-    let habitStreak = habit.streak || 0;
-    if (sourcePlatform && platformStreaks[sourcePlatform] !== undefined) {
-      habitStreak = Math.max(habitStreak, platformStreaks[sourcePlatform]);
-    } else {
-      const habitRow = matrixState[habit.id] ? [...matrixState[habit.id]] : Array.from({ length: 30 }, () => false);
-      habitRow[dayIndex] = isNowCompleted;
-      const calculated = isNowCompleted
-        ? calculateConsecutiveStreak(habitRow.slice(0, dayIndex + 1))
-        : calculateConsecutiveStreak(habitRow.slice(0, dayIndex));
-      habitStreak = Math.max(habitStreak, calculated);
-    }
+    const habitStreak = habit.streak || (isNowCompleted ? 1 : 0);
 
     return {
       ...habit,
@@ -168,17 +172,32 @@ export function evaluateHabitsAndStreaks({
   updatedHabits.forEach((habit) => {
     const existingRow = updatedMatrix[habit.id] ? [...updatedMatrix[habit.id]] : Array.from({ length: 31 }, () => false);
     
-    const sourcePlatform = habit.source?.type || habit.source ||
-      (habit.id.includes('github') ? 'github' :
-       habit.id.includes('leetcode') ? 'leetcode' :
-       habit.id.includes('codeforces') ? 'codeforces' :
-       habit.id.includes('atcoder') ? 'atcoder' :
-       habit.id.includes('gfg') ? 'gfg' :
-       habit.id.includes('hackerrank') ? 'hackerrank' :
-       habit.id.includes('youtube') ? 'youtube' : null);
+    const nameLower = (habit.name || '').toLowerCase();
+    const idLower = (habit.id || '').toLowerCase();
+    const rawSource = (typeof habit.source === 'string' ? habit.source : habit.source?.type) || '';
+    const srcLower = rawSource.toLowerCase();
 
-    if (sourcePlatform && platformMap[sourcePlatform]) {
-      const dailyMap = platformMap[sourcePlatform].dailyActivity || platformMap[sourcePlatform].activity || {};
+    let sourcePlatform = null;
+    if (srcLower.includes('github') || idLower.includes('github') || nameLower.includes('github')) {
+      sourcePlatform = 'github';
+    } else if (srcLower.includes('leetcode') || idLower.includes('leetcode') || nameLower.includes('leetcode')) {
+      sourcePlatform = 'leetcode';
+    } else if (srcLower.includes('codeforces') || idLower.includes('codeforces') || nameLower.includes('codeforces')) {
+      sourcePlatform = 'codeforces';
+    } else if (srcLower.includes('atcoder') || idLower.includes('atcoder') || nameLower.includes('atcoder')) {
+      sourcePlatform = 'atcoder';
+    } else if (srcLower.includes('gfg') || srcLower.includes('geeks') || idLower.includes('gfg') || nameLower.includes('gfg') || nameLower.includes('geeksforgeeks')) {
+      sourcePlatform = 'gfg';
+    } else if (srcLower.includes('hackerrank') || idLower.includes('hackerrank') || nameLower.includes('hackerrank')) {
+      sourcePlatform = 'hackerrank';
+    } else if (srcLower.includes('youtube') || idLower.includes('youtube') || nameLower.includes('youtube')) {
+      sourcePlatform = 'youtube';
+    }
+
+    const pData = sourcePlatform ? (platformMap[sourcePlatform] || (sourcePlatform === 'gfg' ? platformMap['geeksforgeeks'] : null)) : null;
+
+    if (pData) {
+      const dailyMap = pData.dailyActivity || pData.activity || {};
       
       // Strict synchronization: Tick if work done (> 0), Uncheck if no work done (== 0)
       for (let day = 1; day <= todayDay; day++) {
