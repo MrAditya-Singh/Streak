@@ -135,19 +135,32 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
           </div>
         </div>
 
-        {/* Center Section: Premium Visual Aesthetic Showcase Banner */}
+        {/* Center Section: Premium Visual Aesthetic Showcase Banner (Expanded & Enhanced) */}
         <div className="lg:col-span-6 flex flex-col items-center justify-center">
-          <div className="w-full h-28 sm:h-32 relative rounded-2xl overflow-hidden border border-pink-200/70 dark:border-pink-900/40 shadow-sm group">
+          <div className="w-full h-40 sm:h-44 md:h-48 relative rounded-3xl overflow-hidden border-2 border-purple-400/30 dark:border-purple-500/40 shadow-xl shadow-purple-500/10 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)] group transition-all duration-500 hover:shadow-purple-500/25">
+            
+            {/* Top Ambient Glow Edge */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-pink-400 to-transparent z-10 opacity-75" />
+
             <img
               src="/images/header_aesthetic.png"
               alt="Visual Aesthetic Banner"
-              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+              className="w-full h-full object-cover object-[center_30%] group-hover:scale-105 transition-transform duration-700 ease-out"
             />
-            {/* Subtle Gradient Vignette Overlay for Depth */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
             
-            <div className="absolute bottom-2 right-3 text-[10px] font-mono font-semibold text-white/90 drop-shadow-md flex items-center gap-1.5 bg-black/50 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/15">
-              <Sparkles className="w-3 h-3 text-pink-300 animate-pulse" />
+            {/* Cinematic Gradient Vignette Overlay for Crisp Contrast */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-950/20 via-transparent to-pink-950/20 pointer-events-none" />
+            
+            {/* Top Left Squad Badge */}
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 shadow-md">
+              <span className="w-2 h-2 rounded-full bg-pink-400 animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-pink-200">Hunter Squad</span>
+            </div>
+
+            {/* Bottom Right Floating Badge */}
+            <div className="absolute bottom-3 right-3 z-10 text-[11px] font-mono font-bold text-white drop-shadow-lg flex items-center gap-2 bg-black/60 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/20 shadow-lg">
+              <Sparkles className="w-3.5 h-3.5 text-pink-300 animate-pulse" />
               <span>Effective Streak • {selectedMonth}</span>
             </div>
           </div>
