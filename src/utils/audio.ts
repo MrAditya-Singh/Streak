@@ -12,6 +12,11 @@ class SoundManager {
     this.enabled = val;
   }
 
+  public toggleSound(): boolean {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+
   public isEnabled(): boolean {
     return this.enabled;
   }

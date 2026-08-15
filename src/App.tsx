@@ -42,7 +42,18 @@ import { AuthModal } from './components/AuthModal';
 import { DesktopFloatingWidget } from './components/DesktopFloatingWidget';
 import { ChevronDown, ChevronUp, Sparkles, LayoutGrid, Layers } from 'lucide-react';
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export const App: React.FC = () => {
+  const realNow = new Date();
+  const currentRealMonth = MONTH_NAMES[realNow.getMonth()];
+  const currentRealYear = realNow.getFullYear();
+  const todayDayNumber = realNow.getDate();
+  const currentDayIndex = todayDayNumber - 1;
+
   // Main persistent state
   const [user, setUser] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('effstreak_user');
@@ -68,25 +79,30 @@ export const App: React.FC = () => {
   const [history, setHistory] = useState<HistoricalDayRecord[]>(() => generateHistoricalRecords(30));
   const [heatmapData, setHeatmapData] = useState<HeatmapDay[]>(() => generateHeatmapData(90));
 
-  // Month & Year state
-  const [selectedMonth, setSelectedMonth] = useState<string>('June');
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  // Dynamic Month & Year state synced to real-time date
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentRealMonth);
+  const [selectedYear, setSelectedYear] = useState<number>(currentRealYear);
   const [showFullWidgetsPanel, setShowFullWidgetsPanel] = useState<boolean>(true);
 
-  // 30-Day Monthly Habit Checkbox Matrix state
+  // Dynamic days in selected month
+  const daysInMonth = useMemo(() => {
+    const mIdx = MONTH_NAMES.indexOf(selectedMonth);
+    return new Date(selectedYear, mIdx !== -1 ? mIdx + 1 : 8, 0).getDate();
+  }, [selectedMonth, selectedYear]);
+
+  // 30-31 Day Monthly Habit Checkbox Matrix state
   const [matrixState, setMatrixState] = useState<Record<string, boolean[]>>(() => {
     const saved = localStorage.getItem('streak_monthly_matrix');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { /* fallback */ }
     }
-    // Seed matrix realistically
     const initial: Record<string, boolean[]> = {};
     INITIAL_ACTIVITIES.forEach((act, actIdx) => {
-      initial[act.id] = Array.from({ length: 30 }, (_, dayIdx) => {
+      initial[act.id] = Array.from({ length: 31 }, (_, dayIdx) => {
         const dayNum = dayIdx + 1;
-        if (dayNum === 15) return act.completed;
+        if (dayNum === todayDayNumber) return act.completed;
         const seed = (actIdx * 19 + dayNum * 23) % 100;
-        return seed > 35;
+        return seed > 40;
       });
     });
     return initial;
@@ -107,7 +123,6 @@ export const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   useEffect(() => {
-    // Enforce pure light mode by default
     document.documentElement.classList.remove('dark');
     document.documentElement.classList.add('light');
     if (isDarkMode) {
@@ -152,7 +167,7 @@ export const App: React.FC = () => {
 
   // ⚡ 2-WAY INSTANT REAL-TIME SYNC LISTENER (Mobile ⇄ Laptop)
   useEffect(() => {
-    const userId = user.uid || 'local_user_1';
+    const userId = user.uid || 'aditya-singh';
     let eventSource: EventSource | null = null;
 
     try {
@@ -179,126 +194,117 @@ export const App: React.FC = () => {
               })
             );
 
-            // 2. Update today's cell (Day 15) in 30-day matrix
+            // 2. Update today's cell in monthly matrix
             setMatrixState((prev) => {
-              const currentDays = prev[habitId] || Array.from({ length: 30 }, () => false);
+              const currentDays = prev[habitId] || Array.from({ length: daysInMonth }, () => false);
               const updatedDays = [...currentDays];
-              updatedDays[14] = completed;
+              updatedDays[currentDayIndex] = completed;
               return { ...prev, [habitId]: updatedDays };
             });
 
-            // 3. Play audio effect
             if (completed) {
               soundFx.playCheck();
-            }
-          } else if (data.type === 'STATE_UPDATED' || data.type === 'INIT_STATE') {
-            if (data.state?.user) {
-              setUser((prev) => ({
-                ...prev,
-                currentXP: data.state.user.currentXP ?? prev.currentXP,
-                level: data.state.user.level ?? prev.level,
-                overallStreak: data.state.user.overallStreak ?? prev.overallStreak,
-              }));
+            } else {
+              soundFx.playUncheck();
             }
           }
-        } catch (err) {
-          console.warn('SSE message parsing error:', err);
+        } catch (e) {
+          console.warn('Live SSE parse error:', e);
         }
       };
 
       eventSource.onerror = () => {
-        // Auto-reconnect managed by browser EventSource
+        if (eventSource) eventSource.close();
       };
     } catch (err) {
-      console.warn('EventSource initialization error:', err);
+      console.warn('Live SSE connection warning:', err);
     }
 
     return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
+      if (eventSource) eventSource.close();
     };
-  }, [user.uid]);
+  }, [user.uid, daysInMonth, currentDayIndex]);
 
-  // Derived calculations
-  const summary = calculateSummary(activities);
+  // Calculations
+  const summary = useMemo(() => calculateSummary(activities), [activities]);
+  const analytics = useMemo(() => calculateAnalytics(history, activities), [history, activities]);
 
-  // Computed matrix metrics (Weekly & Monthly)
-  const daysInMonth = 30;
-
-  const totalPossibleMonthHabits = activities.length * daysInMonth;
+  // Monthly Matrix Metrics
+  const totalMonthHabits = activities.length * daysInMonth;
   const completedMonthHabits = useMemo(() => {
     return activities.reduce((acc, act) => {
       const days = matrixState[act.id] || [];
-      return acc + days.filter(Boolean).length;
+      return acc + days.slice(0, daysInMonth).filter(Boolean).length;
     }, 0);
-  }, [activities, matrixState]);
+  }, [activities, matrixState, daysInMonth]);
 
-  const dailyProgressPct = totalPossibleMonthHabits > 0 
-    ? (completedMonthHabits / totalPossibleMonthHabits) * 100 
-    : 55.71;
+  const dailyProgressPct = useMemo(() => {
+    if (activities.length === 0) return 0;
+    const doneToday = activities.filter((a) => a.completed).length;
+    return (doneToday / activities.length) * 100;
+  }, [activities]);
 
-  // 30 Daily columns data for bar charts
+  // 31-Day Bar Chart Data for WeeklyConsistencyOverview
   const daysData = useMemo(() => {
-    return Array.from({ length: daysInMonth }, (_, dayIdx) => {
-      const day = dayIdx + 1;
-      let completedOnDay = 0;
+    return Array.from({ length: daysInMonth }, (_, idx) => {
+      const dayNum = idx + 1;
+      let completedInDay = 0;
       activities.forEach((act) => {
         const days = matrixState[act.id] || [];
-        if (days[dayIdx]) completedOnDay++;
+        if (days[idx]) completedInDay++;
       });
-      const total = activities.length || 1;
-      const percentage = Math.round((completedOnDay / total) * 100);
-
-      // Week Index: 1 (1-7), 2 (8-14), 3 (15-21), 4 (22-28), 5 (29-30)
-      const weekIndex = day <= 7 ? 1 : day <= 14 ? 2 : day <= 21 ? 3 : day <= 28 ? 4 : 5;
+      const total = activities.length;
+      const percentage = total > 0 ? (completedInDay / total) * 100 : 0;
+      const weekIndex = Math.min(5, Math.ceil(dayNum / 7));
 
       return {
-        day,
+        day: dayNum,
         percentage,
-        count: completedOnDay,
+        count: completedInDay,
         total,
         weekIndex,
       };
     });
-  }, [activities, matrixState]);
+  }, [activities, matrixState, daysInMonth]);
 
-  // 5 Weekly Circular Efficiency Summaries
+  // 5-Week Summary Gauges for WeeklyConsistencyOverview
   const weeksSummary = useMemo(() => {
     const weekConfigs = [
-      { week: 1, start: 1, end: 7, color: '#3B82F6', borderColor: 'border-blue-400', bgLight: 'bg-blue-50' },
-      { week: 2, start: 8, end: 14, color: '#EC4899', borderColor: 'border-pink-400', bgLight: 'bg-pink-50' },
-      { week: 3, start: 15, end: 21, color: '#14B8A6', borderColor: 'border-teal-400', bgLight: 'bg-teal-50' },
-      { week: 4, start: 22, end: 28, color: '#F59E0B', borderColor: 'border-amber-400', bgLight: 'bg-amber-50' },
-      { week: 5, start: 29, end: 30, color: '#A855F7', borderColor: 'border-purple-400', bgLight: 'bg-purple-50' },
+      { week: 1, color: '#3B82F6', borderColor: '#2563EB', bgLight: 'bg-[#BFDBFE]' },
+      { week: 2, color: '#EC4899', borderColor: '#DB2777', bgLight: 'bg-[#FBCFE8]' },
+      { week: 3, color: '#0D9488', borderColor: '#0F766E', bgLight: 'bg-[#99F6E4]' },
+      { week: 4, color: '#F59E0B', borderColor: '#D97706', bgLight: 'bg-[#FEF08A]' },
+      { week: 5, color: '#9333EA', borderColor: '#7E22CE', bgLight: 'bg-[#E9D5FF]' },
     ];
 
-    return weekConfigs.map((cfg) => {
-      let completed = 0;
-      let total = 0;
-      for (let d = cfg.start; d <= cfg.end; d++) {
-        activities.forEach((act) => {
-          total++;
-          const days = matrixState[act.id] || [];
-          if (days[d - 1]) completed++;
-        });
-      }
-      const efficiency = total > 0 ? (completed / total) * 100 : 0;
+    return weekConfigs.map((wc) => {
+      const startDay = (wc.week - 1) * 7 + 1;
+      const endDay = Math.min(daysInMonth, wc.week * 7);
+      const totalDaysInWeek = Math.max(1, endDay - startDay + 1);
+      const totalPossible = activities.length * totalDaysInWeek;
+
+      let completedInWeek = 0;
+      activities.forEach((act) => {
+        const days = matrixState[act.id] || [];
+        for (let i = startDay - 1; i < endDay; i++) {
+          if (days[i]) completedInWeek++;
+        }
+      });
+
+      const efficiency = totalPossible > 0 ? Math.round((completedInWeek / totalPossible) * 100) : 0;
+
       return {
-        week: cfg.week,
+        ...wc,
         efficiency,
-        color: cfg.color,
-        borderColor: cfg.borderColor,
-        bgLight: cfg.bgLight,
       };
     });
-  }, [activities, matrixState]);
+  }, [activities, matrixState, daysInMonth]);
 
-  // Top 10 Habits Ranking
+  // Top 10 Habits Rank
   const topHabits = useMemo(() => {
     const list = activities.map((act) => {
       const days = matrixState[act.id] || [];
-      const done = days.filter(Boolean).length;
+      const done = days.slice(0, daysInMonth).filter(Boolean).length;
       const progressPct = (done / daysInMonth) * 100;
       return {
         name: act.name,
@@ -309,13 +315,13 @@ export const App: React.FC = () => {
 
     list.sort((a, b) => b.progressPct - a.progressPct);
 
-    return list.map((item, idx) => ({
+    return list.slice(0, 10).map((item, idx) => ({
       rank: idx + 1,
       ...item,
     }));
-  }, [activities, matrixState]);
+  }, [activities, matrixState, daysInMonth]);
 
-  // Toggle single cell in the 30-day master matrix
+  // Toggle single cell in the master matrix
   const handleToggleMatrixCell = (habitId: string, dayIndex: number) => {
     setMatrixState((prev) => {
       const currentDays = prev[habitId] || Array.from({ length: daysInMonth }, () => false);
@@ -323,8 +329,8 @@ export const App: React.FC = () => {
       updatedDays[dayIndex] = !updatedDays[dayIndex];
       const nextState = { ...prev, [habitId]: updatedDays };
 
-      // If toggled for today (Day 15), also sync with active task status
-      if (dayIndex === 14) {
+      // If toggled for today, also sync with active checklist
+      if (dayIndex === currentDayIndex) {
         handleToggleActivity(habitId);
       } else {
         handleAwardXP(10);
@@ -362,9 +368,17 @@ export const App: React.FC = () => {
     setUser(updatedUser);
     setActivities(updatedActivities);
 
-    // ⚡ Broadcast Laptop Click to Mobile Phone
+    // Update today's matrix cell
     const targetAct = updatedActivitiesList.find((a) => a.id === id);
     if (targetAct) {
+      setMatrixState((prev) => {
+        const currentDays = prev[id] || Array.from({ length: daysInMonth }, () => false);
+        const updatedDays = [...currentDays];
+        updatedDays[currentDayIndex] = targetAct.completed;
+        return { ...prev, [id]: updatedDays };
+      });
+
+      // Broadcast toggle to Mobile Phone & Cloud
       fetch(`${BACKEND_API_BASE}/sync/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -414,7 +428,7 @@ export const App: React.FC = () => {
         completed,
         source: 'manual',
       },
-      ...prev.slice(0, 7),
+      ...prev.slice(0, 9),
     ]);
   };
 
@@ -440,6 +454,32 @@ export const App: React.FC = () => {
     setActivities(updatedActivities);
   };
 
+  const handleAddActivity = (newAct: ActivityItem) => {
+    setActivities((prev) => {
+      const exists = prev.some((a) => a.id === newAct.id);
+      if (exists) return prev;
+      return [...prev, newAct];
+    });
+
+    setMatrixState((prev) => ({
+      ...prev,
+      [newAct.id]: Array.from({ length: daysInMonth }, () => false),
+    }));
+
+    handleAwardXP(20);
+    soundFx.playCheck();
+  };
+
+  const handleDeleteActivity = (id: string) => {
+    setActivities((prev) => prev.filter((a) => a.id !== id));
+    setMatrixState((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    soundFx.playClick();
+  };
+
   const handleToggleActivityStreakInclusion = (id: string) => {
     setActivities((prev) =>
       prev.map((act) => (act.id === id ? { ...act, countsTowardOverallStreak: !act.countsTowardOverallStreak } : act))
@@ -448,74 +488,114 @@ export const App: React.FC = () => {
 
   // Emergency Work Task Handlers
   const handleAddEmergencyTask = (newTask: EmergencyTask) => {
-    const updated = [newTask, ...emergencyTasks];
-    setEmergencyTasks(updated);
-    localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(updated));
+    setEmergencyTasks((prev) => [newTask, ...prev]);
+    soundFx.playClick();
   };
 
   const handleCompleteEmergencyTask = (id: string) => {
-    handleAwardXP(5);
-    const updated = emergencyTasks.filter((t) => t.id !== id);
-    setEmergencyTasks(updated);
-    localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(updated));
+    setEmergencyTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === id) {
+          const nextCompleted = !t.completed;
+          if (nextCompleted) {
+            handleAwardXP(t.xpReward);
+            soundFx.playCheck();
+          }
+          return { ...t, completed: nextCompleted };
+        }
+        return t;
+      })
+    );
   };
 
   const handleDeleteEmergencyTask = (id: string) => {
-    const updated = emergencyTasks.filter((t) => t.id !== id);
-    setEmergencyTasks(updated);
-    localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(updated));
+    setEmergencyTasks((prev) => prev.filter((t) => t.id !== id));
+    soundFx.playClick();
   };
 
-  const handleToggleSound = () => {
-    setUser((prev) => {
-      const nextVal = !prev.soundEnabled;
-      soundFx.setEnabled(nextVal);
-      return { ...prev, soundEnabled: nextVal };
-    });
-  };
-
+  // Complete Clean Reset All Data Handler
   const handleResetData = () => {
-    setUser(INITIAL_USER);
-    setActivities(INITIAL_ACTIVITIES);
-    setEmergencyTasks(INITIAL_EMERGENCY_TASKS);
-    setLogs(INITIAL_LOGS);
-    setHistory(generateHistoricalRecords(30));
-    setHeatmapData(generateHeatmapData(90));
-    localStorage.clear();
-    setIsSettingsOpen(false);
-  };
+    if (window.confirm('Are you sure you want to reset all data? This will clear all habit completions, streaks to 0, and reset efficiency to 0%.')) {
+      const cleanUser: UserProfile = {
+        ...INITIAL_USER,
+        name: user.name || 'Aditya',
+        overallStreak: 0,
+        longestStreak: 0,
+        currentXP: 0,
+        level: 1,
+        hunterRank: 'E',
+        isActiveToday: false,
+        lastActiveDate: '',
+      };
+      setUser(cleanUser);
 
-  // Standalone Desktop Widget Mode
-  if (window.location.search.includes('mode=widget')) {
-    return (
-      <div className="w-screen h-screen bg-transparent p-1 overflow-hidden">
-        <DesktopFloatingWidget
-          user={user}
-          activities={activities}
-          onToggleActivity={handleToggleActivity}
-        />
-      </div>
-    );
-  }
+      const cleanActs = activities.map((act) => ({
+        ...act,
+        completed: false,
+        streak: 0,
+        completedAt: undefined,
+        isAutoDetected: false,
+      }));
+      setActivities(cleanActs);
+
+      const cleanMatrix: Record<string, boolean[]> = {};
+      cleanActs.forEach((act) => {
+        cleanMatrix[act.id] = Array.from({ length: daysInMonth }, () => false);
+      });
+      setMatrixState(cleanMatrix);
+      setLogs([]);
+      setEmergencyTasks([]);
+
+      localStorage.removeItem('effstreak_user');
+      localStorage.removeItem('effstreak_activities');
+      localStorage.removeItem('effstreak_logs');
+      localStorage.removeItem('effstreak_emergency_tasks');
+      localStorage.removeItem('streak_monthly_matrix');
+
+      // Sync reset state to backend
+      fetch(`${BACKEND_API_BASE}/sync/state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.uid || 'aditya-singh',
+          state: {
+            activities: cleanActs,
+            matrix: cleanMatrix,
+            user: cleanUser,
+          },
+        }),
+      }).catch((err) => console.warn('Reset sync warning:', err));
+
+      soundFx.playUncheck();
+      setIsSettingsOpen(false);
+    }
+  };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans pb-16 transition-colors ${
-      isDarkMode ? 'bg-[#0b0e14] text-slate-100' : 'bg-[#F4F1EA] text-slate-800'
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-[#0b0f19] text-slate-100 font-sans' 
+        : 'bg-[#F4EFE6] text-slate-900 font-sans'
     }`}>
-      {/* ======================================================== */}
-      {/* MASTER AESTHETIC LAPTOP DASHBOARD CONTAINER             */}
-      {/* ======================================================== */}
-      <main className="w-full max-w-[1440px] mx-auto px-3 sm:px-6 pt-5 space-y-5 flex-1">
+      
+      {/* Floating Widget Simulator for Desktop */}
+      <DesktopFloatingWidget 
+        user={user} 
+        activities={activities}
+        onToggleActivity={handleToggleActivity}
+      />
+
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
         
-        {/* 1. TOP AESTHETIC CALLIGRAPHIC HEADER & MOUNTAIN WAVE */}
+        {/* 1. TOP SHOWCASE HEADER (ESTHETIC TITLE, CONSISTENCY WAVE & LUXURY RING) */}
         <AestheticHeaderTracker
           user={user}
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
-          onMonthChange={setSelectedMonth}
+          onMonthChange={(m) => setSelectedMonth(m)}
           dailyProgressPct={dailyProgressPct}
           completedMonthHabits={completedMonthHabits}
-          totalMonthHabits={totalPossibleMonthHabits}
+          totalMonthHabits={totalMonthHabits}
           isDarkMode={isDarkMode}
           onToggleTheme={handleToggleTheme}
           onOpenSoloLeveling={() => setIsSoloLevelingOpen(true)}
@@ -526,11 +606,14 @@ export const App: React.FC = () => {
           onOpenSync={() => setIsSyncOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
-          onToggleSound={handleToggleSound}
+          onToggleSound={() => {
+            const next = soundFx.toggleSound();
+            setUser((prev) => ({ ...prev, soundEnabled: next }));
+          }}
           isSyncing={isSyncing}
         />
 
-        {/* 2. MIDDLE SECTION: WEEKS 1-5 BAR COLUMNS & TOP 10 HABITS TABLE */}
+        {/* 2. WEEKLY CONSISTENCY OVERVIEW (5 WEEK COLUMNS + TOP 10 HABITS) */}
         <WeeklyConsistencyOverview
           daysData={daysData}
           weeksSummary={weeksSummary}
@@ -544,15 +627,13 @@ export const App: React.FC = () => {
           matrixState={matrixState}
           onToggleMatrixCell={handleToggleMatrixCell}
           onAddHabit={() => setIsSettingsOpen(true)}
-          onDeleteHabit={(id) => {
-            const updated = activities.filter((a) => a.id !== id);
-            setActivities(updated);
-          }}
+          onDeleteHabit={handleDeleteActivity}
           isDarkMode={isDarkMode}
           daysInMonth={daysInMonth}
+          todayDayNumber={todayDayNumber}
         />
 
-        {/* 4. EXPANDABLE COMPANION PANELS: TODAY'S ACTIVITY, EFFICIENCY & PLATFORMS */}
+        {/* 4. EXPANDABLE COMPANION PANELS: TODAY'S PLAN, PERFORMANCE, & PLATFORMS */}
         <div className="pt-2">
           <div className="flex items-center justify-between mb-3">
             <button
@@ -571,8 +652,17 @@ export const App: React.FC = () => {
 
           {showFullWidgetsPanel && (
             <div className="space-y-5 animate-fade-in">
-              {/* Today's Activity Timeline + Efficiency Gauge Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              {/* Today's Plan Checklist + Today's Activity Timeline + Efficiency Gauge Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <TodayPlanCard
+                  activities={activities}
+                  onToggleActivity={handleToggleActivity}
+                  onAddActivity={handleAddActivity}
+                  onDeleteActivity={handleDeleteActivity}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                />
+
                 <TodayActivityTimeline
                   logs={logs}
                   activities={activities}
@@ -588,7 +678,7 @@ export const App: React.FC = () => {
                 />
               </div>
 
-              {/* 6 Showcase Platform Streak Cards */}
+              {/* Showcase Connected Platform Streak Cards */}
               <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm">
                 <div className="text-xs font-black uppercase tracking-wider text-[#0f172a] mb-3.5 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-500" />
@@ -677,10 +767,11 @@ export const App: React.FC = () => {
         history={history}
         logs={logs}
         onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
-        onAddActivity={(newAct) => setActivities((prev) => [...prev, newAct])}
-        onDeleteActivity={(id) => setActivities((prev) => prev.filter((a) => a.id !== id))}
+        onAddActivity={handleAddActivity}
+        onDeleteActivity={handleDeleteActivity}
         onToggleActivityStreakInclusion={handleToggleActivityStreakInclusion}
         onResetData={handleResetData}
+        onSyncActivities={handleSyncActivities}
       />
 
       <AuthModal
@@ -694,4 +785,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

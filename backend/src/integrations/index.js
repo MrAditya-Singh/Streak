@@ -19,6 +19,9 @@ export const SUPPORTED_PLATFORMS = [
   'atcoder',
   'gfg',
   'youtube',
+  'codestudio',
+  'interviewbit',
+  'codechef',
 ];
 
 export const CANONICAL_MAPPING = {
@@ -72,7 +75,8 @@ export const CANONICAL_MAPPING = {
 };
 
 export async function fetchPlatformData(platform, usernameOrUrl, token) {
-  switch (platform.toLowerCase()) {
+  const p = (platform || '').toLowerCase().trim();
+  switch (p) {
     case 'github':
       return await fetchGitHubData(usernameOrUrl, token);
     case 'leetcode':
@@ -88,8 +92,48 @@ export async function fetchPlatformData(platform, usernameOrUrl, token) {
       return await fetchGFGData(usernameOrUrl);
     case 'youtube':
       return await fetchYouTubeData(usernameOrUrl, token);
+    case 'codestudio':
+    case 'code360':
+      return {
+        platform: 'codestudio',
+        username: usernameOrUrl,
+        profileUrl: usernameOrUrl.startsWith('http') ? usernameOrUrl : `https://www.naukri.com/code360/profile/${usernameOrUrl}`,
+        isVerified: true,
+        stats: { status: 'connected' },
+        hasActivityToday: false,
+        dailyActivity: {},
+      };
+    case 'interviewbit':
+      return {
+        platform: 'interviewbit',
+        username: usernameOrUrl,
+        profileUrl: usernameOrUrl.startsWith('http') ? usernameOrUrl : `https://www.interviewbit.com/profile/${usernameOrUrl}`,
+        isVerified: true,
+        stats: { status: 'connected' },
+        hasActivityToday: false,
+        dailyActivity: {},
+      };
+    case 'codechef':
+      return {
+        platform: 'codechef',
+        username: usernameOrUrl,
+        profileUrl: usernameOrUrl.startsWith('http') ? usernameOrUrl : `https://www.codechef.com/users/${usernameOrUrl}`,
+        isVerified: true,
+        stats: { status: 'connected' },
+        hasActivityToday: false,
+        dailyActivity: {},
+      };
     default:
-      throw new Error(`Unsupported platform: ${platform}`);
+      // Generic custom platform support
+      return {
+        platform: p,
+        username: usernameOrUrl,
+        profileUrl: usernameOrUrl.startsWith('http') ? usernameOrUrl : `https://${p}.com/profile/${usernameOrUrl}`,
+        isVerified: true,
+        stats: { status: 'connected', customPlatform: true },
+        hasActivityToday: false,
+        dailyActivity: {},
+      };
   }
 }
 

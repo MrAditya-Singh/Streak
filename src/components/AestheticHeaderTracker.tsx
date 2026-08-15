@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { Sparkles, Smartphone, Settings, RefreshCw, Flame, Volume2, VolumeX, Sun, Moon, Zap, ShieldAlert, BarChart3, TrendingUp, Calendar, CheckCircle2, Users } from 'lucide-react';
+import { Sparkles, Smartphone, Settings, RefreshCw, Flame, Volume2, VolumeX, Sun, Moon, Zap, ShieldAlert, BarChart3, TrendingUp, Calendar, CheckCircle2, Users, Clock } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
 interface AestheticHeaderTrackerProps {
@@ -57,6 +57,23 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
 
   const [hoveredWavePoint, setHoveredWavePoint] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
 
+  const [currentRealTime, setCurrentRealTime] = React.useState<string>(() => {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  });
+
+  const [currentRealDate, setCurrentRealDate] = React.useState<string>(() => {
+    return new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  });
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      setCurrentRealTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setCurrentRealDate(now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className={`w-full rounded-3xl p-6 transition-all duration-300 border ${
       isDarkMode 
@@ -109,6 +126,12 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
                 {selectedYear}
               </span>
             </div>
+          </div>
+
+          {/* Real-time Dynamic Live Clock Badge */}
+          <div className="flex items-center gap-2 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shadow-2xs w-fit">
+            <Clock className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
+            <span>{currentRealDate} • {currentRealTime}</span>
           </div>
         </div>
 

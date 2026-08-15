@@ -368,20 +368,18 @@ export function calculateSummary(activities: ActivityItem[]): DailySummary {
   const tasksCompleted = activities.filter((a) => a.completed).length;
   const totalTasks = activities.length;
 
-  // Exact formula: ("Plan" task completed on that day / total task of "Plan" on that day)%
-  // For standard showcase of 5 primary tasks with 4 completed = 82% adjusted/rounded
   const efficiencyPct = totalTasks > 0 
     ? Math.round((tasksCompleted / totalTasks) * 100) 
     : 0;
 
   const xpEarnedToday = activities.filter((a) => a.completed && a.countsTowardXP).reduce((acc, curr) => acc + curr.xpReward, 0);
-  const allScheduledDone = targetList.every((a) => a.completed);
+  const allScheduledDone = targetList.length > 0 && targetList.every((a) => a.completed);
 
   return {
     plannedMinutes,
     completedMinutes,
-    efficiencyPct: tasksCompleted === 4 && totalTasks === 5 ? 82 : (efficiencyPct || 82),
-    efficiencyChangeFromYesterday: 7,
+    efficiencyPct,
+    efficiencyChangeFromYesterday: 0,
     tasksCompleted,
     totalTasks,
     xpEarnedToday,
