@@ -28,65 +28,136 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import androidx.compose.ui.graphics.Color
 import com.example.effstreak.MainActivity
-import com.example.effstreak.data.StreakState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class EffStreakWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val state = StreakState()
+        val prefs = context.getSharedPreferences("effstreak_widget_data", Context.MODE_PRIVATE)
+        val overallStreak = prefs.getInt("overall_streak", 98)
+        val level = prefs.getInt("level", 18)
+        val xp = prefs.getInt("xp", 1840)
+        val completedTasks = prefs.getInt("completed_tasks", 12)
+        val totalTasks = prefs.getInt("total_tasks", 15)
+        val lastSync = prefs.getString("last_sync", SimpleDateFormat("HH:mm", Locale.US).format(Date())) ?: "Live"
+
+        val progressPct = if (totalTasks > 0) Math.round((completedTasks.toFloat() / totalTasks) * 100) else 0
 
         provideContent {
             GlanceTheme {
-                WidgetContent(state = state)
+                WidgetGlanceContent(
+                    streak = overallStreak,
+                    level = level,
+                    xp = xp,
+                    completed = completedTasks,
+                    total = totalTasks,
+                    progressPct = progressPct,
+                    lastSync = lastSync
+                )
             }
         }
     }
 
     @Composable
-    private fun WidgetContent(state: StreakState) {
-        val cardBg = Color(0xFF0A0E1A)
-        val greenColor = Color(0xFF10B981)
-        val orangeColor = Color(0xFFFB923C)
-        val purpleColor = Color(0xFFA855F7)
-        val textPrimary = Color(0xFFFFFFFF)
-        val textSecondary = Color(0xFF94A3B8)
+    private fun WidgetGlanceContent(
+        streak: Int,
+        level: Int,
+        xp: Int,
+        completed: Int,
+        total: Int,
+        progressPct: Int,
+        lastSync: String
+    ) {
+        val cardBg = Color(0xFF0F172A)
+        val streakOrange = Color(0xFFFF5C00)
+        val progressGreen = Color(0xFF10B981)
+        val purpleAccent = Color(0xFFA855F7)
+        val textMuted = Color(0xFF94A3B8)
+        val textWhite = Color(0xFFFFFFFF)
 
-        // Only platforms with API streak integration (No offline plans)
-        val apiPlatformIds = setOf("leetcode", "codeforces", "gfg", "github")
-        val apiActivities = state.activities.filter { it.id in apiPlatformIds }
+        val isGoalDone = completed >= total && total > 0
 
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(ColorProvider(cardBg))
-                .padding(10.dp)
-                .clickable(actionStartActivity<MainActivity>()), // Double-tap/tap opens app
+                .padding(12.dp)
+                .clickable(actionStartActivity<MainActivity>()),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 modifier = GlanceModifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header Row: Flame Crystal Overall Streak + Solo Leveling Knight Badge
+                // Top Row: Streak Banner
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "🔥 ${state.overallStreak}d",
+                        text = "🔥 $streak Day Streak",
                         style = TextStyle(
-                            color = ColorProvider(orangeColor),
-                            fontSize = 20.sp,
+                            color = ColorProvider(streakOrange),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+
+                Spacer(modifier = GlanceModifier.height(4.dp))
+
+                // Stats Row: Level & Today's Progress Percentage
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Lv.$level Knight",
+                        style = TextStyle(
+                            color = ColorProvider(purpleAccent),
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     )
                     Spacer(modifier = GlanceModifier.defaultWeight())
                     Text(
-                        text = "Lv.${state.level} Knight • API LIVE",
+                        text = "$progressPct% Today",
                         style = TextStyle(
-                            color = ColorProvider(purpleColor),
+                            color = ColorProvider(progressGreen),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+
+                Spacer(modifier = GlanceModifier.height(4.dp))
+
+                // Visual Progress Bar & Habits Count
+                val totalBars = 12
+                val filledBars = if (total > 0) Math.min(totalBars, (completed * totalBars) / total) else 0
+                val barStr = "█".repeat(filledBars) + "░".repeat(totalBars - filledBars)
+
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = barStr,
+                        style = TextStyle(
+                            color = ColorProvider(progressGreen),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Text(
+                        text = "$completed/$total Habits",
+                        style = TextStyle(
+                            color = ColorProvider(textWhite),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -95,63 +166,24 @@ class EffStreakWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.height(6.dp))
 
-                // Connected API Platform Streaks Row (Strictly API Streaks, No Offline Plans)
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    apiActivities.forEach { activity ->
-                        val platformShort = when (activity.id) {
-                            "leetcode" -> "Leet"
-                            "codeforces" -> "CF"
-                            "gfg" -> "GFG"
-                            "github" -> "GH"
-                            else -> activity.name.take(3)
-                        }
-
-                        Column(
-                            modifier = GlanceModifier.defaultWeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = platformShort,
-                                style = TextStyle(
-                                    color = ColorProvider(textSecondary), 
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                            Text(
-                                text = "🔥${activity.streak}",
-                                style = TextStyle(
-                                    color = ColorProvider(textPrimary),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                            Text(
-                                text = if (activity.completed) "✓" else "○",
-                                style = TextStyle(
-                                    color = ColorProvider(if (activity.completed) greenColor else textSecondary),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = GlanceModifier.height(2.dp))
-
-                // Bottom Subtitle
+                // Bottom Status: Today's Goal Completion & Last Sync
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Double-tap to open app ↗",
+                        text = if (isGoalDone) "✓ Today's Goal Complete!" else "⚡ Today's Goal Active",
                         style = TextStyle(
-                            color = ColorProvider(Color(0xFF38BDF8)),
+                            color = ColorProvider(if (isGoalDone) progressGreen else textMuted),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Text(
+                        text = "🔄 $lastSync",
+                        style = TextStyle(
+                            color = ColorProvider(textMuted),
                             fontSize = 9.sp
                         )
                     )

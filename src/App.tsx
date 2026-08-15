@@ -39,7 +39,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { TodayActivityModal } from './components/TodayActivityModal';
 import { EfficiencyAnalyticsModal } from './components/EfficiencyAnalyticsModal';
 import { AuthModal } from './components/AuthModal';
-import { DesktopFloatingWidget } from './components/DesktopFloatingWidget';
 import { ChevronDown, ChevronUp, Sparkles, LayoutGrid, Layers } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -577,14 +576,6 @@ export const App: React.FC = () => {
         ? 'bg-[#0b0f19] text-slate-100 font-sans' 
         : 'bg-[#F4EFE6] text-slate-900 font-sans'
     }`}>
-      
-      {/* Floating Widget Simulator for Desktop */}
-      <DesktopFloatingWidget 
-        user={user} 
-        activities={activities}
-        onToggleActivity={handleToggleActivity}
-      />
-
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
         
         {/* 1. TOP SHOWCASE HEADER (ESTHETIC TITLE, CONSISTENCY WAVE & LUXURY RING) */}

@@ -1,5 +1,6 @@
 package com.example.effstreak
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -68,6 +69,18 @@ fun syncToggleToBackend(habitId: String, completed: Boolean) {
             }
         }
     }
+}
+
+fun updateWidgetCache(context: Context, state: StreakState) {
+    val prefs = context.getSharedPreferences("effstreak_widget_data", Context.MODE_PRIVATE)
+    prefs.edit()
+        .putInt("overall_streak", state.overallStreak)
+        .putInt("level", state.level)
+        .putInt("xp", state.xp)
+        .putInt("completed_tasks", state.activities.count { it.completed })
+        .putInt("total_tasks", state.activities.size)
+        .putString("last_sync", SimpleDateFormat("HH:mm", Locale.US).format(Date()))
+        .apply()
 }
 
 class MainActivity : ComponentActivity() {
@@ -172,6 +185,11 @@ fun EffStreakPureAmoledMasterScreen() {
         if (state.xp >= 500) {
             state = state.copy(xp = state.xp - 500)
         }
+    }
+
+    val context = LocalContext.current
+    LaunchedEffect(state) {
+        updateWidgetCache(context, state)
     }
 
     // ⚡ Real-Time Poller for Instant Laptop Clicks
