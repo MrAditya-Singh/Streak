@@ -89,16 +89,16 @@ export const PlatformCardsGrid: React.FC<PlatformCardsGridProps> = ({ activities
             }}
             className={`group relative h-64 sm:h-72 rounded-3xl overflow-hidden border border-slate-700/60 shadow-lg transition-all duration-500 hover:-translate-y-1.5 cursor-pointer select-none ${meta.neonGlow}`}
           >
-            {/* 1. FULL-BLEED BACKGROUND IMAGE WITH ZOOM EFFECT */}
+            {/* 1. FULL-BLEED BACKGROUND IMAGE WITH HIGH BRIGHTNESS & ZOOM EFFECT */}
             <img
               src={meta.image}
               alt={item.name}
-              className="absolute inset-0 w-full h-full object-cover object-center transform group-hover:scale-110 transition-transform duration-700 ease-out"
+              className="absolute inset-0 w-full h-full object-cover object-top filter brightness-125 contrast-105 saturate-110 transform group-hover:scale-105 group-hover:brightness-135 transition-all duration-700 ease-out"
             />
 
-            {/* 2. CINEMATIC GRADIENT & VIGNETTE OVERLAYS */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#060813] via-[#0b0f19]/60 to-black/30 backdrop-blur-[0.5px] transition-opacity duration-300 group-hover:via-[#0b0f19]/40" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
+            {/* 2. LIGHT GRADIENT OVERLAY (HIGH CLARITY & BRIGHT VISIBILITY) */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#060813]/90 via-[#0b0f19]/30 to-transparent transition-opacity duration-300 group-hover:via-[#0b0f19]/20" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-transparent" />
 
             {/* 3. FLOATING TOP BAR: HOLOGRAPHIC TAG & EXTERNAL LINK */}
             <div className="relative z-10 p-4 flex items-center justify-between">
