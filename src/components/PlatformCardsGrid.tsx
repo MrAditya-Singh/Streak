@@ -28,10 +28,21 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
     accentColor: 'text-cyan-400',
     categoryDesc: 'Contests & Rating Arena',
   },
+  leetcode: {
+    weeklyImages: [
+      '/images/char_glasses_guy.jpg',    // Fresh Handsome Male Boy with Glasses on Crimson Background
+      '/images/char_leetcode.jpg',       // Fiery Orange-Haired Code Hunter
+    ],
+    tag: '#CODEHUNTER',
+    tagBg: 'bg-amber-500/20 text-amber-300 border-amber-400/40 shadow-amber-500/20',
+    neonGlow: 'group-hover:border-amber-400 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.35)]',
+    accentColor: 'text-amber-400',
+    categoryDesc: 'Daily POTD & Problem Solves',
+  },
   youtube: {
     weeklyImages: [
-      '/images/char_sukuna_flame.jpg', // Fresh Red Flame Demon Chibi
-      '/images/char_youtube.jpg',      // Content King Creator
+      '/images/char_sukuna_adult.jpg',   // Fresh Handsome Adult Sukuna with Red Aura
+      '/images/char_sukuna_flame.jpg',   // Cute Chibi Sukuna with Red Flame
     ],
     tag: '#CONTENTKING',
     tagBg: 'bg-rose-500/20 text-rose-300 border-rose-400/40 shadow-rose-500/20',
@@ -41,8 +52,8 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
   },
   github: {
     weeklyImages: [
-      '/images/char_chibi_boba.jpg',   // Fresh Cute White Chibi drinking Boba/Tea
-      '/images/char_github.jpg',       // White-Haired Warrior
+      '/images/char_chibi_boba.jpg',     // Fresh Cute White 3D Chibi drinking Boba/Tea
+      '/images/char_github.jpg',         // White-Haired Anime Warrior
     ],
     tag: '#OPENSOURCE',
     tagBg: 'bg-purple-500/20 text-purple-300 border-purple-400/40 shadow-purple-500/20',
@@ -52,9 +63,8 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
   },
   atcoder: {
     weeklyImages: [
-      '/images/char_snow_chibi.jpg',   // Fresh Cute Snow Hoodie Cloud Chibi
-      '/images/char_chibi_boba.jpg',   // Cute White Boba Chibi
-      '/images/char_hero.jpg',         // Celestial Hero
+      '/images/char_snow_chibi.jpg',     // Fresh Cute Snow Hoodie Cloud Chibi
+      '/images/char_hero.jpg',           // Celestial Hero
     ],
     tag: '#ATCODER',
     tagBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40 shadow-indigo-500/20',
@@ -62,21 +72,10 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
     accentColor: 'text-indigo-400',
     categoryDesc: 'Weekly Contest Solves',
   },
-  leetcode: {
-    weeklyImages: [
-      '/images/char_leetcode.jpg',     // Fiery Orange-Haired Code Hunter
-      '/images/char_sukuna_flame.jpg', // Flame Demon Chibi
-    ],
-    tag: '#CODEHUNTER',
-    tagBg: 'bg-amber-500/20 text-amber-300 border-amber-400/40 shadow-amber-500/20',
-    neonGlow: 'group-hover:border-amber-400 group-hover:shadow-[0_0_30px_rgba(245,158,11,0.35)]',
-    accentColor: 'text-amber-400',
-    categoryDesc: 'Daily POTD & Problem Solves',
-  },
   gfg: {
     weeklyImages: [
-      '/images/char_gfg.jpg',          // Smart Green Hoodie Anime Coder
-      '/images/char_snow_chibi.jpg',   // Snow Chibi
+      '/images/char_gfg.jpg',            // Smart Green Hoodie Anime Coder
+      '/images/char_glasses_guy.jpg',    // Glasses Coder
     ],
     tag: '#DSAEXPERT',
     tagBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-emerald-500/20',
