@@ -275,10 +275,11 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
 
           <button
             onClick={onOpenSync}
-            title="Live Sync"
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 hover:bg-blue-500/20 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            title="Live Platform Sync (LeetCode, GitHub, GFG, Codeforces, AtCoder)"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-600 dark:text-blue-300 font-bold transition-all border border-blue-500/30 cursor-pointer shadow-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
+            <span>Live Sync</span>
           </button>
 
           <button
