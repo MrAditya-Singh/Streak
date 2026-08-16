@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { X, RefreshCw, BarChart2, Code2, CheckCircle2, AlertCircle, Sparkles, Video, Terminal, Binary, Award } from 'lucide-react';
 import type { UserProfile } from '../types';
-import { syncAllViaBackend } from '../services/apiSync';
+import { 
+  syncAllViaBackend, 
+  syncGitHub, 
+  syncLeetCode, 
+  syncCodeforces, 
+  syncGFG, 
+  syncAtCoder, 
+  syncHackerRank, 
+  syncYouTube 
+} from '../services/apiSync';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
 
@@ -52,40 +61,62 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
     onUpdateUser(updatedUserObj);
 
     try {
-      const res = await syncAllViaBackend({
-        userId: user.uid || 'aditya-singh',
-        user: { ...user, ...updatedUserObj },
+      // 1. Run live parallel queries across all platforms directly
+      const [ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes] = await Promise.all([
+        syncGitHub(ghUser, user.githubToken),
+        syncLeetCode(lcUser),
+        syncCodeforces(cfHandle),
+        syncGFG(gfgUser),
+        syncAtCoder(atcoderUser),
+        syncHackerRank(hrUser),
+        syncYouTube(ytChannel),
+      ]);
+
+      const pResults: Record<string, any> = {
+        GitHub: ghRes,
+        LeetCode: lcRes,
+        Codeforces: cfRes,
+        GeeksForGeeks: gfgRes,
+        AtCoder: atcoderRes,
+        HackerRank: hrRes,
+        YouTube: ytRes,
+      };
+      setPlatformResults(pResults);
+
+      // 2. Map completed platforms to habit checklist updates
+      const updates = [
+        { id: 'leetcode', completed: lcRes.hasActivityToday },
+        { id: 'lc', completed: lcRes.hasActivityToday },
+        { id: 'codeforces', completed: cfRes.hasActivityToday },
+        { id: 'cf', completed: cfRes.hasActivityToday },
+        { id: 'gfg', completed: gfgRes.hasActivityToday },
+        { id: 'github', completed: ghRes.hasActivityToday },
+        { id: 'gh', completed: ghRes.hasActivityToday },
+        { id: 'youtube', completed: ytRes.hasActivityToday },
+        { id: 'yt', completed: ytRes.hasActivityToday },
+        { id: 'atcoder', completed: atcoderRes.hasActivityToday },
+        { id: 'hackerrank', completed: hrRes.hasActivityToday },
+      ];
+      onSyncActivities(updates);
+
+      // 3. Award XP and calculate progression
+      const activePlatformsCount = [ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes].filter((r) => r.hasActivityToday).length;
+      const xpGained = activePlatformsCount * 45;
+      const newXP = (user.currentXP || 1840) + xpGained;
+
+      onUpdateUser({
+        currentXP: newXP,
+        overallStreak: Math.max(user.overallStreak, 97 + (activePlatformsCount > 0 ? 1 : 0)),
       });
 
-      if (res && res.success && res.data) {
-        const { habits, user: resUser, platformResults: pResults, unifiedCodingStreak } = res.data;
-        setStatusMessage(`⚡ Sync Complete! Unified Coding Streak: ${unifiedCodingStreak || 5} Days`);
-        setPlatformResults(pResults || {});
-
-        if (Array.isArray(habits)) {
-          const updates = habits.map((h: any) => ({ id: h.id, completed: !!h.completed }));
-          onSyncActivities(updates);
-        }
-
-        if (resUser) {
-          onUpdateUser({
-            currentXP: resUser.currentXP,
-            level: resUser.level,
-            overallStreak: resUser.overallStreak,
-            hunterRank: resUser.hunterRank,
-          });
-        }
-
-        soundFx.playLevelUp();
-        confetti({
-          particleCount: 90,
-          spread: 75,
-          origin: { y: 0.6 },
-          colors: ['#58cc02', '#ffa116', '#1cb0f6', '#af4bfb', '#ec4899'],
-        });
-      } else {
-        setStatusMessage('Sync completed with local fallback reconciliation.');
-      }
+      setStatusMessage(`⚡ Live Sync Complete! ${activePlatformsCount} Platforms Verified • +${xpGained} XP Awarded!`);
+      soundFx.playLevelUp();
+      confetti({
+        particleCount: 90,
+        spread: 75,
+        origin: { y: 0.6 },
+        colors: ['#58cc02', '#ffa116', '#1cb0f6', '#af4bfb', '#ec4899'],
+      });
     } catch (err: any) {
       setStatusMessage(`Sync error: ${err.message}`);
     } finally {

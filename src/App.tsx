@@ -15,6 +15,7 @@ import {
 import { soundFx } from './utils/audio';
 import { syncUserProfile, syncActivities, syncHistoryRecord } from './services/firebase';
 import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend } from './services/apiSync';
+import { pushStateToCloud, subscribeToCloudSync } from './services/cloudSync';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
 import { WeeklyConsistencyOverview } from './components/WeeklyConsistencyOverview';
@@ -166,65 +167,50 @@ export const App: React.FC = () => {
     localStorage.setItem('streak_monthly_matrix', JSON.stringify(matrixState));
   }, [matrixState]);
 
-  // ⚡ 2-WAY INSTANT REAL-TIME SYNC LISTENER (Mobile ⇄ Laptop)
   useEffect(() => {
-    const userId = user.uid || 'aditya-singh';
-    let eventSource: EventSource | null = null;
+    localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(emergencyTasks));
+  }, [emergencyTasks]);
 
-    try {
-      eventSource = new EventSource(`${BACKEND_API_BASE}/sync/events?userId=${userId}`);
+  // 📡 1. PUSH STATE TO CLOUD RELAY (Phone ⇄ Laptop Sync)
+  useEffect(() => {
+    const syncKey = user.email || user.phoneNumber || user.uid || 'mradityasinghofficial1@gmail.com';
+    pushStateToCloud(syncKey, {
+      user,
+      activities,
+      matrixState,
+      emergencyTasks,
+      logs,
+    });
+  }, [user, activities, matrixState, emergencyTasks, logs]);
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'HABIT_TOGGLED') {
-            const { habitId, completed } = data;
-            console.log('⚡ [Live SSE] Received habit toggle from Mobile:', habitId, completed);
-            
-            // 1. Update activity checklist state
-            setActivities((prev) =>
-              prev.map((act) => {
-                if (act.id === habitId) {
-                  return {
-                    ...act,
-                    completed: completed ?? !act.completed,
-                    streak: completed ? act.streak + 1 : Math.max(0, act.streak - 1),
-                  };
-                }
-                return act;
-              })
-            );
+  // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop)
+  useEffect(() => {
+    const syncKey = user.email || user.phoneNumber || user.uid || 'mradityasinghofficial1@gmail.com';
 
-            // 2. Update today's cell in monthly matrix
-            setMatrixState((prev) => {
-              const currentDays = prev[habitId] || Array.from({ length: daysInMonth }, () => false);
-              const updatedDays = [...currentDays];
-              updatedDays[currentDayIndex] = completed;
-              return { ...prev, [habitId]: updatedDays };
-            });
-
-            if (completed) {
-              soundFx.playCheck();
-            } else {
-              soundFx.playUncheck();
-            }
-          }
-        } catch (e) {
-          console.warn('Live SSE parse error:', e);
-        }
-      };
-
-      eventSource.onerror = () => {
-        if (eventSource) eventSource.close();
-      };
-    } catch (err) {
-      console.warn('Live SSE connection warning:', err);
-    }
+    const unsubscribe = subscribeToCloudSync(syncKey, (remoteState) => {
+      console.log('⚡ [Cloud 2-Way Sync] Received real-time state from another device:', remoteState);
+      if (remoteState.activities && Array.isArray(remoteState.activities)) {
+        setActivities(remoteState.activities);
+      }
+      if (remoteState.matrixState && typeof remoteState.matrixState === 'object') {
+        setMatrixState(remoteState.matrixState);
+      }
+      if (remoteState.user) {
+        setUser((prev) => ({ ...prev, ...remoteState.user }));
+      }
+      if (remoteState.emergencyTasks && Array.isArray(remoteState.emergencyTasks)) {
+        setEmergencyTasks(remoteState.emergencyTasks);
+      }
+      if (remoteState.logs && Array.isArray(remoteState.logs)) {
+        setLogs(remoteState.logs);
+      }
+      soundFx.playCheck();
+    });
 
     return () => {
-      if (eventSource) eventSource.close();
+      unsubscribe();
     };
-  }, [user.uid, daysInMonth, currentDayIndex]);
+  }, [user.email, user.phoneNumber, user.uid]);
 
   // Calculations
   const summary = useMemo(() => calculateSummary(activities), [activities]);

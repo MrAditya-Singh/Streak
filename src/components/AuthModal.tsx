@@ -148,10 +148,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <div>
-              <h3 className="text-sm font-black text-white">Google OAuth Authentication</h3>
+              <h3 className="text-sm font-black text-white">Direct Gmail / Phone Cloud Pairing</h3>
               <p className="text-xs text-slate-400 mt-1">
-                Single sign-on via official Google OAuth. Keeps all habit checklists, streaks, and matrix data synchronized across all your devices.
+                Enter your Gmail or Phone number below on both your Mobile & Laptop to keep them synchronized in real-time.
               </p>
+            </div>
+
+            {/* Custom Gmail / Phone Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                defaultValue={currentUser.email || 'mradityasinghofficial1@gmail.com'}
+                id="custom_sync_email_input"
+                placeholder="Enter Gmail or Phone Number"
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs font-mono focus:border-blue-500 focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  const inputEl = document.getElementById('custom_sync_email_input') as HTMLInputElement;
+                  const val = inputEl?.value?.trim() || 'mradityasinghofficial1@gmail.com';
+                  soundFx.playClick();
+                  onSelectUser({ email: val, name: val.split('@')[0] });
+                  showNotification(`⚡ Linked & Synced with: ${val}`);
+                  setTimeout(onClose, 1000);
+                }}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition-all shrink-0"
+              >
+                Link & Sync
+              </button>
             </div>
 
             <button
@@ -170,9 +194,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
 
           {/* Sync Status Badge */}
-          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-slate-300 text-xs flex items-center gap-2.5">
-            <Globe className="w-4 h-4 text-blue-400 shrink-0" />
-            <span>Cloud Sync: <strong>Firestore Connected</strong> • Multi-Device Ready</span>
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2.5">
+            <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>2-Way Cloud Sync: <strong>Active</strong> • Mobile ⇄ Laptop Connected</span>
           </div>
         </div>
 
