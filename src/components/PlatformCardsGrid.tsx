@@ -19,8 +19,9 @@ interface PlatformMeta {
 const PLATFORM_POOLS: Record<string, PlatformMeta> = {
   codeforces: {
     weeklyImages: [
-      '/images/char_handsome_black.jpg', // Fresh Handsome Black-Haired Male Boy Face
-      '/images/char_codeforces.jpg',     // Cyber Grandmaster Anime Male Coder
+      '/images/char_codeforces.jpg',     // Best Cyber Grandmaster Anime Male Coder with Blue Eyes
+      '/images/char_custom_2.jpg',       // Fresh Custom Anime Art Set 2
+      '/images/char_handsome_black.jpg', // Handsome Black-Haired Anime Male Boy
     ],
     tag: '#GRANDMASTER',
     tagBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40 shadow-cyan-500/20',
@@ -30,8 +31,9 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
   },
   leetcode: {
     weeklyImages: [
-      '/images/char_glasses_guy.jpg',    // Fresh Handsome Male Boy with Glasses on Crimson Background
-      '/images/char_leetcode.jpg',       // Fiery Orange-Haired Code Hunter
+      '/images/char_glasses_guy.jpg',    // Best Handsome Male Boy with Glasses on Crimson Background
+      '/images/char_custom_4.jpg',       // Fresh Custom Coder Artwork
+      '/images/char_custom_1.jpg',       // Fresh Custom Anime Art Set 1
     ],
     tag: '#CODEHUNTER',
     tagBg: 'bg-amber-500/20 text-amber-300 border-amber-400/40 shadow-amber-500/20',
@@ -39,10 +41,23 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
     accentColor: 'text-amber-400',
     categoryDesc: 'Daily POTD & Problem Solves',
   },
+  gfg: {
+    weeklyImages: [
+      '/images/char_custom_8.jpg',       // Fresh Custom Algorithmic Coder
+      '/images/char_custom_9.jpg',       // Fresh Custom Anime Art Set 9
+      '/images/char_handsome_black.jpg', // Handsome Coder
+    ],
+    tag: '#DSAEXPERT',
+    tagBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-emerald-500/20',
+    neonGlow: 'group-hover:border-emerald-400 group-hover:shadow-[0_0_30px_rgba(16,185,129,0.35)]',
+    accentColor: 'text-emerald-400',
+    categoryDesc: 'Practice & Algorithmic Track',
+  },
   youtube: {
     weeklyImages: [
-      '/images/char_sukuna_adult.jpg',   // Fresh Handsome Adult Sukuna with Red Aura
-      '/images/char_sukuna_flame.jpg',   // Cute Chibi Sukuna with Red Flame
+      '/images/char_sukuna_adult.jpg',   // Best Handsome Adult Sukuna with Red Flame
+      '/images/char_custom_3.jpg',       // Fresh Custom Creator Artwork
+      '/images/char_sukuna_flame.jpg',   // Cute Chibi Sukuna with Flame
     ],
     tag: '#CONTENTKING',
     tagBg: 'bg-rose-500/20 text-rose-300 border-rose-400/40 shadow-rose-500/20',
@@ -53,6 +68,7 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
   github: {
     weeklyImages: [
       '/images/char_chibi_boba.jpg',     // Fresh Cute White 3D Chibi drinking Boba/Tea
+      '/images/char_custom_5.jpg',       // Fresh Custom Open Source Artwork
       '/images/char_github.jpg',         // White-Haired Anime Warrior
     ],
     tag: '#OPENSOURCE',
@@ -63,7 +79,8 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
   },
   atcoder: {
     weeklyImages: [
-      '/images/char_snow_chibi.jpg',     // Fresh Cute Snow Hoodie Cloud Chibi
+      '/images/char_custom_6.jpg',       // Fresh Custom Snow/Celestial Chibi
+      '/images/char_custom_7.jpg',       // Fresh Custom Artwork Set 7
       '/images/char_hero.jpg',           // Celestial Hero
     ],
     tag: '#ATCODER',
@@ -71,17 +88,6 @@ const PLATFORM_POOLS: Record<string, PlatformMeta> = {
     neonGlow: 'group-hover:border-indigo-400 group-hover:shadow-[0_0_30px_rgba(99,102,241,0.35)]',
     accentColor: 'text-indigo-400',
     categoryDesc: 'Weekly Contest Solves',
-  },
-  gfg: {
-    weeklyImages: [
-      '/images/char_gfg.jpg',            // Smart Green Hoodie Anime Coder
-      '/images/char_glasses_guy.jpg',    // Glasses Coder
-    ],
-    tag: '#DSAEXPERT',
-    tagBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-emerald-500/20',
-    neonGlow: 'group-hover:border-emerald-400 group-hover:shadow-[0_0_30px_rgba(16,185,129,0.35)]',
-    accentColor: 'text-emerald-400',
-    categoryDesc: 'Practice & Algorithmic Track',
   },
 };
 
@@ -118,7 +124,7 @@ export const PlatformCardsGrid: React.FC<PlatformCardsGridProps> = ({ activities
           <Calendar className="w-3.5 h-3.5 text-purple-600" />
           <span>Weekly Aesthetic Rotation:</span>
           <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 text-[10px] font-black font-mono">
-            Week Set {((autoWeekIndex + manualWeekOffset) % 2) + 1} / 2 Active
+            Week Set {((autoWeekIndex + manualWeekOffset) % 3) + 1} / 3 Active
           </span>
         </div>
 
