@@ -116,3 +116,34 @@ export function subscribeToUserProfile(userId: string, onUpdate: (user: UserProf
     }
   });
 }
+
+/**
+ * ⚡ Save Full Unified Application State to Firestore
+ */
+export async function syncFullStateToFirestore(userId: string, state: any): Promise<void> {
+  if (!db || !userId) return;
+  try {
+    const docRef = doc(db, 'unified_sync', userId);
+    await setDoc(docRef, { ...state, updatedAt: Date.now() }, { merge: true });
+  } catch (err) {
+    console.warn('Firestore unified sync warning:', err);
+  }
+}
+
+/**
+ * ⚡ Real-Time Full State Firestore Subscription
+ */
+export function subscribeToFirestoreFullState(userId: string, onUpdate: (state: any) => void): () => void {
+  if (!db || !userId) return () => {};
+  try {
+    const docRef = doc(db, 'unified_sync', userId);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        onUpdate(snap.data());
+      }
+    });
+  } catch {
+    return () => {};
+  }
+}
+

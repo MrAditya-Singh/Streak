@@ -14,6 +14,7 @@ import {
 import { UserProfile } from '../types';
 import { soundFx } from '../utils/audio';
 import { signInWithGoogle } from '../services/firebaseAuth';
+import { getStableUserId } from '../services/cloudSync';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -46,10 +47,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const { user } = await signInWithGoogle();
       if (user) {
         soundFx.playLevelUp();
+        const email = user.email || 'mradityasinghofficial1@gmail.com';
+        const stableId = getStableUserId(email);
         const googleProfile: Partial<UserProfile> = {
-          uid: user.uid,
+          uid: stableId,
           name: user.displayName || 'Aditya (Google Verified)',
-          email: user.email || 'mradityasinghofficial1@gmail.com',
+          email: email,
           avatarUrl: user.photoURL || '/images/char_hero.jpg',
         };
 
@@ -61,9 +64,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err: any) {
       // Direct unified fallback
+      const fallbackEmail = 'mradityasinghofficial1@gmail.com';
+      const stableId = getStableUserId(fallbackEmail);
       const verifiedProfile: Partial<UserProfile> = {
+        uid: stableId,
         name: 'Aditya (Google Verified)',
-        email: 'mradityasinghofficial1@gmail.com',
+        email: fallbackEmail,
       };
       onSelectUser(verifiedProfile);
       showNotification(`✓ Connected Google Verified Account (${verifiedProfile.email})`);
@@ -167,8 +173,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onClick={() => {
                   const inputEl = document.getElementById('custom_sync_email_input') as HTMLInputElement;
                   const val = inputEl?.value?.trim() || 'mradityasinghofficial1@gmail.com';
+                  const stableId = getStableUserId(val);
+                  const isPhone = /^[+0-9\s-]+$/.test(val);
                   soundFx.playClick();
-                  onSelectUser({ email: val, name: val.split('@')[0] });
+                  onSelectUser({
+                    uid: stableId,
+                    email: isPhone ? undefined : val,
+                    phoneNumber: isPhone ? val : undefined,
+                    name: isPhone ? `User (${val})` : val.split('@')[0],
+                  });
                   showNotification(`⚡ Linked & Synced with: ${val}`);
                   setTimeout(onClose, 1000);
                 }}

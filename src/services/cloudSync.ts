@@ -1,11 +1,11 @@
 // Universal Real-Time Multi-Device Cloud Sync Engine (Mobile ⇄ Laptop)
-// Works seamlessly across PWA, Android App, Electron, and Mobile/Desktop Browsers.
+// Guarantees single source of truth and bi-directional real-time updates across Mobile and Laptop.
 
 import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry } from '../types';
 
 export interface CloudSyncState {
   version: number;
-  syncId: string; // email or phone number or custom identifier
+  syncId: string; // Deterministic user identifier
   updatedAt: number;
   deviceId: string;
   user: UserProfile;
@@ -16,7 +16,7 @@ export interface CloudSyncState {
 }
 
 // Generate or retrieve persistent unique device ID
-const DEVICE_ID = (() => {
+export const DEVICE_ID = (() => {
   let id = localStorage.getItem('effstreak_device_id');
   if (!id) {
     id = 'dev_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
@@ -25,13 +25,29 @@ const DEVICE_ID = (() => {
   return id;
 })();
 
-export function normalizeSyncKey(identifier: string): string {
-  if (!identifier) return 'aditya_default_sync';
-  return identifier
+/**
+ * 🔑 Deterministic Stable User ID Generator
+ * Ensures that logging in with the same Gmail, phone number, or UID on Mobile and Laptop
+ * ALWAYS resolves to the exact same cloud document and user record.
+ */
+export function getStableUserId(identity?: Partial<UserProfile> | string): string {
+  if (!identity) return 'user_aditya_canonical';
+
+  let raw = '';
+  if (typeof identity === 'string') {
+    raw = identity;
+  } else {
+    raw = identity.email || identity.phoneNumber || identity.uid || identity.name || 'user_aditya_canonical';
+  }
+
+  const clean = raw
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '_')
+    .replace(/_+/g, '_')
     .substring(0, 64);
+
+  return `user_${clean || 'canonical'}`;
 }
 
 // BroadcastChannel for instant sub-millisecond sync across tabs/Electron on the same device
@@ -44,15 +60,15 @@ try {
   // Ignore if not supported
 }
 
-// In-memory last synced timestamp to prevent echo loops
-let lastLocalUpdatedAt = 0;
-let lastRemoteUpdatedAt = 0;
+// In-memory timestamps to avoid echo loops
+let lastLocalPushTimestamp = 0;
+let lastRemoteReceivedTimestamp = 0;
 
 /**
  * 📡 Push full state to Cloud Relay & Local Broadcast
  */
 export async function pushStateToCloud(
-  syncIdentifier: string,
+  identity: Partial<UserProfile> | string,
   state: {
     user: UserProfile;
     activities: ActivityItem[];
@@ -61,23 +77,23 @@ export async function pushStateToCloud(
     logs?: ActivityLogEntry[];
   }
 ): Promise<boolean> {
-  const syncKey = normalizeSyncKey(syncIdentifier || state.user.email || 'mradityasinghofficial1@gmail.com');
+  const syncKey = getStableUserId(identity);
   const now = Date.now();
-  lastLocalUpdatedAt = now;
+  lastLocalPushTimestamp = now;
 
   const payload: CloudSyncState = {
     version: 2,
     syncId: syncKey,
     updatedAt: now,
     deviceId: DEVICE_ID,
-    user: state.user,
+    user: { ...state.user, uid: syncKey },
     activities: state.activities,
     matrixState: state.matrixState,
     emergencyTasks: state.emergencyTasks,
     logs: state.logs || [],
   };
 
-  // 1. Broadcast locally immediately
+  // 1. Instant local broadcast for same-device instances
   if (broadcastChannel) {
     try {
       broadcastChannel.postMessage({ type: 'STATE_PUSH', payload });
@@ -86,25 +102,23 @@ export async function pushStateToCloud(
     }
   }
 
-  // 2. Push to Cloud Storage Relay
+  // 2. Persist locally in indexed cache
   try {
-    const cloudUrl = `https://api.restful-api.dev/objects`;
-    // We use a high-reliability fallback cloud KV store
-    // Also save in localStorage cache for instant fast rehydration
     localStorage.setItem(`effstreak_cloud_${syncKey}`, JSON.stringify(payload));
+  } catch {
+    // Ignore storage quota
+  }
 
-    // Async push to public relay
-    fetch(`https://kvdb.io/bucket_effstreak_2026/${syncKey}`, {
+  // 3. Push to Global Cloud Relay (Network resilient)
+  try {
+    const res = await fetch(`https://kvdb.io/bucket_effstreak_2026/${syncKey}`, {
       method: 'POST',
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
-    }).catch(() => {
-      // Secondary fallback
     });
-
-    return true;
+    return res.ok;
   } catch (err) {
-    console.warn('Cloud sync push warning:', err);
+    console.warn('Cloud sync push warning (operating in local-first mode):', err);
     return false;
   }
 }
@@ -112,23 +126,23 @@ export async function pushStateToCloud(
 /**
  * 📥 Pull latest state from Cloud Relay
  */
-export async function pullStateFromCloud(syncIdentifier: string): Promise<CloudSyncState | null> {
-  const syncKey = normalizeSyncKey(syncIdentifier || 'mradityasinghofficial1@gmail.com');
+export async function pullStateFromCloud(identity: Partial<UserProfile> | string): Promise<CloudSyncState | null> {
+  const syncKey = getStableUserId(identity);
 
   try {
     const res = await fetch(`https://kvdb.io/bucket_effstreak_2026/${syncKey}?_t=${Date.now()}`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(3500),
     });
 
     if (res.ok) {
       const data: CloudSyncState = await res.json();
-      if (data && data.updatedAt && data.updatedAt > lastLocalUpdatedAt && data.deviceId !== DEVICE_ID) {
-        lastRemoteUpdatedAt = data.updatedAt;
+      if (data && data.updatedAt && data.updatedAt > lastLocalPushTimestamp && data.deviceId !== DEVICE_ID) {
+        lastRemoteReceivedTimestamp = data.updatedAt;
         return data;
       }
     }
   } catch {
-    // Check local fallback
+    // Silently continue
   }
 
   return null;
@@ -136,12 +150,13 @@ export async function pullStateFromCloud(syncIdentifier: string): Promise<CloudS
 
 /**
  * ⚡ Real-Time Cloud Subscription Hook / Listener
+ * Automatically synchronizes Mobile and Laptop whenever any data is modified.
  */
 export function subscribeToCloudSync(
-  syncIdentifier: string,
+  identity: Partial<UserProfile> | string,
   onRemoteStateReceived: (remoteState: CloudSyncState) => void
 ): () => void {
-  const syncKey = normalizeSyncKey(syncIdentifier || 'mradityasinghofficial1@gmail.com');
+  const syncKey = getStableUserId(identity);
   let isActive = true;
 
   // 1. Listen for local BroadcastChannel messages
@@ -149,8 +164,8 @@ export function subscribeToCloudSync(
     if (!isActive) return;
     if (event.data?.type === 'STATE_PUSH' && event.data.payload) {
       const payload: CloudSyncState = event.data.payload;
-      if (payload.deviceId !== DEVICE_ID && payload.updatedAt > lastRemoteUpdatedAt) {
-        lastRemoteUpdatedAt = payload.updatedAt;
+      if (payload.syncId === syncKey && payload.deviceId !== DEVICE_ID && payload.updatedAt > lastRemoteReceivedTimestamp) {
+        lastRemoteReceivedTimestamp = payload.updatedAt;
         onRemoteStateReceived(payload);
       }
     }
@@ -160,21 +175,21 @@ export function subscribeToCloudSync(
     broadcastChannel.addEventListener('message', handleBroadcast);
   }
 
-  // 2. Poll Cloud Relay every 2.5 seconds + on window focus
+  // 2. High-frequency Real-Time Polling (every 2 seconds) + Window Focus + Online Event
   const checkCloud = async () => {
     if (!isActive) return;
     try {
       const remote = await pullStateFromCloud(syncKey);
-      if (remote && remote.updatedAt > lastRemoteUpdatedAt && remote.deviceId !== DEVICE_ID) {
-        lastRemoteUpdatedAt = remote.updatedAt;
+      if (remote && remote.updatedAt > lastRemoteReceivedTimestamp && remote.deviceId !== DEVICE_ID) {
+        lastRemoteReceivedTimestamp = remote.updatedAt;
         onRemoteStateReceived(remote);
       }
     } catch {
-      // Silently retry on next tick
+      // Retry on next cycle
     }
   };
 
-  const intervalId = setInterval(checkCloud, 2500);
+  const intervalId = setInterval(checkCloud, 2000);
 
   const handleFocus = () => {
     checkCloud();
@@ -182,7 +197,7 @@ export function subscribeToCloudSync(
   window.addEventListener('focus', handleFocus);
   window.addEventListener('online', handleFocus);
 
-  // Initial check
+  // Initial immediate fetch
   checkCloud();
 
   return () => {

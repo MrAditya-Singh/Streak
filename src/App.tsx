@@ -13,9 +13,9 @@ import {
   getRankByLevel,
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
-import { syncUserProfile, syncActivities, syncHistoryRecord } from './services/firebase';
+import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState } from './services/firebase';
 import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend } from './services/apiSync';
-import { pushStateToCloud, subscribeToCloudSync } from './services/cloudSync';
+import { pushStateToCloud, subscribeToCloudSync, getStableUserId } from './services/cloudSync';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
 import { WeeklyConsistencyOverview } from './components/WeeklyConsistencyOverview';
@@ -171,10 +171,17 @@ export const App: React.FC = () => {
     localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(emergencyTasks));
   }, [emergencyTasks]);
 
-  // 📡 1. PUSH STATE TO CLOUD RELAY (Phone ⇄ Laptop Sync)
+  // 📡 1. PUSH STATE TO CLOUD RELAY & FIRESTORE (Phone ⇄ Laptop Sync)
   useEffect(() => {
-    const syncKey = user.email || user.phoneNumber || user.uid || 'mradityasinghofficial1@gmail.com';
+    const syncKey = getStableUserId(user);
     pushStateToCloud(syncKey, {
+      user,
+      activities,
+      matrixState,
+      emergencyTasks,
+      logs,
+    });
+    syncFullStateToFirestore(syncKey, {
       user,
       activities,
       matrixState,
@@ -185,10 +192,10 @@ export const App: React.FC = () => {
 
   // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop)
   useEffect(() => {
-    const syncKey = user.email || user.phoneNumber || user.uid || 'mradityasinghofficial1@gmail.com';
+    const syncKey = getStableUserId(user);
 
-    const unsubscribe = subscribeToCloudSync(syncKey, (remoteState) => {
-      console.log('⚡ [Cloud 2-Way Sync] Received real-time state from another device:', remoteState);
+    const applyRemoteState = (remoteState: any) => {
+      console.log('⚡ [Cloud 2-Way Sync] Received real-time state from peer device:', remoteState);
       if (remoteState.activities && Array.isArray(remoteState.activities)) {
         setActivities(remoteState.activities);
       }
@@ -196,7 +203,7 @@ export const App: React.FC = () => {
         setMatrixState(remoteState.matrixState);
       }
       if (remoteState.user) {
-        setUser((prev) => ({ ...prev, ...remoteState.user }));
+        setUser((prev) => ({ ...prev, ...remoteState.user, uid: syncKey }));
       }
       if (remoteState.emergencyTasks && Array.isArray(remoteState.emergencyTasks)) {
         setEmergencyTasks(remoteState.emergencyTasks);
@@ -205,10 +212,14 @@ export const App: React.FC = () => {
         setLogs(remoteState.logs);
       }
       soundFx.playCheck();
-    });
+    };
+
+    const unsubscribeCloud = subscribeToCloudSync(syncKey, applyRemoteState);
+    const unsubscribeFirestore = subscribeToFirestoreFullState(syncKey, applyRemoteState);
 
     return () => {
-      unsubscribe();
+      unsubscribeCloud();
+      unsubscribeFirestore();
     };
   }, [user.email, user.phoneNumber, user.uid]);
 
