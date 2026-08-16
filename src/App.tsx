@@ -441,26 +441,115 @@ export const App: React.FC = () => {
   };
 
   const handleSyncActivities = (updates: { id: string; completed: boolean }[]) => {
+    if (!Array.isArray(updates) || updates.length === 0) return;
+
     const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Build flexible lookup map for platform matching
+    const completedSet = new Set<string>();
+    updates.forEach((u) => {
+      if (u.completed) {
+        const idLower = u.id.toLowerCase().trim();
+        completedSet.add(idLower);
+        if (idLower === 'lc' || idLower === 'leetcode') {
+          completedSet.add('lc');
+          completedSet.add('leetcode');
+        }
+        if (idLower === 'gh' || idLower === 'github') {
+          completedSet.add('gh');
+          completedSet.add('github');
+        }
+        if (idLower === 'cf' || idLower === 'codeforces') {
+          completedSet.add('cf');
+          completedSet.add('codeforces');
+        }
+        if (idLower === 'yt' || idLower === 'youtube') {
+          completedSet.add('yt');
+          completedSet.add('youtube');
+        }
+        if (idLower === 'gfg' || idLower === 'geeksforgeeks') {
+          completedSet.add('gfg');
+          completedSet.add('geeksforgeeks');
+        }
+        if (idLower === 'atcoder') {
+          completedSet.add('atcoder');
+        }
+        if (idLower === 'hackerrank' || idLower === 'hr') {
+          completedSet.add('hackerrank');
+          completedSet.add('hr');
+        }
+      }
+    });
+
+    // 1. Update activities list with checkmarks
+    let xpToAdd = 0;
     const updatedActivitiesList = activities.map((act) => {
-      const update = updates.find((u) => u.id === act.id);
-      if (update && !act.completed && update.completed) {
-        handleAwardXP(act.xpReward);
-        addLogEntry(act.id, act.name, act.category, true);
+      const actId = act.id.toLowerCase().trim();
+      const source = (act.source || '').toLowerCase().trim();
+      const name = act.name.toLowerCase().trim();
+
+      const isMatched = 
+        completedSet.has(actId) ||
+        completedSet.has(source) ||
+        completedSet.has(name) ||
+        (completedSet.has('leetcode') && (name.includes('leetcode') || actId.includes('lc'))) ||
+        (completedSet.has('github') && (name.includes('github') || actId.includes('gh'))) ||
+        (completedSet.has('codeforces') && (name.includes('codeforces') || actId.includes('cf'))) ||
+        (completedSet.has('gfg') && (name.includes('gfg') || name.includes('geeks') || actId.includes('gfg'))) ||
+        (completedSet.has('youtube') && (name.includes('youtube') || actId.includes('yt'))) ||
+        (completedSet.has('atcoder') && name.includes('atcoder')) ||
+        (completedSet.has('hackerrank') && name.includes('hackerrank'));
+
+      if (isMatched) {
+        if (!act.completed) {
+          xpToAdd += act.xpReward || 25;
+          addLogEntry(act.id, act.name, act.category, true);
+        }
         return {
           ...act,
           completed: true,
           isAutoDetected: true,
-          streak: act.streak + 1,
-          completedAt: nowTimeStr,
+          streak: act.completed ? act.streak : act.streak + 1,
+          completedAt: act.completedAt || nowTimeStr,
+          lastSyncedAt: new Date().toISOString(),
         };
       }
       return act;
     });
 
+    // 2. Update monthly matrix checkboxes for today's cell (currentDayIndex)
+    setMatrixState((prev) => {
+      const next = { ...prev };
+      updatedActivitiesList.forEach((act) => {
+        if (act.completed) {
+          const currentDays = next[act.id] ? [...next[act.id]] : Array.from({ length: daysInMonth }, () => false);
+          currentDays[currentDayIndex] = true;
+          next[act.id] = currentDays;
+        }
+      });
+      localStorage.setItem('streak_monthly_matrix', JSON.stringify(next));
+      return next;
+    });
+
+    if (xpToAdd > 0) {
+      handleAwardXP(xpToAdd);
+    }
+
     const { updatedUser, updatedActivities } = evaluateStrictStreaks(user, updatedActivitiesList);
     setUser(updatedUser);
     setActivities(updatedActivities);
+
+    // 3. Immediately broadcast to cloud so all connected devices update in real-time
+    const syncKey = getStableUserId(updatedUser);
+    pushStateToCloud(syncKey, {
+      user: updatedUser,
+      activities: updatedActivities,
+      matrixState,
+      emergencyTasks,
+      logs,
+    });
+
+    soundFx.playCheck();
   };
 
   const handleApplyFullSync = (payload: {
