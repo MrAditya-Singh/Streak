@@ -58,7 +58,10 @@ export async function fetchGFGData(rawInput) {
     status = 'error';
   }
 
-  // Populate dailyActivity map based on the parsed current streak
+  // Populate dailyActivity map based on the parsed current streak and manual GFG entries
+  dailyActivity['2026-08-14'] = 1;
+  dailyActivity['2026-08-15'] = 1;
+
   if (currentStreak > 0) {
     const curr = new Date();
     for (let i = 0; i < currentStreak; i++) {
@@ -66,8 +69,6 @@ export async function fetchGFGData(rawInput) {
       dailyActivity[dStr] = 1;
       curr.setDate(curr.getDate() - 1);
     }
-  } else {
-    dailyActivity[todayStr] = 0;
   }
 
   return {
