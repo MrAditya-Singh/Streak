@@ -643,16 +643,11 @@ export const App: React.FC = () => {
     } catch (err) {
       console.warn('Backend sync fallback to direct client fetch:', err);
     }
-
-    // 2. Direct fetch from Codolio & Platform APIs
+    // 2. Direct fetch from Codolio & LeetCode APIs (client fallback)
     try {
-      const [codolioRes, ghRes, lcRes, cfRes, gfgRes, atcoderRes] = await Promise.all([
+      const [codolioRes, lcRes] = await Promise.all([
         syncCodolio(user.codolioUsername || 'Mr.Aditya'),
-        syncGitHub(user.githubUsername || 'MrAditya-Singh', user.githubToken),
         syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
-        syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
-        syncGFG(user.gfgUsername || 'mraditya'),
-        syncAtCoder(user.atcoderUsername || 'MrAditya'),
       ]);
 
       const codolioActive = codolioRes.activePlatforms || {};
@@ -662,12 +657,12 @@ export const App: React.FC = () => {
         { id: 'codolio', completed: codolioRes.hasActivityToday },
         { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
         { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
-        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
-        { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
-        { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
-        { id: 'atcoder', completed: atcoderRes.hasActivityToday || !!codolioActive.atcoder },
+        { id: 'codeforces', completed: !!codolioActive.codeforces },
+        { id: 'cf', completed: !!codolioActive.codeforces },
+        { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'github', completed: !!codolioActive.github },
+        { id: 'gh', completed: !!codolioActive.github },
+        { id: 'atcoder', completed: !!codolioActive.atcoder },
       ];
 
       handleSyncActivities(updates);
@@ -687,12 +682,9 @@ export const App: React.FC = () => {
       // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's exact dates
       const platformDailyMaps = codolioRes.platformDailyMaps || {};
 
-      // Merge direct API recent dates into platformDailyMaps to ensure they show up in history
+      // Merge direct LeetCode recent dates into platformDailyMaps to ensure they show up in history
       const directRecentDates: Record<string, string[]> = {
-        github: ghRes.recentDates || [],
         leetcode: lcRes.recentDates || [],
-        codeforces: cfRes.recentDates || [],
-        atcoder: atcoderRes.recentDates || [],
       };
 
       Object.keys(directRecentDates).forEach((pKey) => {
@@ -704,9 +696,7 @@ export const App: React.FC = () => {
         });
       });
 
-      const hasPlatformData = Object.keys(platformDailyMaps).length > 0;
-
-      if (hasPlatformData) {
+      const hasPlatformData = Object.keys(platformDailyMaps).length > 0;      if (hasPlatformData) {
         const now = new Date();
         const curYear = now.getFullYear();
         const curMonthStr = String(now.getMonth() + 1).padStart(2, '0');

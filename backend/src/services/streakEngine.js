@@ -47,11 +47,21 @@ export function evaluateHabitsAndStreaks({
   user = {},
   currentDayOfMonth = 15,
 }) {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
+  let todayStr = new Date().toISOString().split('T')[0];
+  try {
+    todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  } catch (err) {
+    // Fallback
+  }
   let xpAwardedThisRun = 0;
   let newlyCompletedCount = 0;
   const auditLogs = [];
-  const dayIndex = Math.max(0, Math.min(29, currentDayOfMonth - 1));
+  
+  // Set dayIndex using timezone dayOfMonth
+  const parts = todayStr.split('-');
+  const todayDay = Number(parts[2]);
+  const dayIndex = Math.max(0, Math.min(29, todayDay - 1));
 
   // 1. Index normalized platforms
   const platformMap = {};
@@ -163,12 +173,8 @@ export function evaluateHabitsAndStreaks({
     };
   });
 
-  // 4. Update the 31-Day Monthly Matrix state with real daily activity from platforms
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonthNum = now.getMonth() + 1;
-  const currentMonthStr = String(currentMonthNum).padStart(2, '0');
-  const todayDay = now.getDate();
+  const currentYear = Number(parts[0]);
+  const currentMonthStr = parts[1];
 
   const updatedMatrix = { ...matrixState };
   updatedHabits.forEach((habit) => {

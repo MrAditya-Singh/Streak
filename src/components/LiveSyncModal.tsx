@@ -65,25 +65,15 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
 
     try {
       // 1. Run live parallel queries across all platforms directly
-      const [codolioRes, ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes] = await Promise.all([
+      const [codolioRes, lcRes, ytRes] = await Promise.all([
         syncCodolio(codolioUser),
-        syncGitHub(ghUser, user.githubToken),
         syncLeetCode(lcUser),
-        syncCodeforces(cfHandle),
-        syncGFG(gfgUser),
-        syncAtCoder(atcoderUser),
-        syncHackerRank(hrUser),
         syncYouTube(ytChannel),
       ]);
 
       const pResults: Record<string, any> = {
         Codolio: codolioRes,
-        GitHub: ghRes,
         LeetCode: lcRes,
-        Codeforces: cfRes,
-        GeeksForGeeks: gfgRes,
-        AtCoder: atcoderRes,
-        HackerRank: hrRes,
         YouTube: ytRes,
       };
       setPlatformResults(pResults);
@@ -95,20 +85,20 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
         { id: 'codolio', completed: codolioRes.hasActivityToday },
         { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
         { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
-        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
-        { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
-        { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
+        { id: 'codeforces', completed: !!codolioActive.codeforces },
+        { id: 'cf', completed: !!codolioActive.codeforces },
+        { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'github', completed: !!codolioActive.github },
+        { id: 'gh', completed: !!codolioActive.github },
         { id: 'youtube', completed: ytRes.hasActivityToday },
         { id: 'yt', completed: ytRes.hasActivityToday },
-        { id: 'atcoder', completed: atcoderRes.hasActivityToday || !!codolioActive.atcoder },
-        { id: 'hackerrank', completed: hrRes.hasActivityToday || !!codolioActive.hackerrank },
+        { id: 'atcoder', completed: !!codolioActive.atcoder },
+        { id: 'hackerrank', completed: !!codolioActive.hackerrank },
       ];
       onSyncActivities(updates);
 
       // 3. Award XP and calculate progression using Codolio real streak
-      const activePlatformsCount = [ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes, codolioRes].filter((r) => r.hasActivityToday).length;
+      const activePlatformsCount = [lcRes, ytRes, codolioRes].filter((r) => r.hasActivityToday).length;
       const xpGained = activePlatformsCount * 45;
       const newXP = (user.currentXP || 1840) + xpGained;
       const codolioStreak = codolioRes.calculatedStreak || 11;
