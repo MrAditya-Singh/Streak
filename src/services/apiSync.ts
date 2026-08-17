@@ -211,15 +211,16 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
     const activePlatforms: Record<string, boolean> = {};
     let hasToday = false;
 
-    // 1. Fetch Profile Data (LeetCode, Codeforces, GFG, CodeChef cards)
+    // 1. Fetch Profile Data — real path: data.platformProfiles.platformProfiles (Array)
     const profileRes = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(cleanUsername)}`);
     if (profileRes.ok) {
       const pJson = await profileRes.json();
-      const cards = pJson.data?.platformCards || [];
+      // ✓ Correct path verified: data.platformProfiles.platformProfiles is the array
+      const cards: any[] = pJson.data?.platformProfiles?.platformProfiles || [];
       cards.forEach((card: any) => {
-        // Normalize platform name e.g. "LeetCode" → "leetcode", "GeeksForGeeks" → "gfg"
+        // Normalize platform names to habit IDs used in the app
         let rawName = (card.platform || '').toLowerCase().trim();
-        if (rawName.includes('geeks') || rawName.includes('gfg')) rawName = 'gfg';
+        if (rawName.includes('geeks') || rawName === 'gfg') rawName = 'gfg';
         if (rawName.includes('codechef')) rawName = 'codechef';
         if (rawName.includes('codeforces')) rawName = 'codeforces';
         if (rawName.includes('leetcode')) rawName = 'leetcode';
@@ -233,6 +234,7 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
         Object.keys(calendar).forEach((ts) => {
           const dStr = new Date(Number(ts) * 1000).toISOString().split('T')[0];
           const cnt = Number(calendar[ts]) || 1;
+
 
           // Per-platform map
           platformDailyMaps[rawName][dStr] = (platformDailyMaps[rawName][dStr] || 0) + cnt;
