@@ -109,7 +109,7 @@ export const App: React.FC = () => {
     return initial;
   });
 
-  // ─── Sync Identity (Gmail & Phone Number account mapping) ──────────────────
+  // ─── Sync Identity (Gmail & Phone Number deterministic account mapping) ────
   const [syncEmail, setSyncEmail] = useState<string>(() => {
     const oldKey = localStorage.getItem('effstreak_sync_key') || '';
     if (oldKey && oldKey.includes('@')) {
@@ -128,29 +128,22 @@ export const App: React.FC = () => {
     }
     return localStorage.getItem('effstreak_sync_phone') || '';
   });
-  const [activeSyncKey, setActiveSyncKey] = useState<string>('');
-  const [isResolvingAccount, setIsResolvingAccount] = useState<boolean>(true);
+
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
 
-  useEffect(() => {
-    const resolve = async () => {
-      setIsResolvingAccount(true);
-      if (syncEmail || syncPhone) {
-        try {
-          const accId = await resolveAccountId(syncEmail, syncPhone);
-          console.log('🔑 [Account Linked] Resolved stable account key:', accId);
-          setActiveSyncKey(accId);
-        } catch (e) {
-          console.warn('Could not resolve account id:', e);
-          setActiveSyncKey(getStableUserId(user));
-        }
-      } else {
-        // Guest mode fallback
-        setActiveSyncKey(getStableUserId(user));
-      }
-      setIsResolvingAccount(false);
-    };
-    resolve();
+  // Synchronous and instant stable user key generation. Prioritizes email, falls back to phone, then guest fallback.
+  // This resolves INSTANTLY without network requests, avoiding start-up loading screens or hangs!
+  const activeSyncKey = useMemo(() => {
+    const cleanEmail = syncEmail.trim().toLowerCase();
+    const cleanPhone = syncPhone.trim().replace(/[^0-9]/g, '');
+
+    if (cleanEmail) {
+      return `user_${cleanEmail.replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 64)}`;
+    }
+    if (cleanPhone) {
+      return `user_phone_${cleanPhone}`;
+    }
+    return getStableUserId(user);
   }, [syncEmail, syncPhone, user]);
 
   const handleConfirmSyncIdentity = (email: string, phone: string) => {
@@ -1191,23 +1184,6 @@ export const App: React.FC = () => {
     }
   };
 
-  if (isResolvingAccount && (syncEmail || syncPhone)) {
-    return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        background: isDarkMode ? '#0b0f19' : '#F4EFE6', color: isDarkMode ? '#fff' : '#000',
-        fontFamily: 'Inter, system-ui, sans-serif'
-      }}>
-        <div style={{
-          width: 50, height: 50, borderRadius: '50%', border: '4px solid rgba(99,102,241,0.2)',
-          borderTopColor: '#6366f1', animation: 'spin 1s linear infinite', marginBottom: 16
-        }}/>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>Connecting to Unified Account...</div>
-        <div style={{ fontSize: 13, color: 'rgba(128,128,128,0.7)', marginTop: 6 }}>Syncing your cross-device habits with Firestore</div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
