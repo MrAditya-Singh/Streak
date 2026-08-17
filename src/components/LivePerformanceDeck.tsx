@@ -179,18 +179,14 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
 
   // ─── Design Tokens ────────────────────────────────────────────────────────
   const D = useMemo(() => isDarkMode ? {
-    // Dark Mode: Deep space noir
     outerBg:   'linear-gradient(180deg, #0a0a14 0%, #0d1022 100%)',
-    headerBg:  'linear-gradient(90deg, rgba(99,102,241,0.12) 0%, rgba(139,92,246,0.08) 50%, rgba(16,185,129,0.06) 100%)',
-    headerBor: 'rgba(99,102,241,0.3)',
-    panelBg:   'rgba(255,255,255,0.03)',
+    panelBg:   'rgba(15, 20, 35, 0.95)',
     cardBg:    'rgba(255,255,255,0.04)',
-    cardHov:   'rgba(255,255,255,0.07)',
-    border:    'rgba(255,255,255,0.07)',
+    border:    'rgba(255,255,255,0.08)',
     borderAcc: 'rgba(99,102,241,0.3)',
     text:      '#f1f5f9',
-    textSub:   'rgba(255,255,255,0.55)',
-    textMut:   'rgba(255,255,255,0.28)',
+    textSub:   'rgba(255,255,255,0.6)',
+    textMut:   'rgba(255,255,255,0.35)',
     accent:    '#818cf8',
     accentGr:  'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
     green:     '#34d399',
@@ -198,34 +194,32 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
     red:       '#f87171',
     yellow:    '#fbbf24',
     tabBg:     'rgba(255,255,255,0.04)',
-    tabAct:    'linear-gradient(135deg, #6366f1, #8b5cf6)',
     inputBg:   'rgba(255,255,255,0.06)',
-    toggleBg:  'linear-gradient(135deg, #1e1b4b, #1a1a2e)',
-    toggleBor: 'rgba(99,102,241,0.4)',
+    footerBg:  '#0b0f19',
+    btnBg:     '#1e1b4b',
+    btnBorder: 'rgba(99,102,241,0.4)',
+    btnHover:  '#2e2a75',
   } : {
-    // Light Mode: Crisp editorial paper
     outerBg:   'linear-gradient(180deg, #f0f4ff 0%, #fafafa 100%)',
-    headerBg:  'linear-gradient(90deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.05) 50%, rgba(16,185,129,0.04) 100%)',
-    headerBor: 'rgba(99,102,241,0.2)',
-    panelBg:   'rgba(255,255,255,0.9)',
-    cardBg:    'rgba(255,255,255,0.95)',
-    cardHov:   'rgba(249,250,255,1)',
-    border:    'rgba(99,102,241,0.1)',
+    panelBg:   'rgba(255, 255, 255, 0.98)',
+    cardBg:    'rgba(99,102,241,0.03)',
+    border:    'rgba(99,102,241,0.12)',
     borderAcc: 'rgba(99,102,241,0.25)',
     text:      '#0f172a',
     textSub:   '#475569',
-    textMut:   '#94a3b8',
+    textMut:   '#64748b',
     accent:    '#6366f1',
     accentGr:  'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
     green:     '#059669',
     orange:    '#ea580c',
     red:       '#dc2626',
     yellow:    '#d97706',
-    tabBg:     'rgba(99,102,241,0.06)',
-    tabAct:    'linear-gradient(135deg, #6366f1, #8b5cf6)',
-    inputBg:   'rgba(255,255,255,0.9)',
-    toggleBg:  'linear-gradient(135deg, #eef2ff, #f5f3ff)',
-    toggleBor: 'rgba(99,102,241,0.3)',
+    tabBg:     'rgba(99,102,241,0.05)',
+    inputBg:   '#ffffff',
+    footerBg:  '#F4EFE6',
+    btnBg:     '#ffffff',
+    btnBorder: 'rgba(15,23,42,0.15)',
+    btnHover:  '#f8fafc',
   }, [isDarkMode]);
 
   // ─── Data calculations ─────────────────────────────────────────────────────
@@ -747,112 +741,134 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
 
   // ─── Shell ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: D.outerBg }}>
-      {/* ── Toggle Header Strip ── */}
-      <div
-        onClick={() => setIsExpanded(v => !v)}
-        style={{
-          cursor: 'pointer',
-          background: D.headerBg,
-          borderTop: `1.5px solid ${D.headerBor}`,
-          borderBottom: isExpanded ? `1px solid ${D.border}` : 'none',
-          padding: '14px 24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          userSelect: 'none', transition: 'background 0.2s',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Icon badge */}
+    <>
+      {/* Spacer to prevent fixed footer overlapping last element when scrolled to bottom */}
+      <div style={{ height: '54px' }} />
+
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: '"Inter", system-ui, sans-serif',
+      }}>
+        {/* ── Expandable Panel (Slides up from the bottom) ── */}
+        {isExpanded && (
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: D.accentGr,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
-            flexShrink: 0,
+            background: D.panelBg,
+            borderTop: `1px solid ${D.border}`,
+            borderBottom: `1.5px solid ${D.border}`,
+            maxHeight: '60vh',
+            overflowY: 'auto',
+            backdropFilter: 'blur(16px)',
+            boxShadow: isDarkMode 
+              ? '0 -10px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(99, 102, 241, 0.1)'
+              : '0 -10px 30px rgba(15, 23, 42, 0.08)',
           }}>
-            <Layers size={18} color="#fff"/>
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: D.text, letterSpacing: '-0.2px' }}>
-              Live Performance &amp; Platform Deck
-            </div>
-            <div style={{ fontSize: 11, color: D.textMut, marginTop: 1 }}>
-              Directives · Efficiency · Profiles · Improvement Tips
-            </div>
-          </div>
-          {/* Active directive badge */}
-          {emergencyTasks.filter(t => !t.completed).length > 0 && (
+            {/* Tab navigation */}
             <div style={{
-              padding: '2px 9px', borderRadius: 20,
-              background: `${D.red}20`, border: `1px solid ${D.red}40`,
-              fontSize: 11, fontWeight: 800, color: D.red,
+              display: 'flex', borderBottom: `1px solid ${D.border}`,
+              paddingLeft: 24, paddingRight: 24,
+              background: isDarkMode ? 'rgba(255,255,255,0.01)' : 'rgba(99,102,241,0.01)',
             }}>
-              {emergencyTasks.filter(t => !t.completed).length} active {emergencyTasks.filter(t=>!t.completed).length === 1 ? 'directive' : 'directives'}
+              {TABS.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
+                  padding: '11px 16px 13px',
+                  border: 'none', borderBottom: `2.5px solid ${activeTab === tab.id ? D.accent : 'transparent'}`,
+                  background: 'transparent', cursor: 'pointer',
+                  color: activeTab === tab.id ? D.accent : D.textSub,
+                  fontSize: 13, fontWeight: activeTab === tab.id ? 800 : 600,
+                  transition: 'all 0.15s',
+                }}>
+                  {tab.icon}
+                  {tab.label}
+                  {tab.badge && (
+                    <span style={{
+                      position: 'absolute', top: 6, right: 4,
+                      width: 16, height: 16, borderRadius: '50%',
+                      background: D.red, color: '#fff', fontSize: 9, fontWeight: 900,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>{tab.badge}</span>
+                  )}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+
+            {/* Tab content */}
+            <div style={{
+              padding: '20px 24px 24px',
+              maxWidth: 1280, margin: '0 auto',
+              scrollbarWidth: 'thin',
+            }}>
+              {activeTab === 'emergency'  && renderEmergency()}
+              {activeTab === 'efficiency' && renderEfficiency()}
+              {activeTab === 'profiles'   && renderProfiles()}
+              {activeTab === 'improve'    && renderImprove()}
+            </div>
+          </div>
+        )}
+
+        {/* ── Toggle Footer Bar (Exact Visual Copy of Image) ── */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          color: D.textSub, fontSize: 12, fontWeight: 600,
+          background: D.footerBg,
+          borderTop: `1px solid ${D.border}`,
+          padding: '8px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: '48px',
+          boxSizing: 'border-box',
+          boxShadow: isDarkMode ? '0 -4px 10px rgba(0,0,0,0.3)' : '0 -2px 8px rgba(0,0,0,0.03)',
         }}>
-          <span>{isExpanded ? 'Hide' : 'Show'}</span>
-          {isExpanded
-            ? <ChevronUp size={18} style={{ color: D.accent }}/>
-            : <ChevronDown size={18} style={{ color: D.accent }}/>
-          }
+          {/* Left: Button Styled exactly like the image */}
+          <button
+            onClick={() => setIsExpanded(v => !v)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 14px',
+              borderRadius: '9px',
+              border: `1px solid ${D.btnBorder}`,
+              background: D.btnBg,
+              color: D.text,
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              outline: 'none',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = D.btnHover}
+            onMouseLeave={e => e.currentTarget.style.background = D.btnBg}
+          >
+            {/* Blue-purple layout/layers icon */}
+            <Layers size={13} style={{ color: '#818cf8' }} />
+            <span>
+              {isExpanded ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}
+            </span>
+            {isExpanded ? (
+              <ChevronDown size={13} style={{ opacity: 0.8 }} />
+            ) : (
+              <ChevronDown size={13} style={{ opacity: 0.8 }} />
+            )}
+          </button>
+
+          {/* Right: Muted status text */}
+          <div style={{
+            fontSize: '11.5px',
+            color: D.textMut,
+            fontWeight: '600',
+            letterSpacing: '0.2px',
+          }}>
+            Live Solo Leveling Sync • {user.hunterRank || 'E'}-Rank
+          </div>
         </div>
       </div>
-
-      {/* ── Expandable Panel ── */}
-      {isExpanded && (
-        <div style={{
-          background: D.panelBg,
-          borderBottom: `1.5px solid ${D.border}`,
-        }}>
-          {/* Tab navigation */}
-          <div style={{
-            display: 'flex', borderBottom: `1px solid ${D.border}`,
-            paddingLeft: 24, paddingRight: 24,
-            background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(99,102,241,0.02)',
-          }}>
-            {TABS.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
-                padding: '11px 16px 13px',
-                border: 'none', borderBottom: `2.5px solid ${activeTab === tab.id ? D.accent : 'transparent'}`,
-                background: 'transparent', cursor: 'pointer',
-                color: activeTab === tab.id ? D.accent : D.textSub,
-                fontSize: 13, fontWeight: activeTab === tab.id ? 800 : 600,
-                transition: 'all 0.15s',
-              }}>
-                {tab.icon}
-                {tab.label}
-                {tab.badge && (
-                  <span style={{
-                    position: 'absolute', top: 6, right: 4,
-                    width: 16, height: 16, borderRadius: '50%',
-                    background: D.red, color: '#fff', fontSize: 9, fontWeight: 900,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{tab.badge}</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div style={{
-            padding: '22px 24px 28px',
-            maxWidth: 1280, margin: '0 auto',
-            maxHeight: '75vh', overflowY: 'auto',
-            scrollbarWidth: 'thin',
-          }}>
-            {activeTab === 'emergency'  && renderEmergency()}
-            {activeTab === 'efficiency' && renderEfficiency()}
-            {activeTab === 'profiles'   && renderProfiles()}
-            {activeTab === 'improve'    && renderImprove()}
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 };
