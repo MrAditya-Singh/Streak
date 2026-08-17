@@ -402,6 +402,24 @@ router.post('/sync', async (req, res) => {
       ? normalizedPlatforms.filter(p => p.platform === specificPlatform)
       : normalizedPlatforms;
 
+    // Guarantee no historical activity is ever lost from Firestore for any platform
+    if (isFirebaseInitialized && db) {
+      for (const normDoc of finalNormalized) {
+        try {
+          const docRef = await db.collection('integrations').doc(`${userId}_${normDoc.platform}`).get();
+          if (docRef.exists) {
+            const storedActivity = docRef.data().activity || docRef.data().dailyActivity || {};
+            normDoc.dailyActivity = {
+              ...storedActivity,
+              ...normDoc.dailyActivity,
+            };
+          }
+        } catch (fsErr) {
+          console.warn(`Firestore read warning for ${normDoc.platform}:`, fsErr.message);
+        }
+      }
+    }
+
     // 3. Persist all dynamically synced platforms to Firestore integrations collection
     const savePromises = finalNormalized.map(async (normalized) => {
       const platform = normalized.platform;
