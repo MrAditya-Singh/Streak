@@ -1116,6 +1116,7 @@ export const App: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={user}
         onSelectUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+        isDarkMode={isDarkMode}
       />
     </div>
   );
