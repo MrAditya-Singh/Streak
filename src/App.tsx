@@ -229,18 +229,41 @@ export const App: React.FC = () => {
         });
       }
 
-      // 2. SMART UNION MERGE FOR MASTER 31-DAY HABIT MATRIX GRID (ELEMENT-WISE OR)
-      if (remoteState.matrixState && typeof remoteState.matrixState === 'object') {
+      // 2. SMART UNION MERGE FOR MASTER HABIT MATRIX GRID (HANDLES ALL FORMATS & KEYS)
+      const rawMatrix = remoteState.matrixState || remoteState.matrix || remoteState.state?.matrix || {};
+      if (rawMatrix && typeof rawMatrix === 'object') {
         setMatrixState((prevMatrix) => {
           const merged: Record<string, boolean[]> = { ...prevMatrix };
-          Object.keys(remoteState.matrixState).forEach((actId) => {
-            const localArr = prevMatrix[actId] || Array.from({ length: 31 }, () => false);
-            const remoteArr = remoteState.matrixState[actId] || [];
+          const mIdx = MONTH_NAMES.indexOf(selectedMonth);
+          const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
 
-            // Perform element-wise OR (lVal || rVal) to NEVER lose any checkmark from EITHER device!
+          // Process all habit IDs from both local and remote
+          const allHabitIds = new Set([...Object.keys(prevMatrix), ...Object.keys(rawMatrix), ...activities.map(a => a.id)]);
+          
+          allHabitIds.forEach((actId) => {
+            const localArr = prevMatrix[actId] || Array.from({ length: 31 }, () => false);
+            const remoteItem = rawMatrix[actId];
+
             const mergedArr = Array.from({ length: 31 }, (_, idx) => {
               const lVal = Boolean(localArr[idx]);
-              const rVal = Array.isArray(remoteArr) ? Boolean(remoteArr[idx]) : false;
+              let rVal = false;
+
+              if (Array.isArray(remoteItem)) {
+                // Array format: [true, false, ...]
+                rVal = Boolean(remoteItem[idx]);
+              } else if (remoteItem && typeof remoteItem === 'object') {
+                // Date Object format: { "2026-08-18": true }
+                const dayStr = String(idx + 1).padStart(2, '0');
+                const dateKey = `${selectedYear}-${monthStr}-${dayStr}`;
+                rVal = Boolean(remoteItem[dateKey] || remoteItem[idx + 1] || remoteItem[idx]);
+              } else {
+                // Flat key format: { "leetcode_2026-08-18": true } or { "leetcode_18": true }
+                const dayStr = String(idx + 1).padStart(2, '0');
+                const dateKey = `${selectedYear}-${monthStr}-${dayStr}`;
+                rVal = Boolean(rawMatrix[`${actId}_${dateKey}`] || rawMatrix[`${actId}_${idx + 1}`]);
+              }
+
+              // Union merge: Cell is completed if checked on EITHER device!
               return lVal || rVal;
             });
 
@@ -312,20 +335,22 @@ export const App: React.FC = () => {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'HABIT_TOGGLED' && msg.habitId && msg.date) {
-            const dateStr = new Date().toISOString().split('T')[0];
-            if (msg.date !== dateStr) return; // Only handle today's toggles here
+            const parts = msg.date.split('-');
+            const targetDay = parseInt(parts[2], 10);
 
-            // Directly apply matrix cell toggle from peer device
-            setMatrixState((prev) => {
-              const currentDays = prev[msg.habitId] || Array.from({ length: 31 }, () => false);
-              const dayIndex = new Date(msg.date).getDate() - 1;
-              const updatedDays = [...currentDays];
-              updatedDays[dayIndex] = Boolean(msg.completed);
-              return { ...prev, [msg.habitId]: updatedDays };
-            });
+            if (!isNaN(targetDay) && targetDay >= 1 && targetDay <= 31) {
+              const dayIndex = targetDay - 1;
+              setMatrixState((prev) => {
+                const currentDays = prev[msg.habitId] || Array.from({ length: 31 }, () => false);
+                const updatedDays = [...currentDays];
+                updatedDays[dayIndex] = Boolean(msg.completed);
+                return { ...prev, [msg.habitId]: updatedDays };
+              });
+            }
 
-            // Also update activities completed state
-            if (msg.date === dateStr) {
+            // If it's today's date, also update active activities checklist
+            const nowDayStr = String(new Date().getDate()).padStart(2, '0');
+            if (parts[2] === nowDayStr) {
               setActivities((prev) =>
                 prev.map((act) =>
                   act.id === msg.habitId
@@ -334,7 +359,7 @@ export const App: React.FC = () => {
                 )
               );
             }
-            console.log(`⚡ [SSE] Peer device toggled [${msg.habitId}] -> ${msg.completed}`);
+            console.log(`⚡ [SSE] Peer device toggled [${msg.habitId}] Day ${targetDay} -> ${msg.completed}`);
           }
         } catch {
           // Ignore parse errors
@@ -467,8 +492,11 @@ export const App: React.FC = () => {
 
       // ⚡ Broadcast this matrix toggle to ALL peer devices via backend SSE
       const syncKey = activeSyncKey;
-      const dateStr = new Date(new Date().getFullYear(), MONTH_NAMES.indexOf(selectedMonth), dayIndex + 1)
-        .toISOString().split('T')[0];
+      const mIdx = MONTH_NAMES.indexOf(selectedMonth);
+      const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
+      const dayStr = String(dayIndex + 1).padStart(2, '0');
+      const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
+
       fetch(`${BACKEND_API_BASE}/sync/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
