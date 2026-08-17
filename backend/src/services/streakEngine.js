@@ -161,7 +161,12 @@ export function evaluateHabitsAndStreaks({
       });
     }
 
-    const habitStreak = habit.streak || (isNowCompleted ? 1 : 0);
+    let habitStreak = habit.streak || 0;
+    if (sourcePlatform && platformStreaks[sourcePlatform] !== undefined) {
+      habitStreak = platformStreaks[sourcePlatform];
+    } else {
+      habitStreak = habit.streak || (isNowCompleted ? 1 : 0);
+    }
 
     return {
       ...habit,

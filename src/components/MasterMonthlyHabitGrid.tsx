@@ -361,7 +361,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
                   {/* Longest Streak */}
                   <span className="w-10 text-right text-[11px] font-black text-amber-500 dark:text-amber-400 flex items-center justify-end gap-0.5">
                     <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
-                    <span>{maxStreak || act.streak}</span>
+                    <span>{Math.max(act.streak || 0, maxStreak || 0)}</span>
                   </span>
                 </div>
               );
