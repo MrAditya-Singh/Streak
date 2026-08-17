@@ -67,10 +67,6 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       ? `${qualifyingEvents.length} commits/actions today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'})`
       : `No commits pushed today (checked @${cleanUser})`;
 
-    const recentDates = events
-      .filter(e => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
-      .map(e => new Date(e.created_at).toLocaleDateString('en-CA'));
-
     return {
       platform: 'GitHub',
       hasActivityToday: hasActivity,
@@ -78,7 +74,6 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       details,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: hasActivity,
-      recentDates,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Network error';
@@ -89,7 +84,6 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       details: `GitHub verified for @${username} (${errorMsg})`,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: true,
-      recentDates: [],
     };
   }
 }
