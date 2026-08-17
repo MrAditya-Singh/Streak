@@ -155,9 +155,10 @@ router.post('/sync', async (req, res) => {
     const userCanonicalIntegrations = CANONICAL_MAPPING.integrations;
     const codolioUsername = userCanonicalIntegrations?.codolio?.username || user?.codolioUsername || user?.platformUrls?.codolio || 'Mr.Aditya';
     const leetcodeUsername = userCanonicalIntegrations?.leetcode?.username || user?.leetcodeUsername || user?.platformUrls?.leetcode || 'mradityasingh';
+    const codeforcesHandle = userCanonicalIntegrations?.codeforces?.username || user?.codeforcesHandle || user?.platformUrls?.codeforces || 'Aditya__YUPP';
     const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
-    // 1. Fetch Codolio profile (includes sub-profiles like GitHub) & LeetCode direct API
+    // 1. Fetch Codolio profile (includes sub-profiles like GitHub), LeetCode direct, & Codeforces direct
     let rawCodolio = null;
     try {
       rawCodolio = await fetchWithCache(`codolio_${codolioUsername}`, () =>
@@ -176,11 +177,25 @@ router.post('/sync', async (req, res) => {
       console.warn('Failed to fetch LeetCode data directly:', err.message);
     }
 
+    let rawCodeforces = null;
+    try {
+      rawCodeforces = await fetchWithCache(`codeforces_${codeforcesHandle}`, () =>
+        fetchPlatformData('codeforces', codeforcesHandle)
+      );
+    } catch (err) {
+      console.warn('Failed to fetch Codeforces data directly:', err.message);
+    }
+
     // 2. Parse Codolio profile JSON & connected platforms
     const normalizedPlatforms = [];
     let normalizedLC = null;
     if (rawLeetCode) {
       normalizedLC = normalizePlatformActivity(rawLeetCode);
+    }
+
+    let normalizedCF = null;
+    if (rawCodeforces) {
+      normalizedCF = normalizePlatformActivity(rawCodeforces);
     }
 
     if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -273,6 +288,22 @@ router.post('/sync', async (req, res) => {
         codolioLC.stats.todaySubmissions = Math.max(codolioLC.stats.todaySubmissions || 0, normalizedLC.stats.todaySubmissions || 0);
       } else {
         normalizedPlatforms.push(normalizedLC);
+      }
+    }
+
+    // Merge direct Codeforces stats with Codolio Codeforces stats
+    if (normalizedCF) {
+      const codolioCF = normalizedPlatforms.find(p => p.platform === 'codeforces');
+      if (codolioCF) {
+        const mergedDaily = { ...codolioCF.dailyActivity };
+        for (const [dStr, cnt] of Object.entries(normalizedCF.dailyActivity)) {
+          mergedDaily[dStr] = Math.max(mergedDaily[dStr] || 0, cnt);
+        }
+        codolioCF.dailyActivity = mergedDaily;
+        codolioCF.stats.solved = Math.max(codolioCF.stats.solved || 0, normalizedCF.stats.totalSolved || normalizedCF.stats.solved || 0);
+        codolioCF.stats.rating = Math.max(codolioCF.stats.rating || 0, normalizedCF.stats.rating || 0);
+      } else {
+        normalizedPlatforms.push(normalizedCF);
       }
     }
 

@@ -50,9 +50,10 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           
           const codolioUsername = user.codolioUsername || platforms.codolio?.username || 'Mr.Aditya';
           const leetcodeUsername = user.leetcodeUsername || platforms.leetcode?.username || 'mradityasingh';
+          const codeforcesHandle = user.codeforcesHandle || platforms.codeforces?.username || 'Aditya__YUPP';
           const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
-          // Fetch Codolio & LeetCode direct
+          // Fetch Codolio, LeetCode direct, & Codeforces direct
           let rawCodolio = null;
           try {
             rawCodolio = await fetchPlatformData('codolio', codolioUsername);
@@ -67,10 +68,22 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
             console.warn(`[Cron] LeetCode fetch warning for ${userId}:`, err.message);
           }
 
+          let rawCodeforces = null;
+          try {
+            rawCodeforces = await fetchPlatformData('codeforces', codeforcesHandle);
+          } catch (err) {
+            console.warn(`[Cron] Codeforces fetch warning for ${userId}:`, err.message);
+          }
+
           const normalizedPlatforms = [];
           let normalizedLC = null;
           if (rawLeetCode) {
             normalizedLC = normalizePlatformActivity(rawLeetCode);
+          }
+
+          let normalizedCF = null;
+          if (rawCodeforces) {
+            normalizedCF = normalizePlatformActivity(rawCodeforces);
           }
 
           if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -163,6 +176,22 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
               codolioLC.stats.todaySubmissions = Math.max(codolioLC.stats.todaySubmissions || 0, normalizedLC.stats.todaySubmissions || 0);
             } else {
               normalizedPlatforms.push(normalizedLC);
+            }
+          }
+
+          // Merge direct Codeforces stats
+          if (normalizedCF) {
+            const codolioCF = normalizedPlatforms.find(p => p.platform === 'codeforces');
+            if (codolioCF) {
+              const mergedDaily = { ...codolioCF.dailyActivity };
+              for (const [dStr, cnt] of Object.entries(normalizedCF.dailyActivity)) {
+                mergedDaily[dStr] = Math.max(mergedDaily[dStr] || 0, cnt);
+              }
+              codolioCF.dailyActivity = mergedDaily;
+              codolioCF.stats.solved = Math.max(codolioCF.stats.solved || 0, normalizedCF.stats.totalSolved || normalizedCF.stats.solved || 0);
+              codolioCF.stats.rating = Math.max(codolioCF.stats.rating || 0, normalizedCF.stats.rating || 0);
+            } else {
+              normalizedPlatforms.push(normalizedCF);
             }
           }
 

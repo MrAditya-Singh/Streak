@@ -65,15 +65,17 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
 
     try {
       // 1. Run live parallel queries across all platforms directly
-      const [codolioRes, lcRes, ytRes] = await Promise.all([
+      const [codolioRes, lcRes, cfRes, ytRes] = await Promise.all([
         syncCodolio(codolioUser),
         syncLeetCode(lcUser),
+        syncCodeforces(cfHandle),
         syncYouTube(ytChannel),
       ]);
 
       const pResults: Record<string, any> = {
         Codolio: codolioRes,
         LeetCode: lcRes,
+        Codeforces: cfRes,
         YouTube: ytRes,
       };
       setPlatformResults(pResults);
@@ -85,8 +87,8 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
         { id: 'codolio', completed: codolioRes.hasActivityToday },
         { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
         { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
-        { id: 'codeforces', completed: !!codolioActive.codeforces },
-        { id: 'cf', completed: !!codolioActive.codeforces },
+        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
         { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
         { id: 'github', completed: !!codolioActive.github },
         { id: 'gh', completed: !!codolioActive.github },
@@ -98,7 +100,7 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
       onSyncActivities(updates);
 
       // 3. Award XP and calculate progression using Codolio real streak
-      const activePlatformsCount = [lcRes, ytRes, codolioRes].filter((r) => r.hasActivityToday).length;
+      const activePlatformsCount = [lcRes, cfRes, ytRes, codolioRes].filter((r) => r.hasActivityToday).length;
       const xpGained = activePlatformsCount * 45;
       const newXP = (user.currentXP || 1840) + xpGained;
       const codolioStreak = codolioRes.calculatedStreak || 11;

@@ -643,11 +643,12 @@ export const App: React.FC = () => {
     } catch (err) {
       console.warn('Backend sync fallback to direct client fetch:', err);
     }
-    // 2. Direct fetch from Codolio & LeetCode APIs (client fallback)
+    // 2. Direct fetch from Codolio, LeetCode, & Codeforces APIs (client fallback)
     try {
-      const [codolioRes, lcRes] = await Promise.all([
+      const [codolioRes, lcRes, cfRes] = await Promise.all([
         syncCodolio(user.codolioUsername || 'Mr.Aditya'),
         syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
+        syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
       ]);
 
       const codolioActive = codolioRes.activePlatforms || {};
@@ -657,8 +658,8 @@ export const App: React.FC = () => {
         { id: 'codolio', completed: codolioRes.hasActivityToday },
         { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
         { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
-        { id: 'codeforces', completed: !!codolioActive.codeforces },
-        { id: 'cf', completed: !!codolioActive.codeforces },
+        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
         { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
         { id: 'github', completed: !!codolioActive.github },
         { id: 'gh', completed: !!codolioActive.github },
@@ -682,9 +683,10 @@ export const App: React.FC = () => {
       // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's exact dates
       const platformDailyMaps = codolioRes.platformDailyMaps || {};
 
-      // Merge direct LeetCode recent dates into platformDailyMaps to ensure they show up in history
+      // Merge direct LeetCode & Codeforces recent dates into platformDailyMaps to ensure they show up in history
       const directRecentDates: Record<string, string[]> = {
         leetcode: lcRes.recentDates || [],
+        codeforces: cfRes.recentDates || [],
       };
 
       Object.keys(directRecentDates).forEach((pKey) => {
