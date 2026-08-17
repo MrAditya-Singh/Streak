@@ -433,29 +433,13 @@ export function generateHeatmapData(days: number = 30): HeatmapDay[] {
     d.setDate(today.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
 
-    // Historical simulation with high consistency
-    let intensity: 0 | 1 | 2 | 3 | 4 = 3;
-    const randomVal = (d.getDate() * 19 + d.getMonth() * 37) % 100;
-    
-    if (i === 0) {
-      intensity = 4;
-    } else if (randomVal > 75) {
-      intensity = 4;
-    } else if (randomVal > 35) {
-      intensity = 3;
-    } else if (randomVal > 15) {
-      intensity = 2;
-    } else {
-      intensity = 1;
-    }
-
     result.push({
       date: dateStr,
-      count: intensity * 2,
-      intensity,
-      completedActivities: ['LeetCode', 'GitHub', 'Codeforces', 'GFG', 'GATE'],
-      totalMinutes: intensity * 75,
-      allScheduledCompleted: intensity >= 3,
+      count: 0,
+      intensity: 0,
+      completedActivities: [],
+      totalMinutes: 0,
+      allScheduledCompleted: false,
     });
   }
 
@@ -474,24 +458,20 @@ export function generateHistoricalRecords(days: number = 30): HistoricalDayRecor
     d.setDate(today.getDate() - i);
     const dateStr = d.toISOString().split('T')[0];
 
-    const completed = i === 0 ? 5 : (i % 7 === 0 ? 4 : 6);
-    const totalScheduled = 7;
-    const allCompleted = completed >= totalScheduled;
-
     records.push({
       date: dateStr,
-      allCompleted,
-      completedCount: completed,
-      totalScheduled,
+      allCompleted: false,
+      completedCount: 0,
+      totalScheduled: INITIAL_ACTIVITIES.length,
       plannedMinutes: 390,
-      completedMinutes: completed * 55,
-      efficiencyPct: Math.round((completed / totalScheduled) * 100),
-      xpEarned: completed * 22,
-      activities: INITIAL_ACTIVITIES.slice(0, totalScheduled).map((a, idx) => ({
+      completedMinutes: 0,
+      efficiencyPct: 0,
+      xpEarned: 0,
+      activities: INITIAL_ACTIVITIES.map((a) => ({
         id: a.id,
         name: a.name,
         category: a.category,
-        completed: idx < completed,
+        completed: false,
         durationMinutes: a.plannedMinutes,
       })),
     });

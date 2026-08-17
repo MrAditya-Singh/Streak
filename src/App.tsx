@@ -1059,6 +1059,8 @@ export const App: React.FC = () => {
       setMatrixState(cleanMatrix);
       setLogs([]);
       setEmergencyTasks([]);
+      setHistory(generateHistoricalRecords(30));
+      setHeatmapData(generateHeatmapData(90));
 
       // Overwrite LocalStorage with clean 0 state
       localStorage.setItem('effstreak_user', JSON.stringify(cleanUser));
