@@ -93,17 +93,17 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
       // 2. Map completed platforms to habit checklist updates
       const updates = [
         { id: 'codolio', completed: codolioRes.hasActivityToday },
-        { id: 'leetcode', completed: !!codolioActive.leetcode },
-        { id: 'lc', completed: !!codolioActive.leetcode },
-        { id: 'codeforces', completed: !!codolioActive.codeforces },
-        { id: 'cf', completed: !!codolioActive.codeforces },
-        { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
+        { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
+        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
         { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'youtube', completed: ytRes.hasActivityToday },
         { id: 'yt', completed: ytRes.hasActivityToday },
-        { id: 'atcoder', completed: !!codolioActive.atcoder },
-        { id: 'hackerrank', completed: !!codolioActive.hackerrank },
+        { id: 'atcoder', completed: atcoderRes.hasActivityToday || !!codolioActive.atcoder },
+        { id: 'hackerrank', completed: hrRes.hasActivityToday || !!codolioActive.hackerrank },
       ];
       onSyncActivities(updates);
 

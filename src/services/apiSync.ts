@@ -10,6 +10,7 @@ export interface SyncResult {
   details: string;
   timestamp: string;
   autoCompleted: boolean;
+  recentDates?: string[];
 }
 
 /**
@@ -66,6 +67,10 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       ? `${qualifyingEvents.length} commits/actions today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'})`
       : `No commits pushed today (checked @${cleanUser})`;
 
+    const recentDates = events
+      .filter(e => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
+      .map(e => new Date(e.created_at).toLocaleDateString('en-CA'));
+
     return {
       platform: 'GitHub',
       hasActivityToday: hasActivity,
@@ -73,6 +78,7 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       details,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: hasActivity,
+      recentDates,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Network error';
@@ -83,6 +89,7 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       details: `GitHub verified for @${username} (${errorMsg})`,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: true,
+      recentDates: [],
     };
   }
 }
@@ -142,6 +149,10 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
       ? `${todaySubmissions.length} submissions today (${acceptedCount} AC) • ${latestProblem}`
       : `No submissions today (checked recent ${submissions.length} for @${cleanHandle})`;
 
+    const recentDates = submissions.map((s) =>
+      new Date(s.creationTimeSeconds * 1000).toLocaleDateString('en-CA')
+    );
+
     return {
       platform: 'Codeforces',
       hasActivityToday: hasActivity,
@@ -149,6 +160,7 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
       details,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: hasActivity,
+      recentDates,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Network error';
@@ -159,6 +171,7 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
       details: `Codeforces sync warning: ${errorMsg}`,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: false,
+      recentDates: [],
     };
   }
 }
@@ -428,6 +441,10 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
       });
 
       const hasActivity = todaySubmissions.length > 0;
+      const recentDates = (data.recentSubmissions || []).map((s: any) => {
+        const ts = Number(s.timestamp || s.creationTime) * 1000;
+        return ts ? new Date(ts).toLocaleDateString('en-CA') : '';
+      }).filter(Boolean);
 
       return {
         platform: 'LeetCode',
@@ -438,6 +455,7 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
           : `LeetCode sync: ${totalSolved} total solved problems for @${cleanUser}`,
         timestamp: new Date().toLocaleTimeString(),
         autoCompleted: hasActivity,
+        recentDates,
       };
     }
   } catch {
@@ -459,6 +477,7 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
         details: `LeetCode synced: ${solved} problems solved for @${cleanUser}`,
         timestamp: new Date().toLocaleTimeString(),
         autoCompleted: false,
+        recentDates: [],
       };
     }
   } catch {
@@ -531,6 +550,9 @@ export async function syncAtCoder(username: string): Promise<SyncResult> {
           const subDate = new Date(s.epoch_second * 1000).toLocaleDateString('en-CA');
           return subDate === new Date().toLocaleDateString('en-CA');
         });
+        const recentDates = subs.map((s: any) =>
+          new Date(s.epoch_second * 1000).toLocaleDateString('en-CA')
+        );
         return {
           platform: 'AtCoder',
           hasActivityToday: hasToday,
@@ -538,6 +560,7 @@ export async function syncAtCoder(username: string): Promise<SyncResult> {
           details: `${subs.length} submissions (${acCount} AC) on AtCoder`,
           timestamp: new Date().toLocaleTimeString(),
           autoCompleted: hasToday,
+          recentDates,
         };
       }
     }

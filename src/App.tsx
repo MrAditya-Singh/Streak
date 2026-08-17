@@ -660,14 +660,14 @@ export const App: React.FC = () => {
       // 3. Map active platforms for today
       const updates = [
         { id: 'codolio', completed: codolioRes.hasActivityToday },
-        { id: 'leetcode', completed: !!codolioActive.leetcode },
-        { id: 'lc', completed: !!codolioActive.leetcode },
-        { id: 'codeforces', completed: !!codolioActive.codeforces },
-        { id: 'cf', completed: !!codolioActive.codeforces },
-        { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
+        { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
+        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
         { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
-        { id: 'atcoder', completed: !!codolioActive.atcoder },
+        { id: 'atcoder', completed: atcoderRes.hasActivityToday || !!codolioActive.atcoder },
       ];
 
       handleSyncActivities(updates);
@@ -686,6 +686,24 @@ export const App: React.FC = () => {
 
       // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's exact dates
       const platformDailyMaps = codolioRes.platformDailyMaps || {};
+
+      // Merge direct API recent dates into platformDailyMaps to ensure they show up in history
+      const directRecentDates: Record<string, string[]> = {
+        github: ghRes.recentDates || [],
+        leetcode: lcRes.recentDates || [],
+        codeforces: cfRes.recentDates || [],
+        atcoder: atcoderRes.recentDates || [],
+      };
+
+      Object.keys(directRecentDates).forEach((pKey) => {
+        if (!platformDailyMaps[pKey]) {
+          platformDailyMaps[pKey] = {};
+        }
+        directRecentDates[pKey].forEach((dStr) => {
+          platformDailyMaps[pKey][dStr] = (platformDailyMaps[pKey][dStr] || 0) + 1;
+        });
+      });
+
       const hasPlatformData = Object.keys(platformDailyMaps).length > 0;
 
       if (hasPlatformData) {
@@ -724,7 +742,14 @@ export const App: React.FC = () => {
             const row = Array.from({ length: daysInCurMonth }, () => false);
             for (let day = 1; day <= daysInCurMonth; day++) {
               const dateStr = `${curYear}-${curMonthStr}-${String(day).padStart(2, '0')}`;
-              row[day - 1] = (pMap[dateStr] || 0) > 0;
+              let isCompleted = (pMap[dateStr] || 0) > 0;
+              if (day === todayDayNumber) {
+                const liveUpdate = updates.find(u => u.id === act.id.toLowerCase());
+                if (liveUpdate) {
+                  isCompleted = isCompleted || liveUpdate.completed;
+                }
+              }
+              row[day - 1] = isCompleted;
             }
             nextMatrix[act.id] = row;
           });
