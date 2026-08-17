@@ -98,12 +98,11 @@ export const App: React.FC = () => {
       try { return JSON.parse(saved); } catch (e) { /* fallback */ }
     }
     const initial: Record<string, boolean[]> = {};
-    INITIAL_ACTIVITIES.forEach((act, actIdx) => {
+    INITIAL_ACTIVITIES.forEach((act) => {
       initial[act.id] = Array.from({ length: 31 }, (_, dayIdx) => {
         const dayNum = dayIdx + 1;
         if (dayNum === todayDayNumber) return act.completed;
-        const seed = (actIdx * 19 + dayNum * 23) % 100;
-        return seed > 40;
+        return false;
       });
     });
     return initial;
