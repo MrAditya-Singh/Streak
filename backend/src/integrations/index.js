@@ -33,8 +33,8 @@ export const CANONICAL_MAPPING = {
   integrations: {
     codolio: {
       platform: 'codolio',
-      username: 'mraditya',
-      url: 'https://codolio.com/profile/mraditya',
+      username: 'Mr.Aditya',
+      url: 'https://codolio.com/profile/Mr.Aditya',
       enabled: true,
     },
     github: {

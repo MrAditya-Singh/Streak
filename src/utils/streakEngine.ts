@@ -37,6 +37,7 @@ export const INITIAL_USER: UserProfile = {
   soundEnabled: true,
   notificationsEnabled: true,
   reminderTime: '21:30',
+  codolioUsername: 'Mr.Aditya',
   githubUsername: 'MrAditya-Singh',
   codeforcesHandle: 'Aditya__YUPP',
   leetcodeUsername: 'mradityasingh',
