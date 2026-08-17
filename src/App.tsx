@@ -42,7 +42,6 @@ import { TodayActivityModal } from './components/TodayActivityModal';
 import { EfficiencyAnalyticsModal } from './components/EfficiencyAnalyticsModal';
 import { AddHabitModal } from './components/AddHabitModal';
 import { AuthModal } from './components/AuthModal';
-import { LivePerformanceDeck } from './components/LivePerformanceDeck';
 import { ChevronDown, ChevronUp, Sparkles, LayoutGrid, Layers } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -141,7 +140,6 @@ export const App: React.FC = () => {
   const [isEmergencyWorkOpen, setIsEmergencyWorkOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
-  const [isPerformanceDeckOpen, setIsPerformanceDeckOpen] = useState(false);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -1221,7 +1219,6 @@ export const App: React.FC = () => {
           onOpenSync={handleLiveSync10Days}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenAuth={() => setIsAuthModalOpen(true)}
-          onOpenPerformanceDeck={() => setIsPerformanceDeckOpen(true)}
           onToggleSound={() => {
             const next = soundFx.toggleSound();
             setUser((prev) => ({ ...prev, soundEnabled: next }));
@@ -1268,47 +1265,11 @@ export const App: React.FC = () => {
           daysInMonth={daysInMonth}
           todayDayNumber={todayDayNumber}
         />
-
-        {/* 4. SHOW LIVE PERFORMANCE & PLATFORM DECK ACTION TRIGGER */}
-        <div className="flex justify-center pt-2 pb-6">
-          <button
-            onClick={() => {
-              soundFx.playClick();
-              setIsPerformanceDeckOpen(true);
-            }}
-            className={`group flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black text-sm tracking-wide transition-all duration-300 border shadow-lg cursor-pointer transform hover:-translate-y-0.5 ${
-              isDarkMode
-                ? 'bg-gradient-to-r from-indigo-950/80 via-purple-950/80 to-slate-900/90 border-indigo-500/40 text-indigo-200 hover:border-indigo-400 hover:shadow-indigo-500/20'
-                : 'bg-gradient-to-r from-indigo-50 via-purple-50 to-white border-indigo-200 text-indigo-900 hover:border-indigo-400 hover:shadow-indigo-200/50'
-            }`}
-          >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform">
-              <Layers className="w-4 h-4 animate-pulse" />
-            </div>
-            <span>Show Live Performance & Platform Deck</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-mono">
-              ⚡ Directives · Efficiency · Profiles
-            </span>
-          </button>
-        </div>
       </main>
 
       {/* ======================================================== */}
       {/* FULL INTERACTIVE MODALS & DIALOGS                       */}
       {/* ======================================================== */}
-      <LivePerformanceDeck
-        isOpen={isPerformanceDeckOpen}
-        onClose={() => setIsPerformanceDeckOpen(false)}
-        user={user}
-        activities={activities}
-        emergencyTasks={emergencyTasks}
-        matrixState={matrixState}
-        isDarkMode={isDarkMode}
-        onAddEmergencyTask={handleAddEmergencyTask}
-        onCompleteEmergencyTask={handleCompleteEmergencyTask}
-        onDeleteEmergencyTask={handleDeleteEmergencyTask}
-      />
-
       <TodayActivityModal
         isOpen={isTodayActivityOpen}
         onClose={() => setIsTodayActivityOpen(false)}
