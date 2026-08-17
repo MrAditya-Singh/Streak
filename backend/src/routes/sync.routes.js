@@ -55,6 +55,7 @@ syncRouter.get('/events', async (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering for SSE
   res.flushHeaders();
 
   if (!sseClients.has(userId)) {
@@ -63,14 +64,37 @@ syncRouter.get('/events', async (req, res) => {
   const clientSet = sseClients.get(userId);
   clientSet.add(res);
 
-  // Send initial state immediately
-  const currentState = getOrCreateUserState(userId);
+  // Load latest persisted state from Firestore and send as INIT_STATE
+  let currentState = getOrCreateUserState(userId);
+  if (db) {
+    try {
+      const userDoc = await db.collection('unified_sync').doc(userId).get();
+      if (userDoc.exists) {
+        const persisted = userDoc.data();
+        if (persisted.activities) currentState.activities = persisted.activities;
+        if (persisted.matrixState) currentState.matrix = persisted.matrixState;
+        if (persisted.user) Object.assign(currentState.user, persisted.user);
+        if (persisted.emergencyTasks) currentState.emergencyTasks = persisted.emergencyTasks;
+      }
+    } catch (e) { /* ignore */ }
+  }
   res.write(`data: ${JSON.stringify({ type: 'INIT_STATE', state: currentState })}\n\n`);
+
+  // ⚡ Heartbeat every 25s to keep SSE connection alive through proxies/CDNs
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 25000);
 
   req.on('close', () => {
     clientSet.delete(res);
+    clearInterval(heartbeat);
   });
 });
+
 
 function broadcastToClients(userId, payload) {
   if (sseClients.has(userId)) {
@@ -147,7 +171,7 @@ syncRouter.post('/toggle', async (req, res) => {
   });
 
   if (completed) {
-    state.user.currentXP = (state.user.currentXP || 1840) + 20;
+    state.user.currentXP = (state.user.currentXP || 0) + 20;
   }
   state.lastUpdated = new Date().toISOString();
 

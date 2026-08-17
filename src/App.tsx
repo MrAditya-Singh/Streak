@@ -124,6 +124,12 @@ export const App: React.FC = () => {
     ? `user_${syncIdentity.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 64)}`
     : getStableUserId(user);
 
+  // ─── Guard: prevent self-echo when we apply remote state ─────────────────
+  // When we apply a remote update, we set this to true so the Firestore
+  // push useEffect doesn't immediately re-broadcast what we just received.
+  const isApplyingRemote = React.useRef(false);
+  const remoteEchoTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Modals state
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isSyncOpen, setIsSyncOpen] = useState(false);
@@ -187,22 +193,22 @@ export const App: React.FC = () => {
   }, [emergencyTasks]);
 
   // 📡 1. PUSH STATE TO CLOUD RELAY & FIRESTORE (Phone ⇄ Laptop Sync)
+  // IMPORTANT: Only push when NOT applying a remote update to prevent infinite echo loops.
+  // We debounce by 800ms to batch rapid sequential state changes (e.g. toggle + XP update).
+  const pendingCloudPush = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    // Skip push if we're currently applying a remote state update to prevent echo loops
+    if (isApplyingRemote.current) return;
+
     const syncKey = activeSyncKey;
-    pushStateToCloud(syncKey, {
-      user,
-      activities,
-      matrixState,
-      emergencyTasks,
-      logs,
-    });
-    syncFullStateToFirestore(syncKey, {
-      user,
-      activities,
-      matrixState,
-      emergencyTasks,
-      logs,
-    });
+    const payload = { user, activities, matrixState, emergencyTasks, logs };
+
+    // Debounce: cancel previous pending push, schedule new one in 800ms
+    if (pendingCloudPush.current) clearTimeout(pendingCloudPush.current);
+    pendingCloudPush.current = setTimeout(() => {
+      pushStateToCloud(syncKey, payload);
+      syncFullStateToFirestore(syncKey, payload);
+    }, 800);
   }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey]);
 
   // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop) WITH SMART UNION MERGE
@@ -215,13 +221,21 @@ export const App: React.FC = () => {
       // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO ZERO
       if (remoteState.isReset) {
         console.log('⚡ [Reset Triggered] Wiping all data to clean 0 across devices...');
+        isApplyingRemote.current = true;
         if (remoteState.user) setUser(remoteState.user);
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.matrixState) setMatrixState(remoteState.matrixState);
         setEmergencyTasks([]);
         setLogs([]);
+        if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
         return;
       }
+
+      // Set guard: don't re-echo what we're about to apply
+      isApplyingRemote.current = true;
+      if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+      remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
 
       // 1. DIRECT HABIT LIST MIRROR (INSTANT ADD / DELETE HABIT SYNC ACROSS DEVICES)
       if (remoteState.activities && Array.isArray(remoteState.activities)) {
@@ -237,7 +251,8 @@ export const App: React.FC = () => {
           const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
 
           // Process all habit IDs from both local and remote
-          const allHabitIds = new Set([...Object.keys(prevMatrix), ...Object.keys(rawMatrix), ...activities.map(a => a.id)]);
+          const remoteActivities = remoteState.activities && Array.isArray(remoteState.activities) ? remoteState.activities : [];
+          const allHabitIds = new Set([...Object.keys(prevMatrix), ...Object.keys(rawMatrix), ...remoteActivities.map((a: any) => a.id)]);
           
           allHabitIds.forEach((actId) => {
             const localArr = prevMatrix[actId] || Array.from({ length: 31 }, () => false);
@@ -308,8 +323,6 @@ export const App: React.FC = () => {
           return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         });
       }
-
-      soundFx.playCheck();
     };
 
     const unsubscribeCloud = subscribeToCloudSync(syncKey, applyRemoteState);
@@ -333,6 +346,21 @@ export const App: React.FC = () => {
       es.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
+
+          // ⚡ INIT_STATE: SSE just connected — server sends latest persisted state from Firestore
+          if (msg.type === 'INIT_STATE' && msg.state) {
+            console.log('⚡ [SSE INIT_STATE] Received persisted state on SSE connect:', msg.state);
+            isApplyingRemote.current = true;
+            if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+            remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
+            if (msg.state.activities && Array.isArray(msg.state.activities) && msg.state.activities.length > 0) {
+              setActivities(msg.state.activities);
+            }
+            if (msg.state.matrix && typeof msg.state.matrix === 'object' && Object.keys(msg.state.matrix).length > 0) {
+              setMatrixState((prev) => ({ ...prev, ...msg.state.matrix }));
+            }
+            return;
+          }
           
           if (msg.type === 'FORCE_RESET' && msg.state) {
             console.log('⚡ [SSE FORCE_RESET] Received reset signal from peer device!');
@@ -347,6 +375,9 @@ export const App: React.FC = () => {
           // ⚡ STATE_UPDATED: peer device added/deleted a habit or synced full state
           if (msg.type === 'STATE_UPDATED' && msg.state) {
             console.log('⚡ [SSE STATE_UPDATED] Peer device synced full state — applying now...');
+            isApplyingRemote.current = true;
+            if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+            remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
             if (msg.state.activities && Array.isArray(msg.state.activities)) {
               setActivities(msg.state.activities);
             }
@@ -509,40 +540,38 @@ export const App: React.FC = () => {
 
   // Toggle single cell in the master matrix
   const handleToggleMatrixCell = (habitId: string, dayIndex: number) => {
-    setMatrixState((prev) => {
-      const currentDays = prev[habitId] || Array.from({ length: daysInMonth }, () => false);
-      const updatedDays = [...currentDays];
-      updatedDays[dayIndex] = !updatedDays[dayIndex];
-      const newCompleted = updatedDays[dayIndex];
-      const nextState = { ...prev, [habitId]: updatedDays };
+    const currentDays = matrixState[habitId] || Array.from({ length: daysInMonth }, () => false);
+    const updatedDays = [...currentDays];
+    updatedDays[dayIndex] = !updatedDays[dayIndex];
+    const newCompleted = updatedDays[dayIndex];
+    const nextMatrix = { ...matrixState, [habitId]: updatedDays };
 
-      // If toggled for today, also sync with active checklist
-      if (dayIndex === currentDayIndex) {
-        handleToggleActivity(habitId);
-      } else {
-        handleAwardXP(10);
-      }
+    setMatrixState(nextMatrix);
 
-      // ⚡ Broadcast this matrix toggle to ALL peer devices via backend SSE
-      const syncKey = activeSyncKey;
-      const mIdx = MONTH_NAMES.indexOf(selectedMonth);
-      const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
-      const dayStr = String(dayIndex + 1).padStart(2, '0');
-      const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
+    // If toggled for today, also sync with active checklist (do NOT call inside setMatrixState)
+    if (dayIndex === currentDayIndex) {
+      handleToggleActivity(habitId);
+    } else {
+      handleAwardXP(10);
+    }
 
-      fetch(`${BACKEND_API_BASE}/sync/toggle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: syncKey,
-          habitId,
-          completed: newCompleted,
-          date: dateStr,
-        }),
-      }).catch((err) => console.warn('Matrix cell sync broadcast warning:', err));
+    // ⚡ Broadcast this matrix toggle to ALL peer devices via backend SSE
+    const syncKey = activeSyncKey;
+    const mIdx = MONTH_NAMES.indexOf(selectedMonth);
+    const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
+    const dayStr = String(dayIndex + 1).padStart(2, '0');
+    const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
 
-      return nextState;
-    });
+    fetch(`${BACKEND_API_BASE}/sync/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: syncKey,
+        habitId,
+        completed: newCompleted,
+        date: dateStr,
+      }),
+    }).catch((err) => console.warn('Matrix cell sync broadcast warning:', err));
   };
 
   // Toggle Activity Completion with Strict Streak Evaluation
@@ -584,6 +613,9 @@ export const App: React.FC = () => {
       });
 
       // Broadcast toggle to Mobile Phone & Cloud
+      // Use local date (not UTC ISO) to avoid IST timezone off-by-one before 5:30am
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       fetch(`${BACKEND_API_BASE}/sync/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -591,7 +623,7 @@ export const App: React.FC = () => {
           userId: activeSyncKey,
           habitId: id,
           completed: targetAct.completed,
-          date: new Date().toISOString().split('T')[0],
+          date: localDate,
         }),
       }).catch((err) => console.warn('Laptop sync broadcast warning:', err));
     }
@@ -749,9 +781,8 @@ export const App: React.FC = () => {
     setUser(updatedUser);
     setActivities(updatedActivities);
 
-    // 3. Immediately broadcast updated state & matrix to cloud relay
-    const syncKey = getStableUserId(updatedUser);
-    pushStateToCloud(syncKey, {
+    // 3. Immediately broadcast updated state & matrix to cloud relay (use activeSyncKey not stale getStableUserId)
+    pushStateToCloud(activeSyncKey, {
       user: updatedUser,
       activities: updatedActivities,
       matrixState: nextMatrixState,
