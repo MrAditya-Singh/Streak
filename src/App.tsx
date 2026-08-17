@@ -684,27 +684,55 @@ export const App: React.FC = () => {
       setUser(updatedUserObj);
       localStorage.setItem('effstreak_user', JSON.stringify(updatedUserObj));
 
-      // 5. Fill monthly matrix for past active days from Codolio dailyActivityMap
-      if (codolioRes.dailyActivityMap && Object.keys(codolioRes.dailyActivityMap).length > 0) {
+      // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's dates
+      const platformDailyMaps = codolioRes.platformDailyMaps || {};
+      const hasPlatformData = Object.keys(platformDailyMaps).length > 0;
+
+      if (hasPlatformData) {
         const now = new Date();
         const curYear = now.getFullYear();
         const curMonthStr = String(now.getMonth() + 1).padStart(2, '0');
         const daysInCurMonth = new Date(curYear, now.getMonth() + 1, 0).getDate();
 
+        // Map habit id → platform key in platformDailyMaps
+        const habitPlatformKey: Record<string, string> = {
+          leetcode: 'leetcode',
+          lc: 'leetcode',
+          github: 'github',
+          gh: 'github',
+          codeforces: 'codeforces',
+          cf: 'codeforces',
+          gfg: 'gfg',
+          geeksforgeeks: 'gfg',
+          atcoder: 'atcoder',
+          hackerrank: 'hackerrank',
+          codechef: 'codechef',
+          codolio: 'codolio', // codolio row → show ANY platform activity
+        };
+
         setMatrixState((prevMatrix) => {
           const nextMatrix = { ...prevMatrix };
           activities.forEach((act) => {
-            const isCodingHabit = act.category === 'coding' || (act.source as string) === 'codolio' || act.id === 'leetcode' || act.id === 'github' || act.id === 'codeforces' || act.id === 'gfg';
-            if (isCodingHabit) {
-              const row = nextMatrix[act.id] ? [...nextMatrix[act.id]] : Array.from({ length: daysInCurMonth }, () => false);
-              for (let day = 1; day <= daysInCurMonth; day++) {
-                const dateStr = `${curYear}-${curMonthStr}-${String(day).padStart(2, '0')}`;
-                if (codolioRes.dailyActivityMap![dateStr] && codolioRes.dailyActivityMap![dateStr] > 0) {
-                  row[day - 1] = true;
-                }
+            const pKey = habitPlatformKey[act.id.toLowerCase()] || null;
+            if (!pKey) return; // non-coding habit → don't touch
+
+            // For 'codolio' aggregator row, use unified map; for each specific platform, use its own map
+            const pMap = pKey === 'codolio'
+              ? (codolioRes.dailyActivityMap || {})
+              : (platformDailyMaps[pKey] || {});
+
+            if (Object.keys(pMap).length === 0) return; // no data from Codolio for this platform
+
+            const row = nextMatrix[act.id] ? [...nextMatrix[act.id]] : Array.from({ length: daysInCurMonth }, () => false);
+            for (let day = 1; day <= daysInCurMonth; day++) {
+              const dateStr = `${curYear}-${curMonthStr}-${String(day).padStart(2, '0')}`;
+              if ((pMap[dateStr] || 0) > 0) {
+                row[day - 1] = true;
               }
-              nextMatrix[act.id] = row;
+              // Note: we only SET true, never reset an existing true to false
+              // (user may have manually checked something we don't have data for)
             }
+            nextMatrix[act.id] = row;
           });
           localStorage.setItem('streak_monthly_matrix', JSON.stringify(nextMatrix));
           return nextMatrix;

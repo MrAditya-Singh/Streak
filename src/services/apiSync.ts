@@ -166,7 +166,10 @@ export interface CodolioSyncResult extends SyncResult {
   activePlatforms?: Record<string, boolean>;
   calculatedStreak?: number;
   totalActiveDays?: number;
+  /** Unified map: date → total activity count (for streak calc) */
   dailyActivityMap?: Record<string, number>;
+  /** Per-platform maps: platformName → (date → count). Use this for matrix filling. */
+  platformDailyMaps?: Record<string, Record<string, number>>;
 }
 
 export async function syncCodolio(username?: string): Promise<CodolioSyncResult> {
@@ -201,23 +204,39 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
       };
     }
 
+    // Unified map (for streak calculation across all platforms)
     const dailyActivityMap: Record<string, number> = {};
+    // Per-platform maps (for precise per-row matrix marking)
+    const platformDailyMaps: Record<string, Record<string, number>> = {};
     const activePlatforms: Record<string, boolean> = {};
     let hasToday = false;
 
-    // 1. Fetch Profile Data (LeetCode, Codeforces, GFG cards)
+    // 1. Fetch Profile Data (LeetCode, Codeforces, GFG, CodeChef cards)
     const profileRes = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(cleanUsername)}`);
     if (profileRes.ok) {
       const pJson = await profileRes.json();
       const cards = pJson.data?.platformCards || [];
       cards.forEach((card: any) => {
-        const pName = (card.platform || '').toLowerCase().trim();
+        // Normalize platform name e.g. "LeetCode" → "leetcode", "GeeksForGeeks" → "gfg"
+        let rawName = (card.platform || '').toLowerCase().trim();
+        if (rawName.includes('geeks') || rawName.includes('gfg')) rawName = 'gfg';
+        if (rawName.includes('codechef')) rawName = 'codechef';
+        if (rawName.includes('codeforces')) rawName = 'codeforces';
+        if (rawName.includes('leetcode')) rawName = 'leetcode';
+        if (rawName.includes('atcoder')) rawName = 'atcoder';
+        if (rawName.includes('hackerrank')) rawName = 'hackerrank';
+
         const calendar = card.dailyActivityStatsResponse?.submissionCalendar || {};
+        if (!platformDailyMaps[rawName]) platformDailyMaps[rawName] = {};
         let cardHasToday = false;
 
         Object.keys(calendar).forEach((ts) => {
           const dStr = new Date(Number(ts) * 1000).toISOString().split('T')[0];
           const cnt = Number(calendar[ts]) || 1;
+
+          // Per-platform map
+          platformDailyMaps[rawName][dStr] = (platformDailyMaps[rawName][dStr] || 0) + cnt;
+          // Unified map (for streak)
           dailyActivityMap[dStr] = (dailyActivityMap[dStr] || 0) + cnt;
 
           if (dStr === todayStr && cnt > 0) {
@@ -227,21 +246,24 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
         });
 
         if (cardHasToday) {
-          activePlatforms[pName] = true;
+          activePlatforms[rawName] = true;
         }
       });
     }
 
-    // 2. Fetch GitHub Profile Activity Data
+    // 2. Fetch GitHub Activity (separate platform)
     try {
       const githubRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(cleanUsername)}`);
       if (githubRes.ok) {
         const ghJson = await githubRes.json();
         const devCal = ghJson.data?.developmentActivity || {};
+        if (!platformDailyMaps['github']) platformDailyMaps['github'] = {};
+
         Object.keys(devCal).forEach((ts) => {
           const count = Number(devCal[ts]) || 0;
           if (count > 0) {
             const dStr = new Date(Number(ts) * 1000).toISOString().split('T')[0];
+            platformDailyMaps['github'][dStr] = (platformDailyMaps['github'][dStr] || 0) + count;
             dailyActivityMap[dStr] = (dailyActivityMap[dStr] || 0) + count;
             if (dStr === todayStr) {
               hasToday = true;
@@ -254,10 +276,9 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
       console.warn('Codolio GitHub profile sub-fetch warning:', err);
     }
 
-    // 3. Calculate consecutive daily streak ending today or yesterday
+    // 3. Calculate consecutive daily streak (unified, not per-platform)
     let streak = (dailyActivityMap[todayStr] || 0) > 0 ? 1 : 0;
     const curr = new Date(todayStr);
-
     while (true) {
       curr.setDate(curr.getDate() - 1);
       const dStr = curr.toISOString().split('T')[0];
@@ -274,16 +295,18 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
       platform: 'Codolio',
       hasActivityToday: hasToday,
       eventCount: dailyActivityMap[todayStr] || 0,
-      details: `Codolio profile @${cleanUsername} synced! 🔥 ${streak}d Consecutive Streak (${totalActiveDays} Total Active Days)`,
+      details: `Codolio @${cleanUsername} synced! 🔥 ${streak}d Streak • ${totalActiveDays} Active Days`,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: hasToday,
       activePlatforms,
       calculatedStreak: streak,
       totalActiveDays,
       dailyActivityMap,
+      platformDailyMaps,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Connection fallback';
+    const cleanUsername = username?.trim().replace(/^@/, '') || 'Mr.Aditya';
     return {
       platform: 'Codolio',
       hasActivityToday: false,
@@ -295,6 +318,7 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
       calculatedStreak: 0,
       totalActiveDays: 0,
       dailyActivityMap: {},
+      platformDailyMaps: {},
     };
   }
 }
