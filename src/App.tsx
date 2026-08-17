@@ -18,7 +18,6 @@ import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend, syncCodolio, sync
 import { pushStateToCloud, subscribeToCloudSync, getStableUserId } from './services/cloudSync';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
-import { MobileAppView } from './components/MobileAppView';
 import { WeeklyConsistencyOverview } from './components/WeeklyConsistencyOverview';
 import { MasterMonthlyHabitGrid } from './components/MasterMonthlyHabitGrid';
 
@@ -904,177 +903,150 @@ export const App: React.FC = () => {
         ? 'bg-[#0b0f19] text-slate-100 font-sans' 
         : 'bg-[#F4EFE6] text-slate-900 font-sans'
     }`}>
-      
-      {/* 📱 1. DEDICATED MOBILE APP UI VIEW (ONLY ON MOBILE SCREENS < 768px / md:hidden) */}
-      <MobileAppView
-        user={user}
-        activities={activities}
-        matrixState={matrixState}
-        history={history}
-        logs={logs}
-        summary={summary}
-        isDarkMode={isDarkMode}
-        onToggleMatrixCell={handleToggleMatrixCell}
-        onToggleActivity={handleToggleActivity}
-        onAddHabit={() => setIsAddHabitOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-        onOpenSoloLeveling={() => setIsSoloLevelingOpen(true)}
-        onOpenEfficiency={() => setIsEfficiencyAnalyticsOpen(true)}
-        onToggleTheme={handleToggleTheme}
-        onSyncActivities={handleSyncActivities}
-        todayDayNumber={todayDayNumber}
-        daysInMonth={daysInMonth}
-        selectedMonth={selectedMonth}
-      />
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        {/* 1. TOP SHOWCASE HEADER (ESTHETIC TITLE, CONSISTENCY WAVE & LUXURY RING) */}
+        <AestheticHeaderTracker
+          user={user}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onMonthChange={(m) => setSelectedMonth(m)}
+          dailyProgressPct={dailyProgressPct}
+          completedMonthHabits={completedMonthHabits}
+          totalMonthHabits={totalMonthHabits}
+          isDarkMode={isDarkMode}
+          onToggleTheme={handleToggleTheme}
+          onOpenSoloLeveling={() => setIsSoloLevelingOpen(true)}
+          onOpenTodayActivity={() => setIsTodayActivityOpen(true)}
+          onOpenEfficiencyMatrix={() => setIsEfficiencyAnalyticsOpen(true)}
+          onOpenEmergencyWork={() => setIsEmergencyWorkOpen(true)}
+          onOpenSimulator={() => setIsSimulatorOpen(true)}
+          onOpenSync={handleLiveSync10Days}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onToggleSound={() => {
+            const next = soundFx.toggleSound();
+            setUser((prev) => ({ ...prev, soundEnabled: next }));
+          }}
+          isSyncing={isSyncing}
+        />
 
-      {/* 💻 2. DEDICATED DESKTOP / LAPTOP LAYOUT (ONLY ON LAPTOP/DESKTOP >= 768px / hidden md:block - UNCHANGED) */}
-      <div className="hidden md:block">
-        <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
-          
-          {/* Live Sync Real-Time Toast Banner */}
-          {syncToast && (
-            <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between shadow-lg animate-fade-in ${
-              syncToast.type === 'success' 
-                ? 'bg-gradient-to-r from-emerald-950/60 to-teal-950/60 border-emerald-500/40 text-emerald-300' 
-                : 'bg-gradient-to-r from-blue-950/60 to-indigo-950/60 border-blue-500/40 text-blue-300'
-            }`}>
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>{syncToast.message}</span>
-              </div>
-              <button
-                onClick={() => setSyncToast(null)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
-              >
-                ✕
-              </button>
+        {/* Live Sync Real-Time Toast Banner */}
+        {syncToast && (
+          <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between shadow-lg animate-fade-in ${
+            syncToast.type === 'success' 
+              ? 'bg-gradient-to-r from-emerald-950/60 to-teal-950/60 border-emerald-500/40 text-emerald-300' 
+              : 'bg-gradient-to-r from-blue-950/60 to-indigo-950/60 border-blue-500/40 text-blue-300'
+          }`}>
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>{syncToast.message}</span>
             </div>
-          )}
+            <button
+              onClick={() => setSyncToast(null)}
+              className="text-slate-400 hover:text-white p-1 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-          {/* 1. TOP SHOWCASE HEADER (ESTHETIC TITLE, CONSISTENCY WAVE & LUXURY RING) */}
-          <AestheticHeaderTracker
-            user={user}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-            onMonthChange={(m) => setSelectedMonth(m)}
-            dailyProgressPct={dailyProgressPct}
-            completedMonthHabits={completedMonthHabits}
-            totalMonthHabits={totalMonthHabits}
-            isDarkMode={isDarkMode}
-            onToggleTheme={handleToggleTheme}
-            onOpenSoloLeveling={() => setIsSoloLevelingOpen(true)}
-            onOpenTodayActivity={() => setIsTodayActivityOpen(true)}
-            onOpenEfficiencyMatrix={() => setIsEfficiencyAnalyticsOpen(true)}
-            onOpenEmergencyWork={() => setIsEmergencyWorkOpen(true)}
-            onOpenSimulator={() => setIsSimulatorOpen(true)}
-            onOpenSync={handleLiveSync10Days}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            onToggleSound={() => {
-              const next = soundFx.toggleSound();
-              setUser((prev) => ({ ...prev, soundEnabled: next }));
-            }}
-            isSyncing={isSyncing}
-          />
+        {/* 2. WEEKLY CONSISTENCY OVERVIEW (5 WEEK COLUMNS + TOP 10 HABITS) */}
+        <WeeklyConsistencyOverview
+          daysData={daysData}
+          weeksSummary={weeksSummary}
+          topHabits={topHabits}
+          isDarkMode={isDarkMode}
+        />
 
-          {/* 2. WEEKLY CONSISTENCY OVERVIEW (5 WEEK COLUMNS + TOP 10 HABITS) */}
-          <WeeklyConsistencyOverview
-            daysData={daysData}
-            weeksSummary={weeksSummary}
-            topHabits={topHabits}
-            isDarkMode={isDarkMode}
-          />
+        {/* 3. CORE CENTERPIECE: MASTER 30-DAY MONTHLY HABIT MATRIX GRID */}
+        <MasterMonthlyHabitGrid
+          activities={activities}
+          matrixState={matrixState}
+          onToggleMatrixCell={handleToggleMatrixCell}
+          onAddHabit={() => setIsAddHabitOpen(true)}
+          onDeleteHabit={handleDeleteActivity}
+          isDarkMode={isDarkMode}
+          daysInMonth={daysInMonth}
+          todayDayNumber={todayDayNumber}
+        />
 
-          {/* 3. CORE CENTERPIECE: MASTER 30-DAY MONTHLY HABIT MATRIX GRID */}
-          <MasterMonthlyHabitGrid
-            activities={activities}
-            matrixState={matrixState}
-            onToggleMatrixCell={handleToggleMatrixCell}
-            onAddHabit={() => setIsAddHabitOpen(true)}
-            onDeleteHabit={handleDeleteActivity}
-            isDarkMode={isDarkMode}
-            daysInMonth={daysInMonth}
-            todayDayNumber={todayDayNumber}
-          />
-
-          {/* 4. EXPANDABLE COMPANION PANELS: TODAY'S PLAN, PERFORMANCE, & PLATFORMS */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={() => setShowFullWidgetsPanel(!showFullWidgetsPanel)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#0f172a] text-xs font-bold transition-all cursor-pointer shadow-xs"
-              >
-                <LayoutGrid className="w-4 h-4 text-purple-600" />
-                <span>{showFullWidgetsPanel ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}</span>
-                {showFullWidgetsPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              
-              <div className="text-xs text-slate-500 font-mono font-bold">
-                Live Solo Leveling Sync • {user.hunterRank}-Rank
-              </div>
+        {/* 4. EXPANDABLE COMPANION PANELS: TODAY'S PLAN, PERFORMANCE, & PLATFORMS */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setShowFullWidgetsPanel(!showFullWidgetsPanel)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#0f172a] text-xs font-bold transition-all cursor-pointer shadow-xs"
+            >
+              <LayoutGrid className="w-4 h-4 text-purple-600" />
+              <span>{showFullWidgetsPanel ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}</span>
+              {showFullWidgetsPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            
+            <div className="text-xs text-slate-500 font-mono font-bold">
+              Live Solo Leveling Sync • {user.hunterRank}-Rank
             </div>
-
-            {showFullWidgetsPanel && (
-              <div className="space-y-5 animate-fade-in">
-                
-                {/* Today's Live Activity Timeline (7-col) + [Efficiency Gauge + PlanStreakStatsRibbon] (5-col) Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                  <div className="lg:col-span-7">
-                    <TodayActivityTimeline
-                      logs={logs}
-                      activities={activities}
-                      onToggleActivity={handleToggleActivity}
-                      onOpenAll={() => setIsTodayActivityOpen(true)}
-                    />
-                  </div>
-
-                  <div className="lg:col-span-5 space-y-4">
-                    <EfficiencyGauge
-                      efficiencyPct={summary.efficiencyPct}
-                      changeFromYesterday={summary.efficiencyChangeFromYesterday}
-                      plannedMinutes={summary.plannedMinutes}
-                      completedMinutes={summary.completedMinutes}
-                      onOpenEfficiencyAnalytics={() => setIsEfficiencyAnalyticsOpen(true)}
-                    />
-
-                    {/* Placed directly beneath Efficiency Gauge */}
-                    <PlanStreakStatsRibbon
-                      user={user}
-                      totalTasks={activities.length}
-                      completedTasks={activities.filter((a) => a.completed).length}
-                      onFreezeStreak={() => {
-                        if (user.currentXP >= 500) {
-                          setUser((prev) => ({ ...prev, currentXP: prev.currentXP - 500 }));
-                          soundFx.playLevelUp();
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Emergency Directives */}
-                <EmergencyWorkCard
-                  tasks={emergencyTasks}
-                  onAddTask={handleAddEmergencyTask}
-                  onCompleteTask={handleCompleteEmergencyTask}
-                  onDeleteTask={handleDeleteEmergencyTask}
-                />
-
-                {/* Showcase Connected Platform Streak Cards */}
-                <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm">
-                  <div className="text-xs font-black uppercase tracking-wider text-[#0f172a] mb-3.5 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    Connected Competitive Platforms & Streaks
-                  </div>
-                  <PlatformCardsGrid activities={activities} />
-                </div>
-              </div>
-            )}
           </div>
 
-        </main>
-      </div>
+          {showFullWidgetsPanel && (
+            <div className="space-y-5 animate-fade-in">
+              
+              {/* Today's Live Activity Timeline (7-col) + [Efficiency Gauge + PlanStreakStatsRibbon] (5-col) Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                <div className="lg:col-span-7">
+                  <TodayActivityTimeline
+                    logs={logs}
+                    activities={activities}
+                    onToggleActivity={handleToggleActivity}
+                    onOpenAll={() => setIsTodayActivityOpen(true)}
+                  />
+                </div>
+
+                <div className="lg:col-span-5 space-y-4">
+                  <EfficiencyGauge
+                    efficiencyPct={summary.efficiencyPct}
+                    changeFromYesterday={summary.efficiencyChangeFromYesterday}
+                    plannedMinutes={summary.plannedMinutes}
+                    completedMinutes={summary.completedMinutes}
+                    onOpenEfficiencyAnalytics={() => setIsEfficiencyAnalyticsOpen(true)}
+                  />
+
+                  {/* Placed directly beneath Efficiency Gauge */}
+                  <PlanStreakStatsRibbon
+                    user={user}
+                    totalTasks={activities.length}
+                    completedTasks={activities.filter((a) => a.completed).length}
+                    onFreezeStreak={() => {
+                      if (user.currentXP >= 500) {
+                        setUser((prev) => ({ ...prev, currentXP: prev.currentXP - 500 }));
+                        soundFx.playLevelUp();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Emergency Directives */}
+              <EmergencyWorkCard
+                tasks={emergencyTasks}
+                onAddTask={handleAddEmergencyTask}
+                onCompleteTask={handleCompleteEmergencyTask}
+                onDeleteTask={handleDeleteEmergencyTask}
+              />
+
+              {/* Showcase Connected Platform Streak Cards */}
+              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm">
+                <div className="text-xs font-black uppercase tracking-wider text-[#0f172a] mb-3.5 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  Connected Competitive Platforms & Streaks
+                </div>
+                <PlatformCardsGrid activities={activities} />
+              </div>
+            </div>
+          )}
+        </div>
+
+      </main>
 
       {/* ======================================================== */}
       {/* FULL INTERACTIVE MODALS & DIALOGS                       */}
