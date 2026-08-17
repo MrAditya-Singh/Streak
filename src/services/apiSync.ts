@@ -18,19 +18,54 @@ export interface SyncResult {
  * Fetches public/private user events and filters for today's Push, PR, and Issue events.
  */
 export async function syncGitHub(username: string, token?: string): Promise<SyncResult> {
-  try {
-    if (!username || username.trim() === '') {
-      return {
-        platform: 'GitHub',
-        hasActivityToday: false,
-        eventCount: 0,
-        details: 'No GitHub username configured',
-        timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: false,
-      };
-    }
+  if (!username || username.trim() === '') {
+    return {
+      platform: 'GitHub',
+      hasActivityToday: false,
+      eventCount: 0,
+      details: 'No GitHub username configured',
+      timestamp: new Date().toLocaleTimeString(),
+      autoCompleted: false,
+    };
+  }
 
-    const cleanUser = username.trim();
+  const cleanUser = username.trim();
+
+  // 1. Try backend proxy first to avoid rate limiting and get full year's history
+  try {
+    const backendRes = await fetch(`${BACKEND_API_BASE}/integrations/connect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: 'github',
+        handleOrUrl: cleanUser,
+        userId: 'aditya-singh'
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (backendRes.ok) {
+      const resJson = await backendRes.json();
+      if (resJson.success && resJson.data) {
+        const ghData = resJson.data;
+        const recentDates = Object.keys(ghData.activity || {});
+        return {
+          platform: 'GitHub',
+          hasActivityToday: !!ghData.hasActivityToday,
+          eventCount: ghData.todayCount || 0,
+          details: `${ghData.todayCount || 0} commits/actions today (verified via backend proxy)`,
+          timestamp: new Date().toLocaleTimeString(),
+          autoCompleted: !!ghData.hasActivityToday,
+          recentDates,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Backend GitHub sync failed, falling back to direct API:', err);
+  }
+
+  // 2. Fallback: Direct browser fetch to GitHub API
+  try {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github.v3+json',
     };
@@ -50,12 +85,12 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
     const events: Array<{ type: string; created_at: string; repo: { name: string } }> = await response.json();
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
 
     // Filter qualifying contribution events within 24h or today
     const qualifyingEvents = events.filter((e) => {
       const eventTime = new Date(e.created_at).getTime();
-      const eventDate = new Date(e.created_at).toISOString().split('T')[0];
+      const eventDate = new Date(e.created_at).toLocaleDateString('en-CA');
       return (
         (eventDate === todayStr || eventTime >= oneDayAgo) &&
         ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type)
@@ -67,6 +102,10 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       ? `${qualifyingEvents.length} commits/actions today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'})`
       : `No commits pushed today (checked @${cleanUser})`;
 
+    const recentDates = events
+      .filter((e) => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
+      .map((e) => new Date(e.created_at).toLocaleDateString('en-CA'));
+
     return {
       platform: 'GitHub',
       hasActivityToday: hasActivity,
@@ -74,16 +113,18 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       details,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: hasActivity,
+      recentDates,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Network error';
     return {
       platform: 'GitHub',
-      hasActivityToday: true,
-      eventCount: 3,
-      details: `GitHub verified for @${username} (${errorMsg})`,
+      hasActivityToday: false,
+      eventCount: 0,
+      details: `GitHub sync warning: ${errorMsg}`,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: false,
+      recentDates: [],
     };
   }
 }

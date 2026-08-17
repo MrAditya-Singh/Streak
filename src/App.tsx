@@ -689,6 +689,7 @@ export const App: React.FC = () => {
 
       // Merge direct API recent dates into platformDailyMaps to ensure they show up in history
       const directRecentDates: Record<string, string[]> = {
+        github: ghRes.recentDates || [],
         leetcode: lcRes.recentDates || [],
         codeforces: cfRes.recentDates || [],
         atcoder: atcoderRes.recentDates || [],
