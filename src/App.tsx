@@ -223,14 +223,14 @@ export const App: React.FC = () => {
         return;
       }
 
-      // 1. SMART UNION MERGE FOR ACTIVITIES
-      if (remoteState.activities && Array.isArray(remoteState.activities)) {
+      // 1. SMART UNION MERGE FOR ACTIVITIES (GUARANTEES IDENTICAL HABIT LIST ACROSS DEVICES)
+      if (remoteState.activities && Array.isArray(remoteState.activities) && remoteState.activities.length > 0) {
         setActivities((prevActs) => {
-          return prevActs.map((pAct) => {
-            const rAct = remoteState.activities.find((r: any) => r.id === pAct.id || r.name === pAct.name);
-            if (!rAct) return pAct;
+          return remoteState.activities.map((rAct: ActivityItem) => {
+            const pAct = prevActs.find((p) => p.id === rAct.id || p.name === rAct.name);
+            if (!pAct) return rAct;
             return {
-              ...pAct,
+              ...rAct,
               completed: pAct.completed || rAct.completed,
               streak: Math.max(pAct.streak || 0, rAct.streak || 0),
               completedAt: pAct.completedAt || rAct.completedAt,
