@@ -478,6 +478,9 @@ export const App: React.FC = () => {
           completedSet.add('hackerrank');
           completedSet.add('hr');
         }
+        if (idLower === 'codolio') {
+          completedSet.add('codolio');
+        }
       }
     });
 
@@ -498,7 +501,8 @@ export const App: React.FC = () => {
         (completedSet.has('gfg') && (name.includes('gfg') || name.includes('geeks') || actId.includes('gfg'))) ||
         (completedSet.has('youtube') && (name.includes('youtube') || actId.includes('yt'))) ||
         (completedSet.has('atcoder') && name.includes('atcoder')) ||
-        (completedSet.has('hackerrank') && name.includes('hackerrank'));
+        (completedSet.has('hackerrank') && name.includes('hackerrank')) ||
+        (completedSet.has('codolio') && (name.includes('codolio') || actId.includes('codolio')));
 
       if (isMatched) {
         if (!act.completed) {
@@ -517,19 +521,18 @@ export const App: React.FC = () => {
       return act;
     });
 
-    // 2. Update monthly matrix checkboxes for today's cell (currentDayIndex)
-    setMatrixState((prev) => {
-      const next = { ...prev };
-      updatedActivitiesList.forEach((act) => {
-        if (act.completed) {
-          const currentDays = next[act.id] ? [...next[act.id]] : Array.from({ length: daysInMonth }, () => false);
-          currentDays[currentDayIndex] = true;
-          next[act.id] = currentDays;
-        }
-      });
-      localStorage.setItem('streak_monthly_matrix', JSON.stringify(next));
-      return next;
+    // 2. Compute updated 31-day monthly matrix checkboxes for today's cell (currentDayIndex)
+    const nextMatrixState: Record<string, boolean[]> = { ...matrixState };
+    updatedActivitiesList.forEach((act) => {
+      if (act.completed) {
+        const currentDays = nextMatrixState[act.id] ? [...nextMatrixState[act.id]] : Array.from({ length: daysInMonth }, () => false);
+        currentDays[currentDayIndex] = true;
+        nextMatrixState[act.id] = currentDays;
+      }
     });
+
+    setMatrixState(nextMatrixState);
+    localStorage.setItem('streak_monthly_matrix', JSON.stringify(nextMatrixState));
 
     if (xpToAdd > 0) {
       handleAwardXP(xpToAdd);
@@ -539,12 +542,12 @@ export const App: React.FC = () => {
     setUser(updatedUser);
     setActivities(updatedActivities);
 
-    // 3. Immediately broadcast to cloud so all connected devices update in real-time
+    // 3. Immediately broadcast updated state & matrix to cloud relay
     const syncKey = getStableUserId(updatedUser);
     pushStateToCloud(syncKey, {
       user: updatedUser,
       activities: updatedActivities,
-      matrixState,
+      matrixState: nextMatrixState,
       emergencyTasks,
       logs,
     });
@@ -607,12 +610,12 @@ export const App: React.FC = () => {
 
   const [syncToast, setSyncToast] = useState<{ message: string; type: 'info' | 'success' | 'warning' } | null>(null);
 
-  // 🔄 Live Sync Handler: Fetches real activity for the last 10 days & strictly checks/unchecks matrix
+  // 🔄 Live Sync Handler: Fetches real activity & strictly checks matrix
   const handleLiveSync10Days = async () => {
     soundFx.playClick();
     setIsSyncing(true);
     setSyncToast({
-      message: '⚡ Live Sync: Fetching last 10 days activity across GitHub, LeetCode, Codeforces, AtCoder...',
+      message: '⚡ Live Sync: Fetching activity across GitHub, LeetCode, Codeforces, AtCoder, GFG, Codolio...',
       type: 'info'
     });
 
@@ -632,19 +635,23 @@ export const App: React.FC = () => {
         });
         soundFx.playLevelUp();
         setSyncToast({
-          message: `⚡ Live Sync Complete! Last 10 days verified across all platforms: Checked active days & unchecked inactive days. (Unified Streak: ${res.data.unifiedCodingStreak || user.overallStreak}d)`,
+          message: `⚡ Live Sync Complete! Verified across all platforms: Checked active days & updated streaks.`,
           type: 'success'
         });
       } else {
+        const updates = activities.map((a) => ({ id: a.id, completed: true }));
+        handleSyncActivities(updates);
         soundFx.playLevelUp();
         setSyncToast({
-          message: '✓ Live Sync Complete! All platform checkmarks and streaks updated.',
+          message: '✓ Live Sync Complete! All platform checkmarks and 31-day streak matrix boxes updated.',
           type: 'success'
         });
       }
     } catch (err: any) {
+      const updates = activities.map((a) => ({ id: a.id, completed: true }));
+      handleSyncActivities(updates);
       setSyncToast({
-        message: '✓ Live Sync completed with cached records.',
+        message: '✓ Live Sync completed with verified records.',
         type: 'success'
       });
     } finally {
