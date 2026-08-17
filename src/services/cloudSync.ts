@@ -27,8 +27,11 @@ export const DEVICE_ID = (() => {
 
 /**
  * 🔑 Deterministic Stable User ID Generator
- * Ensures that logging in with the same Gmail, phone number, or UID on Mobile and Laptop
+ * Ensures that logging in with the same Gmail account on Mobile and Laptop
  * ALWAYS resolves to the exact same cloud document and user record.
+ *
+ * Priority: Firebase UID > email > phoneNumber > name > canonical fallback
+ * Using email as the primary key ensures cross-device identity without Firebase auth on both.
  */
 export function getStableUserId(identity?: Partial<UserProfile> | string): string {
   if (!identity) return 'user_aditya_canonical';
@@ -37,7 +40,9 @@ export function getStableUserId(identity?: Partial<UserProfile> | string): strin
   if (typeof identity === 'string') {
     raw = identity;
   } else {
-    raw = identity.email || identity.phoneNumber || identity.uid || identity.name || 'user_aditya_canonical';
+    // Prefer email — it's the same on both devices for the same Google account.
+    // Fall back to uid only if email is not available.
+    raw = identity.email || identity.uid || identity.phoneNumber || identity.name || 'user_aditya_canonical';
   }
 
   const clean = raw

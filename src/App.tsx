@@ -282,6 +282,60 @@ export const App: React.FC = () => {
     };
   }, [user.email, user.phoneNumber, user.uid]);
 
+  // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
+  useEffect(() => {
+    const syncKey = user.email || user.uid || 'user_aditya_canonical';
+    const sseUrl = `${BACKEND_API_BASE}/sync/events?userId=${encodeURIComponent(syncKey)}`;
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(sseUrl);
+
+      es.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'HABIT_TOGGLED' && msg.habitId && msg.date) {
+            const dateStr = new Date().toISOString().split('T')[0];
+            if (msg.date !== dateStr) return; // Only handle today's toggles here
+
+            // Directly apply matrix cell toggle from peer device
+            setMatrixState((prev) => {
+              const currentDays = prev[msg.habitId] || Array.from({ length: 31 }, () => false);
+              const dayIndex = new Date(msg.date).getDate() - 1;
+              const updatedDays = [...currentDays];
+              updatedDays[dayIndex] = Boolean(msg.completed);
+              return { ...prev, [msg.habitId]: updatedDays };
+            });
+
+            // Also update activities completed state
+            if (msg.date === dateStr) {
+              setActivities((prev) =>
+                prev.map((act) =>
+                  act.id === msg.habitId
+                    ? { ...act, completed: Boolean(msg.completed) }
+                    : act
+                )
+              );
+            }
+            console.log(`⚡ [SSE] Peer device toggled [${msg.habitId}] -> ${msg.completed}`);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      };
+
+      es.onerror = () => {
+        // SSE will auto-reconnect; silently ignore errors
+      };
+    } catch {
+      // EventSource not available (old browser)
+    }
+
+    return () => {
+      if (es) es.close();
+    };
+  }, [user.uid, user.email]);
+
   // Calculations
   const summary = useMemo(() => calculateSummary(activities), [activities]);
   const analytics = useMemo(() => calculateAnalytics(history, activities), [history, activities]);
@@ -384,6 +438,7 @@ export const App: React.FC = () => {
       const currentDays = prev[habitId] || Array.from({ length: daysInMonth }, () => false);
       const updatedDays = [...currentDays];
       updatedDays[dayIndex] = !updatedDays[dayIndex];
+      const newCompleted = updatedDays[dayIndex];
       const nextState = { ...prev, [habitId]: updatedDays };
 
       // If toggled for today, also sync with active checklist
@@ -392,6 +447,21 @@ export const App: React.FC = () => {
       } else {
         handleAwardXP(10);
       }
+
+      // ⚡ Broadcast this matrix toggle to ALL peer devices via backend SSE
+      const syncKey = user.email || user.uid || 'user_aditya_canonical';
+      const dateStr = new Date(new Date().getFullYear(), MONTH_NAMES.indexOf(selectedMonth), dayIndex + 1)
+        .toISOString().split('T')[0];
+      fetch(`${BACKEND_API_BASE}/sync/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: syncKey,
+          habitId,
+          completed: newCompleted,
+          date: dateStr,
+        }),
+      }).catch((err) => console.warn('Matrix cell sync broadcast warning:', err));
 
       return nextState;
     });
@@ -440,7 +510,7 @@ export const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.uid || 'aditya-singh',
+          userId: user.email || user.uid || 'aditya-singh',
           habitId: id,
           completed: targetAct.completed,
           date: new Date().toISOString().split('T')[0],
