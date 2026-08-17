@@ -136,7 +136,7 @@ export async function pullStateFromCloud(identity: Partial<UserProfile> | string
 
     if (res.ok) {
       const data: CloudSyncState = await res.json();
-      if (data && data.updatedAt && data.updatedAt > lastLocalPushTimestamp && data.deviceId !== DEVICE_ID) {
+      if (data && data.updatedAt && data.updatedAt > lastRemoteReceivedTimestamp) {
         lastRemoteReceivedTimestamp = data.updatedAt;
         return data;
       }

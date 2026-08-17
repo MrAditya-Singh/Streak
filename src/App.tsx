@@ -189,27 +189,87 @@ export const App: React.FC = () => {
     });
   }, [user, activities, matrixState, emergencyTasks, logs]);
 
-  // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop)
+  // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop) WITH SMART UNION MERGE
   useEffect(() => {
     const syncKey = getStableUserId(user);
 
     const applyRemoteState = (remoteState: any) => {
-      console.log('⚡ [Cloud 2-Way Sync] Received real-time state from peer device:', remoteState);
+      console.log('⚡ [Cloud 2-Way Union Sync] Received real-time state from peer device:', remoteState);
+      
+      // 1. SMART UNION MERGE FOR ACTIVITIES
       if (remoteState.activities && Array.isArray(remoteState.activities)) {
-        setActivities(remoteState.activities);
+        setActivities((prevActs) => {
+          return prevActs.map((pAct) => {
+            const rAct = remoteState.activities.find((r: any) => r.id === pAct.id || r.name === pAct.name);
+            if (!rAct) return pAct;
+            return {
+              ...pAct,
+              completed: pAct.completed || rAct.completed,
+              streak: Math.max(pAct.streak || 0, rAct.streak || 0),
+              completedAt: pAct.completedAt || rAct.completedAt,
+            };
+          });
+        });
       }
+
+      // 2. SMART UNION MERGE FOR MASTER 31-DAY HABIT MATRIX GRID (ELEMENT-WISE OR)
       if (remoteState.matrixState && typeof remoteState.matrixState === 'object') {
-        setMatrixState(remoteState.matrixState);
+        setMatrixState((prevMatrix) => {
+          const merged: Record<string, boolean[]> = { ...prevMatrix };
+          Object.keys(remoteState.matrixState).forEach((actId) => {
+            const localArr = prevMatrix[actId] || Array.from({ length: 31 }, () => false);
+            const remoteArr = remoteState.matrixState[actId] || [];
+
+            // Perform element-wise OR (lVal || rVal) to NEVER lose any checkmark from EITHER device!
+            const mergedArr = Array.from({ length: 31 }, (_, idx) => {
+              const lVal = Boolean(localArr[idx]);
+              const rVal = Array.isArray(remoteArr) ? Boolean(remoteArr[idx]) : false;
+              return lVal || rVal;
+            });
+
+            merged[actId] = mergedArr;
+          });
+          return merged;
+        });
       }
+
+      // 3. SMART MERGE FOR USER PROFILE & XP/STREAK STATS
       if (remoteState.user) {
-        setUser((prev) => ({ ...prev, ...remoteState.user, uid: syncKey }));
+        setUser((prev) => ({
+          ...prev,
+          ...remoteState.user,
+          currentXP: Math.max(prev.currentXP || 0, remoteState.user.currentXP || 0),
+          overallStreak: Math.max(prev.overallStreak || 0, remoteState.user.overallStreak || 0),
+          longestStreak: Math.max(prev.longestStreak || 0, remoteState.user.longestStreak || 0),
+          level: Math.max(prev.level || 0, remoteState.user.level || 0),
+          uid: syncKey,
+        }));
       }
+
+      // 4. EMERGENCY TASKS MERGE (NO DUPLICATES)
       if (remoteState.emergencyTasks && Array.isArray(remoteState.emergencyTasks)) {
-        setEmergencyTasks(remoteState.emergencyTasks);
+        setEmergencyTasks((prevTasks) => {
+          const map = new Map();
+          prevTasks.forEach((t) => map.set(t.id, t));
+          remoteState.emergencyTasks.forEach((t: any) => {
+            if (!map.has(t.id) || t.completed) {
+              map.set(t.id, t);
+            }
+          });
+          return Array.from(map.values());
+        });
       }
+
+      // 5. LOGS MERGE
       if (remoteState.logs && Array.isArray(remoteState.logs)) {
-        setLogs(remoteState.logs);
+        setLogs((prevLogs) => {
+          const map = new Map();
+          prevLogs.forEach((l) => map.set(l.id, l));
+          remoteState.logs.forEach((l: any) => map.set(l.id, l));
+          return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        });
       }
+
       soundFx.playCheck();
     };
 
