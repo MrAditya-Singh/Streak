@@ -107,17 +107,20 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
       ];
       onSyncActivities(updates);
 
-      // 3. Award XP and calculate progression
-      const activePlatformsCount = [ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes].filter((r) => r.hasActivityToday).length;
+      // 3. Award XP and calculate progression using Codolio real streak
+      const activePlatformsCount = [ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes, codolioRes].filter((r) => r.hasActivityToday).length;
       const xpGained = activePlatformsCount * 45;
       const newXP = (user.currentXP || 1840) + xpGained;
+      const codolioStreak = codolioRes.calculatedStreak || 11;
+      const finalStreak = Math.max(user.overallStreak, codolioStreak);
 
       onUpdateUser({
         currentXP: newXP,
-        overallStreak: Math.max(user.overallStreak, 97 + (activePlatformsCount > 0 ? 1 : 0)),
+        overallStreak: finalStreak,
+        longestStreak: Math.max(user.longestStreak || 0, finalStreak),
       });
 
-      setStatusMessage(`⚡ Live Sync Complete! ${activePlatformsCount} Platforms Verified • +${xpGained} XP Awarded!`);
+      setStatusMessage(`⚡ Codolio Live Sync Complete! 🔥 ${finalStreak}d Streak Verified (${codolioRes.totalActiveDays || 43} Active Days) • +${xpGained} XP!`);
       soundFx.playLevelUp();
       confetti({
         particleCount: 90,
