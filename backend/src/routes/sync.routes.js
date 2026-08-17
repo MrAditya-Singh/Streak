@@ -185,9 +185,71 @@ syncRouter.post('/toggle', async (req, res) => {
     timestamp: Date.now(),
   });
 
-  // Async Firestore persistence
+  // Async Firestore persistence to unified_sync (unifying storage format)
   if (db) {
     try {
+      const docRef = db.collection('unified_sync').doc(userId);
+      const docSnap = await docRef.get();
+      let unifiedData = docSnap.exists ? docSnap.data() : null;
+
+      if (!unifiedData) {
+        unifiedData = {
+          activities: state.activities || [],
+          matrixState: {},
+          user: {
+            currentXP: state.user.currentXP || 0,
+            level: state.user.level || 0,
+            overallStreak: state.user.overallStreak || 0,
+            longestStreak: state.user.longestStreak || 0,
+          },
+          emergencyTasks: [],
+          logs: [],
+        };
+      }
+
+      // Update activities status inside unified payload
+      unifiedData.activities = (unifiedData.activities || []).map((act) => {
+        if (act.id === habitId) {
+          const nextCompleted = completed ?? !act.completed;
+          return {
+            ...act,
+            completed: nextCompleted,
+            streak: nextCompleted ? act.streak + 1 : Math.max(0, act.streak - 1),
+          };
+        }
+        return act;
+      });
+
+      // Update 31-day Matrix Checkbox Array inside unified payload
+      const dateParts = targetDate.split('-');
+      const dayNum = parseInt(dateParts[2], 10);
+      if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) {
+        const dayIndex = dayNum - 1;
+        if (!unifiedData.matrixState) {
+          unifiedData.matrixState = {};
+        }
+        if (!unifiedData.matrixState[habitId] || !Array.isArray(unifiedData.matrixState[habitId])) {
+          unifiedData.matrixState[habitId] = Array.from({ length: 31 }, () => false);
+        }
+        unifiedData.matrixState[habitId][dayIndex] = completed;
+      }
+
+      // Update user details inside unified payload
+      if (!unifiedData.user) {
+        unifiedData.user = {};
+      }
+      unifiedData.user.currentXP = state.user.currentXP;
+      unifiedData.user.overallStreak = state.user.overallStreak;
+      unifiedData.user.level = state.user.level;
+      unifiedData.user.longestStreak = Math.max(unifiedData.user.longestStreak || 0, state.user.overallStreak || 0);
+
+      // Set write timestamp to let clients bypass loops
+      unifiedData.updatedAt = Date.now();
+
+      // Save unified document
+      await docRef.set(unifiedData, { merge: true });
+
+      // Keep legacy collections in sync as backup
       await db.collection('matrix').doc(`${userId}_matrix`).set(
         {
           [`${habitId}_${targetDate}`]: completed,
@@ -209,7 +271,7 @@ syncRouter.post('/toggle', async (req, res) => {
         { merge: true }
       );
     } catch (err) {
-      console.warn('Firestore toggle persistence warning:', err.message);
+      console.warn('Firestore unified toggle persistence warning:', err.message);
     }
   }
 

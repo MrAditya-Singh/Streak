@@ -158,6 +158,7 @@ export const App: React.FC = () => {
   // push useEffect doesn't immediately re-broadcast what we just received.
   const isApplyingRemote = React.useRef(false);
   const remoteEchoTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncTimestamp = React.useRef<number>(0);
 
   // Modals state
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
@@ -235,11 +236,14 @@ export const App: React.FC = () => {
     if (isApplyingRemote.current) return;
 
     const syncKey = activeSyncKey;
-    const payload = { user, activities, matrixState, emergencyTasks, logs };
+    const writeTime = Date.now();
+    const payload = { user, activities, matrixState, emergencyTasks, logs, updatedAt: writeTime };
 
     // Debounce: cancel previous pending push, schedule new one in 800ms
     if (pendingCloudPush.current) clearTimeout(pendingCloudPush.current);
     pendingCloudPush.current = setTimeout(() => {
+      // Update local timestamp guard immediately before write to ignore our own echo
+      lastSyncTimestamp.current = writeTime;
       pushStateToCloud(syncKey, payload);
       syncFullStateToFirestore(syncKey, payload);
     }, 800);
@@ -261,6 +265,16 @@ export const App: React.FC = () => {
       if (!exists || !remoteState) {
         return;
       }
+
+      // ⚠️ Loop Preventer Guard: Only apply changes if the remote update is strictly newer
+      const remoteTime = Number(remoteState.updatedAt || 0);
+      if (remoteTime <= lastSyncTimestamp.current) {
+        console.log('📡 [Cloud Sync] Ignoring echoed or older snapshot (time:', remoteTime, '<= last:', lastSyncTimestamp.current, ')');
+        return;
+      }
+
+      // Update local timestamp to keep in sync
+      lastSyncTimestamp.current = remoteTime;
 
       // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO CLEAN STATE
       if (remoteState.isReset) {
@@ -366,6 +380,12 @@ export const App: React.FC = () => {
 
           // ⚡ STATE_UPDATED: peer device added/deleted a habit or synced full state
           if (msg.type === 'STATE_UPDATED' && msg.state) {
+            const remoteTime = Number(msg.state.updatedAt || 0);
+            if (remoteTime <= lastSyncTimestamp.current) {
+              console.log('📡 [SSE STATE_UPDATED] Ignoring echoed or older snapshot (time:', remoteTime, '<= last:', lastSyncTimestamp.current, ')');
+              return;
+            }
+            lastSyncTimestamp.current = remoteTime;
             console.log('⚡ [SSE STATE_UPDATED] Peer device synced full state — applying now...');
             isApplyingRemote.current = true;
             if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);

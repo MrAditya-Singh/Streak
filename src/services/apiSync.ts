@@ -811,6 +811,7 @@ export async function syncAllViaBackend(payload: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000),
     });
     if (res.ok) {
       return await res.json();
