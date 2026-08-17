@@ -30,6 +30,7 @@ export async function fetchCodeforcesData(rawInput) {
   let maxRating = 1010;
   let totalSolved = 130;
   const dailyActivity = {};
+  let syncStatus = 'success';
 
   try {
     // 1. Fetch user info
@@ -58,7 +59,9 @@ export async function fetchCodeforcesData(rawInput) {
         const acceptedSet = new Set();
         subData.result.forEach((sub) => {
           if (sub.verdict === 'OK' && sub.creationTimeSeconds) {
-            const dateStr = new Date(sub.creationTimeSeconds * 1000).toISOString().split('T')[0];
+            const dateStr = new Date(sub.creationTimeSeconds * 1000).toLocaleDateString('en-CA', {
+              timeZone: 'Asia/Kolkata'
+            });
             dailyActivity[dateStr] = (dailyActivity[dateStr] || 0) + 1;
             if (sub.problem) {
               acceptedSet.add(`${sub.problem.contestId}-${sub.problem.index}`);
@@ -69,12 +72,16 @@ export async function fetchCodeforcesData(rawInput) {
           totalSolved = acceptedSet.size;
         }
       }
+    } else {
+      console.warn(`[Codeforces Adapter] Submissions fetch failed with status: ${subRes.status}`);
+      syncStatus = 'error';
     }
   } catch (err) {
     console.warn(`[Codeforces Adapter] Notice: ${err.message}`);
+    syncStatus = 'error';
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
   if (dailyActivity[todayStr] === undefined) {
     dailyActivity[todayStr] = 0;
   }
@@ -97,7 +104,7 @@ export async function fetchCodeforcesData(rawInput) {
     },
     dailyActivity,
     sync: {
-      status: 'success',
+      status: syncStatus,
       lastSyncedAt: new Date().toISOString(),
     },
   };
