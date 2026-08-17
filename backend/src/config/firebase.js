@@ -1,5 +1,6 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let db = null;
+let authAdmin = null;
 let isFirebaseInitialized = false;
 
 try {
@@ -72,6 +74,7 @@ try {
     }
     db = getFirestore();
     db.settings({ ignoreUndefinedProperties: true });
+    authAdmin = getAuth();
     isFirebaseInitialized = true;
     console.log(`🔥 Firebase Admin & Firestore initialized successfully using: ${usedSource} [Project: ${serviceAccount.project_id}]`);
   } else {
@@ -81,4 +84,5 @@ try {
   console.error('❌ Error initializing Firebase Admin SDK:', error.message);
 }
 
-export { db, isFirebaseInitialized };
+export { db, authAdmin, isFirebaseInitialized };
+

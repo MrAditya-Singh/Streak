@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, isFirebaseInitialized } from '../config/firebase.js';
+import { db, authAdmin, isFirebaseInitialized } from '../config/firebase.js';
 import {
   SUPPORTED_PLATFORMS,
   CANONICAL_MAPPING,
@@ -22,12 +22,31 @@ const memoryStore = {
   activity_logs: [],
 };
 
+async function resolveTargetUserId(req, fallbackId = DEFAULT_USER_ID) {
+  let targetId = req.query.userId || req.body?.userId || fallbackId;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split('Bearer ')[1]?.trim();
+      if (token && isFirebaseInitialized && authAdmin) {
+        const decoded = await authAdmin.verifyIdToken(token);
+        if (decoded.uid) {
+          targetId = decoded.uid;
+        }
+      }
+    } catch (err) {
+      console.warn('Optional token verification warning in integrations routes:', err.message);
+    }
+  }
+  return targetId;
+}
+
 /**
  * @route   GET /api/integrations
  * @desc    Get all connected platforms and stats for user
  */
 router.get('/', async (req, res) => {
-  const userId = req.query.userId || DEFAULT_USER_ID;
+  const userId = await resolveTargetUserId(req, DEFAULT_USER_ID);
 
   if (isFirebaseInitialized && db) {
     try {
@@ -68,7 +87,8 @@ router.get('/', async (req, res) => {
  * @desc    Verify and connect a new platform account
  */
 router.post('/connect', async (req, res) => {
-  const { platform, handleOrUrl, token, userId = DEFAULT_USER_ID } = req.body;
+  const userId = await resolveTargetUserId(req, req.body.userId || DEFAULT_USER_ID);
+  const { platform, handleOrUrl, token } = req.body;
 
   if (!platform || !handleOrUrl) {
     return res.status(400).json({ error: 'Platform and username/URL are required' });
@@ -91,6 +111,11 @@ router.post('/connect', async (req, res) => {
       try {
         const docId = `${userId}_${normalized.platform}`;
         await db.collection('integrations').doc(docId).set(docData, { merge: true });
+        await db.collection('users').doc(userId).set({
+          [`platform_${normalized.platform}_username`]: handleOrUrl,
+          [`platform_${normalized.platform}_streak`]: normalized.streak?.currentStreak || 0,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
       } catch (firestoreErr) {
         console.warn(`Firestore saving warning: ${firestoreErr.message}`);
       }
@@ -143,8 +168,8 @@ function getLocalDateString(dateInput, timezone = 'Asia/Kolkata') {
 }
 
 router.post('/sync', async (req, res) => {
+  const userId = await resolveTargetUserId(req, req.body.userId || DEFAULT_USER_ID);
   const {
-    userId = DEFAULT_USER_ID,
     habits = [],
     matrixState = {},
     user = {},

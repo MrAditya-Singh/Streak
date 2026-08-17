@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db } from '../config/firebase.js';
+import { db, authAdmin, isFirebaseInitialized } from '../config/firebase.js';
 
 export const syncRouter = Router();
 
@@ -18,6 +18,8 @@ function getOrCreateUserState(userId) {
         currentXP: 1840,
         level: 18,
         overallStreak: 97,
+        longestStreak: 97,
+        efficiencyPct: 85,
       },
       lastUpdated: new Date().toISOString(),
     });
@@ -25,11 +27,30 @@ function getOrCreateUserState(userId) {
   return memoryState.get(userId);
 }
 
+async function resolveTargetUserId(req, fallbackId = 'local_user_1') {
+  let targetId = req.query.userId || req.body?.userId || fallbackId;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split('Bearer ')[1]?.trim();
+      if (token && isFirebaseInitialized && authAdmin) {
+        const decoded = await authAdmin.verifyIdToken(token);
+        if (decoded.uid) {
+          targetId = decoded.uid;
+        }
+      }
+    } catch (err) {
+      console.warn('Optional token verification warning in sync routes:', err.message);
+    }
+  }
+  return targetId;
+}
+
 // -------------------------------------------------------------
 // 1. Real-Time SSE Stream for Instant Laptop Live Push
 // -------------------------------------------------------------
-syncRouter.get('/events', (req, res) => {
-  const userId = req.query.userId || 'local_user_1';
+syncRouter.get('/events', async (req, res) => {
+  const userId = await resolveTargetUserId(req, 'local_user_1');
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -68,7 +89,7 @@ function broadcastToClients(userId, payload) {
 // 2. Fetch Latest State (GET /api/sync/state)
 // -------------------------------------------------------------
 syncRouter.get('/state', async (req, res) => {
-  const userId = req.query.userId || 'local_user_1';
+  const userId = await resolveTargetUserId(req, 'local_user_1');
   const state = getOrCreateUserState(userId);
 
   try {
@@ -78,7 +99,16 @@ syncRouter.get('/state', async (req, res) => {
         const uData = userDoc.data();
         state.user.currentXP = uData.currentXP ?? uData.xp ?? state.user.currentXP;
         state.user.overallStreak = uData.overallStreak ?? uData.currentStreak ?? state.user.overallStreak;
+        state.user.longestStreak = uData.longestStreak ?? state.user.longestStreak;
         state.user.level = uData.level ?? state.user.level;
+        state.user.efficiencyPct = uData.efficiencyPct ?? state.user.efficiencyPct;
+        if (uData.activities) state.activities = uData.activities;
+        if (uData.emergencyTasks) state.emergencyTasks = uData.emergencyTasks;
+      }
+
+      const matrixDoc = await db.collection('matrix').doc(`${userId}_matrix`).get();
+      if (matrixDoc.exists) {
+        state.matrix = { ...state.matrix, ...matrixDoc.data() };
       }
     }
   } catch (err) {
@@ -92,7 +122,8 @@ syncRouter.get('/state', async (req, res) => {
 // 3. Mobile / Laptop Toggle Action (POST /api/sync/toggle)
 // -------------------------------------------------------------
 syncRouter.post('/toggle', async (req, res) => {
-  const { userId = 'local_user_1', habitId, completed, date } = req.body;
+  const userId = await resolveTargetUserId(req, req.body.userId || 'local_user_1');
+  const { habitId, completed, date } = req.body;
   const targetDate = date || new Date().toISOString().split('T')[0];
   const state = getOrCreateUserState(userId);
 
@@ -145,7 +176,11 @@ syncRouter.post('/toggle', async (req, res) => {
           xp: state.user.currentXP,
           currentXP: state.user.currentXP,
           overallStreak: state.user.overallStreak,
+          longestStreak: state.user.longestStreak || state.user.overallStreak,
+          level: state.user.level,
           lastActiveDate: targetDate,
+          activities: state.activities,
+          updatedAt: new Date().toISOString(),
         },
         { merge: true }
       );
@@ -167,7 +202,8 @@ syncRouter.post('/toggle', async (req, res) => {
 // 4. Save Full State (POST /api/sync/state)
 // -------------------------------------------------------------
 syncRouter.post('/state', async (req, res) => {
-  const { userId = 'local_user_1', state: incomingState } = req.body;
+  const userId = await resolveTargetUserId(req, req.body.userId || 'local_user_1');
+  const { state: incomingState } = req.body;
   if (!incomingState) {
     return res.status(400).json({ success: false, error: 'Missing state object' });
   }
@@ -175,12 +211,44 @@ syncRouter.post('/state', async (req, res) => {
   const state = getOrCreateUserState(userId);
   Object.assign(state, incomingState, { lastUpdated: new Date().toISOString() });
 
-  // Broadcast to laptop
+  // Broadcast to laptop/mobile subscribers
   broadcastToClients(userId, {
     type: 'STATE_UPDATED',
     state,
     timestamp: Date.now(),
   });
 
-  res.json({ success: true, message: 'State synced & broadcasted', state });
+  // Persist full state to Cloud Firestore under Firebase UID
+  if (db) {
+    try {
+      const userPayload = {
+        userId,
+        uid: userId,
+        ...(incomingState.user || {}),
+        currentXP: incomingState.user?.currentXP ?? state.user.currentXP,
+        overallStreak: incomingState.user?.overallStreak ?? state.user.overallStreak,
+        level: incomingState.user?.level ?? state.user.level,
+        activities: incomingState.activities || state.activities,
+        emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await db.collection('users').doc(userId).set(userPayload, { merge: true });
+
+      if (incomingState.matrixState || incomingState.matrix) {
+        await db.collection('matrix').doc(`${userId}_matrix`).set(
+          {
+            ...(incomingState.matrixState || incomingState.matrix),
+            lastUpdated: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (err) {
+      console.warn('Firestore full state save warning:', err.message);
+    }
+  }
+
+  res.json({ success: true, message: 'Task/Streak/XP state synced & persisted to Cloud', state });
 });
+
