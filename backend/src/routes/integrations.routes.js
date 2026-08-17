@@ -157,6 +157,7 @@ router.post('/sync', async (req, res) => {
     const leetcodeUsername = userCanonicalIntegrations?.leetcode?.username || user?.leetcodeUsername || user?.platformUrls?.leetcode || 'mradityasingh';
     const codeforcesHandle = userCanonicalIntegrations?.codeforces?.username || user?.codeforcesHandle || user?.platformUrls?.codeforces || 'Aditya__YUPP';
     const gfgUsername = userCanonicalIntegrations?.gfg?.username || user?.gfgUsername || user?.platformUrls?.gfg || 'mraditya';
+    const githubUsername = userCanonicalIntegrations?.github?.username || user?.githubUsername || user?.platformUrls?.github || 'MrAditya-Singh';
     const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
     // 1. Fetch Codolio profile (includes sub-profiles like GitHub), LeetCode direct, & Codeforces direct
@@ -196,6 +197,15 @@ router.post('/sync', async (req, res) => {
       console.warn('Failed to fetch GFG data directly:', err.message);
     }
 
+    let rawGitHub = null;
+    try {
+      rawGitHub = await fetchWithCache(`github_${githubUsername}`, () =>
+        fetchPlatformData('github', githubUsername)
+      );
+    } catch (err) {
+      console.warn('Failed to fetch GitHub data directly:', err.message);
+    }
+
     // 2. Parse Codolio profile JSON & connected platforms
     const normalizedPlatforms = [];
     let normalizedLC = null;
@@ -211,6 +221,11 @@ router.post('/sync', async (req, res) => {
     let normalizedGFG = null;
     if (rawGFG) {
       normalizedGFG = normalizePlatformActivity(rawGFG);
+    }
+
+    let normalizedGitHub = null;
+    if (rawGitHub) {
+      normalizedGitHub = normalizePlatformActivity(rawGitHub);
     }
 
     if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -334,6 +349,22 @@ router.post('/sync', async (req, res) => {
         codolioGFG.stats.solved = Math.max(codolioGFG.stats.solved || 0, normalizedGFG.stats.solved || 0);
       } else {
         normalizedPlatforms.push(normalizedGFG);
+      }
+    }
+
+    // Merge direct GitHub stats with Codolio GitHub stats
+    if (normalizedGitHub) {
+      const codolioGH = normalizedPlatforms.find(p => p.platform === 'github');
+      if (codolioGH) {
+        const mergedDaily = { ...codolioGH.dailyActivity };
+        for (const [dStr, cnt] of Object.entries(normalizedGitHub.dailyActivity)) {
+          mergedDaily[dStr] = Math.max(mergedDaily[dStr] || 0, cnt);
+        }
+        codolioGH.dailyActivity = mergedDaily;
+        codolioGH.stats.totalContributions = Math.max(codolioGH.stats.totalContributions || 0, normalizedGitHub.stats.totalContributions || 0);
+        codolioGH.stats.repositories = Math.max(codolioGH.stats.repositories || 0, normalizedGitHub.stats.repositories || 0);
+      } else {
+        normalizedPlatforms.push(normalizedGitHub);
       }
     }
 

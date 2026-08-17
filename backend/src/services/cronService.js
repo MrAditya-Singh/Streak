@@ -52,9 +52,10 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           const leetcodeUsername = user.leetcodeUsername || platforms.leetcode?.username || 'mradityasingh';
           const codeforcesHandle = user.codeforcesHandle || platforms.codeforces?.username || 'Aditya__YUPP';
           const gfgUsername = user.gfgUsername || platforms.gfg?.username || 'mraditya';
+          const githubUsername = user.githubUsername || platforms.github?.username || 'MrAditya-Singh';
           const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
-          // Fetch Codolio, LeetCode direct, Codeforces direct, & GFG direct
+          // Fetch Codolio, LeetCode direct, Codeforces direct, GFG direct, & GitHub direct
           let rawCodolio = null;
           try {
             rawCodolio = await fetchPlatformData('codolio', codolioUsername);
@@ -83,6 +84,13 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
             console.warn(`[Cron] GFG fetch warning for ${userId}:`, err.message);
           }
 
+          let rawGitHub = null;
+          try {
+            rawGitHub = await fetchPlatformData('github', githubUsername);
+          } catch (err) {
+            console.warn(`[Cron] GitHub fetch warning for ${userId}:`, err.message);
+          }
+
           const normalizedPlatforms = [];
           let normalizedLC = null;
           if (rawLeetCode) {
@@ -97,6 +105,11 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           let normalizedGFG = null;
           if (rawGFG) {
             normalizedGFG = normalizePlatformActivity(rawGFG);
+          }
+
+          let normalizedGitHub = null;
+          if (rawGitHub) {
+            normalizedGitHub = normalizePlatformActivity(rawGitHub);
           }
 
           if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -220,6 +233,22 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
               codolioGFG.stats.solved = Math.max(codolioGFG.stats.solved || 0, normalizedGFG.stats.solved || 0);
             } else {
               normalizedPlatforms.push(normalizedGFG);
+            }
+          }
+
+          // Merge direct GitHub stats
+          if (normalizedGitHub) {
+            const codolioGH = normalizedPlatforms.find(p => p.platform === 'github');
+            if (codolioGH) {
+              const mergedDaily = { ...codolioGH.dailyActivity };
+              for (const [dStr, cnt] of Object.entries(normalizedGitHub.dailyActivity)) {
+                mergedDaily[dStr] = Math.max(mergedDaily[dStr] || 0, cnt);
+              }
+              codolioGH.dailyActivity = mergedDaily;
+              codolioGH.stats.totalContributions = Math.max(codolioGH.stats.totalContributions || 0, normalizedGitHub.stats.totalContributions || 0);
+              codolioGH.stats.repositories = Math.max(codolioGH.stats.repositories || 0, normalizedGitHub.stats.repositories || 0);
+            } else {
+              normalizedPlatforms.push(normalizedGitHub);
             }
           }
 
