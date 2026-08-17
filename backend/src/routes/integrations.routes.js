@@ -206,6 +206,19 @@ router.post('/sync', async (req, res) => {
       console.warn('Failed to fetch GitHub data directly:', err.message);
     }
 
+    // Fetch existing GitHub activity from Firestore to prevent data wiping
+    let existingGitHubActivity = {};
+    if (isFirebaseInitialized && db) {
+      try {
+        const doc = await db.collection('integrations').doc(`${userId}_github`).get();
+        if (doc.exists) {
+          existingGitHubActivity = doc.data().activity || doc.data().dailyActivity || {};
+        }
+      } catch (err) {
+        console.warn('Failed to load existing GitHub activity from Firestore:', err.message);
+      }
+    }
+
     // 2. Parse Codolio profile JSON & connected platforms
     const normalizedPlatforms = [];
     let normalizedLC = null;
@@ -226,6 +239,10 @@ router.post('/sync', async (req, res) => {
     let normalizedGitHub = null;
     if (rawGitHub) {
       normalizedGitHub = normalizePlatformActivity(rawGitHub);
+      normalizedGitHub.dailyActivity = {
+        ...existingGitHubActivity,
+        ...normalizedGitHub.dailyActivity
+      };
     }
 
     if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -299,7 +316,10 @@ router.post('/sync', async (req, res) => {
           solved: ghData.commitCounts || 0,
           totalContributions: ghData.totalContributions || 0,
         },
-        dailyActivity,
+        dailyActivity: {
+          ...existingGitHubActivity,
+          ...dailyActivity
+        },
         sync: { status: 'success', lastSyncedAt: new Date().toISOString() }
       };
       normalizedPlatforms.push(normalizedGitHub);

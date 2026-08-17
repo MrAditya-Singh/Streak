@@ -91,6 +91,17 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
             console.warn(`[Cron] GitHub fetch warning for ${userId}:`, err.message);
           }
 
+          // Fetch existing GitHub activity from Firestore to prevent data wiping
+          let existingGitHubActivity = {};
+          try {
+            const ghDoc = await db.collection('integrations').doc(`${userId}_github`).get();
+            if (ghDoc.exists) {
+              existingGitHubActivity = ghDoc.data().activity || ghDoc.data().dailyActivity || {};
+            }
+          } catch (err) {
+            console.warn(`[Cron] Warning loading existing GitHub integration for ${userId}:`, err.message);
+          }
+
           const normalizedPlatforms = [];
           let normalizedLC = null;
           if (rawLeetCode) {
@@ -110,6 +121,10 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           let normalizedGitHub = null;
           if (rawGitHub) {
             normalizedGitHub = normalizePlatformActivity(rawGitHub);
+            normalizedGitHub.dailyActivity = {
+              ...existingGitHubActivity,
+              ...normalizedGitHub.dailyActivity
+            };
           }
 
           if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -183,7 +198,10 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
                 solved: ghData.commitCounts || 0,
                 totalContributions: ghData.totalContributions || 0,
               },
-              dailyActivity,
+              dailyActivity: {
+                ...existingGitHubActivity,
+                ...dailyActivity
+              },
               sync: { status: 'success', lastSyncedAt: new Date().toISOString() }
             };
             normalizedPlatforms.push(normalizedGitHub);
