@@ -285,7 +285,7 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
         let cardHasToday = false;
 
         Object.keys(calendar).forEach((ts) => {
-          const dStr = new Date(Number(ts) * 1000).toISOString().split('T')[0];
+          const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
           const cnt = Number(calendar[ts]) || 1;
 
 
@@ -317,7 +317,7 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
         Object.keys(devCal).forEach((ts) => {
           const count = Number(devCal[ts]) || 0;
           if (count > 0) {
-            const dStr = new Date(Number(ts) * 1000).toISOString().split('T')[0];
+            const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
             platformDailyMaps['github'][dStr] = (platformDailyMaps['github'][dStr] || 0) + count;
             dailyActivityMap[dStr] = (dailyActivityMap[dStr] || 0) + count;
             if (dStr === todayStr) {
