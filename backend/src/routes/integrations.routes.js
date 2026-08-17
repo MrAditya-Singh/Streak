@@ -409,10 +409,11 @@ router.post('/sync', async (req, res) => {
           const docRef = await db.collection('integrations').doc(`${userId}_${normDoc.platform}`).get();
           if (docRef.exists) {
             const storedActivity = docRef.data().activity || docRef.data().dailyActivity || {};
-            normDoc.dailyActivity = {
-              ...storedActivity,
-              ...normDoc.dailyActivity,
-            };
+            const mergedMap = { ...storedActivity };
+            for (const [dStr, cnt] of Object.entries(normDoc.dailyActivity || {})) {
+              mergedMap[dStr] = Math.max(Number(mergedMap[dStr]) || 0, Number(cnt) || 0);
+            }
+            normDoc.dailyActivity = mergedMap;
           }
         } catch (fsErr) {
           console.warn(`Firestore read warning for ${normDoc.platform}:`, fsErr.message);
