@@ -213,12 +213,16 @@ export function evaluateHabitsAndStreaks({
 
     if (pData) {
       const dailyMap = pData.dailyActivity || pData.activity || {};
-      
-      // Strict synchronization: Tick if work done (> 0), Uncheck if no work done (== 0)
-      for (let day = 1; day <= todayDay; day++) {
-        const dayDateStr = `${currentYear}-${currentMonthStr}-${String(day).padStart(2, '0')}`;
-        const count = dailyMap[dayDateStr] || 0;
-        existingRow[day - 1] = count > 0;
+      const syncStatus = pData.sync?.status || 'success';
+      const hasData = Object.keys(dailyMap).length > 0;
+
+      if (syncStatus !== 'error' && hasData) {
+        // Strict synchronization: Tick if work done (> 0), Uncheck if no work done (== 0)
+        for (let day = 1; day <= todayDay; day++) {
+          const dayDateStr = `${currentYear}-${currentMonthStr}-${String(day).padStart(2, '0')}`;
+          const count = dailyMap[dayDateStr] || 0;
+          existingRow[day - 1] = count > 0;
+        }
       }
     }
 

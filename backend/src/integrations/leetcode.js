@@ -32,6 +32,7 @@ export async function fetchLeetCodeData(rawInput) {
   let bashSolved = 1;
   let rank = 401496;
   const dailyActivity = {};
+  let syncStatus = 'success';
 
   try {
     // 1. Fetch main profile stats
@@ -85,9 +86,13 @@ export async function fetchLeetCodeData(rawInput) {
           }
         }
       }
+    } else {
+      console.warn(`[LeetCode Adapter] Calendar fetch failed with status: ${calRes.status}`);
+      syncStatus = 'error';
     }
   } catch (err) {
     console.warn(`[LeetCode Adapter] Notice: ${err.message}`);
+    syncStatus = 'error';
   }
 
   // Backup from leetcode-stats-api if empty
@@ -136,7 +141,7 @@ export async function fetchLeetCodeData(rawInput) {
     },
     dailyActivity,
     sync: {
-      status: 'success',
+      status: syncStatus,
       lastSyncedAt: new Date().toISOString(),
     },
   };

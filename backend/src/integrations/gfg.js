@@ -49,9 +49,13 @@ export async function fetchGFGData(rawInput) {
       if (solvedMatch) totalSolved = Number(solvedMatch[1]);
       if (currentStreakMatch) currentStreak = Number(currentStreakMatch[1]);
       if (longestStreakMatch) longestStreak = Number(longestStreakMatch[1]);
+    } else {
+      console.warn(`[GFG Adapter] Scrape failed with status: ${res.status}`);
+      status = 'error';
     }
   } catch (err) {
     console.warn(`[GFG Adapter] Scrape Notice: ${err.message}`);
+    status = 'error';
   }
 
   // Populate dailyActivity map based on the parsed current streak
