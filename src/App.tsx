@@ -865,7 +865,7 @@ export const App: React.FC = () => {
     soundFx.playClick();
     setIsSyncing(true);
     setSyncToast({
-      message: '⚡ Live Sync: Fetching Codolio profile (@Mr.Aditya) & verified platform activity...',
+      message: '⚡ Live Sync: Fetching Codolio profile (@Mr.Aditya) & verified platform activity... (Note: Render cold-start may take up to 20-30s)',
       type: 'info'
     });
 
@@ -919,13 +919,34 @@ export const App: React.FC = () => {
 
       handleSyncActivities(updates);
 
-      // 4. Update overall streak from Codolio calculated streak
+      // 4. Update overall streak and platformStats from direct API sync results
+      const newPlatformStats: Record<string, any> = { ...(user.platformStats || {}) };
+      if (lcRes.eventCount > 0) {
+        newPlatformStats['leetcode'] = { solved: lcRes.eventCount, rating: null, rank: null, lastFetched: new Date().toISOString() };
+      }
+      if (cfRes.eventCount > 0) {
+        newPlatformStats['codeforces'] = { solved: cfRes.eventCount, rating: null, rank: null, lastFetched: new Date().toISOString() };
+      }
+      const codolioPlatforms = codolioRes.stats?.platforms;
+      if (codolioPlatforms) {
+        Object.keys(codolioPlatforms).forEach((pName) => {
+          const p = codolioPlatforms[pName];
+          newPlatformStats[pName] = {
+            solved: p.solved ?? null,
+            rating: p.rating ?? null,
+            rank: p.rank ?? null,
+            lastFetched: new Date().toISOString()
+          };
+        });
+      }
+
       const codolioStreak = codolioRes.calculatedStreak || 11;
       const finalStreak = Math.max(user.overallStreak, codolioStreak);
       const updatedUserObj = {
         ...user,
         overallStreak: finalStreak,
         longestStreak: Math.max(user.longestStreak || 0, finalStreak),
+        platformStats: newPlatformStats,
       };
 
       setUser(updatedUserObj);
@@ -981,6 +1002,13 @@ export const App: React.FC = () => {
             const pMap = pKey === 'codolio'
               ? (codolioRes.dailyActivityMap || {})
               : (platformDailyMaps[pKey] || {});
+
+            // ⚠️ CORS Data-Wipe Guard: If direct fetch failed or has no data (due to CORS block/offline),
+            // do NOT touch or overwrite the existing monthly checkboxes for this habit.
+            if (Object.keys(pMap).length === 0) {
+              console.log(`📡 [CORS Shield] Skipping matrix update/wipe for ${act.id} due to empty platform data.`);
+              return;
+            }
 
             const row = Array.from({ length: daysInCurMonth }, () => false);
             for (let day = 1; day <= daysInCurMonth; day++) {

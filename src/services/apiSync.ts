@@ -223,6 +223,9 @@ export interface CodolioSyncResult extends SyncResult {
   dailyActivityMap?: Record<string, number>;
   /** Per-platform maps: platformName → (date → count). Use this for matrix filling. */
   platformDailyMaps?: Record<string, Record<string, number>>;
+  stats?: {
+    platforms?: Record<string, { solved?: number; rating?: number; rank?: string }>;
+  };
 }
 
 export async function syncCodolio(username?: string): Promise<CodolioSyncResult> {
@@ -262,6 +265,7 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
     // Per-platform maps (for precise per-row matrix marking)
     const platformDailyMaps: Record<string, Record<string, number>> = {};
     const activePlatforms: Record<string, boolean> = {};
+    const platformsStatsMap: Record<string, { solved?: number; rating?: number; rank?: string }> = {};
     let hasToday = false;
 
     // 1. Fetch Profile Data — real path: data.platformProfiles.platformProfiles (Array)
@@ -282,6 +286,15 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
 
         const calendar = card.dailyActivityStatsResponse?.submissionCalendar || {};
         if (!platformDailyMaps[rawName]) platformDailyMaps[rawName] = {};
+        
+        const userStats = card.userStats || {};
+        const qStats = card.totalQuestionStats || {};
+        platformsStatsMap[rawName] = {
+          solved: qStats.totalQuestionCounts || userStats.totalQuestionCounts || 0,
+          rating: userStats.currentRating || userStats.rating || 0,
+          rank: userStats.rank || 'Active',
+        };
+
         let cardHasToday = false;
 
         Object.keys(calendar).forEach((ts) => {
@@ -358,6 +371,9 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
       totalActiveDays,
       dailyActivityMap,
       platformDailyMaps,
+      stats: {
+        platforms: platformsStatsMap
+      }
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Connection fallback';
@@ -811,7 +827,7 @@ export async function syncAllViaBackend(payload: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(45000),
     });
     if (res.ok) {
       return await res.json();

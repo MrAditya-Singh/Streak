@@ -248,6 +248,19 @@ export function evaluateHabitsAndStreaks({
 
   const finalOverallStreak = Math.max(user.overallStreak || 97, unifiedCodingStreak || 97);
 
+  // Map platformStats (solved counts, ratings, rank stats) to return to client
+  const platformStats = { ...(user.platformStats || {}) };
+  for (const [pName, pData] of Object.entries(platformMap)) {
+    if (pData.stats) {
+      platformStats[pName] = {
+        solved: pData.stats.solved ?? pData.stats.totalSolved ?? null,
+        rating: pData.stats.rating ?? null,
+        rank: pData.stats.rank ?? null,
+        lastFetched: new Date().toISOString(),
+      };
+    }
+  }
+
   const updatedUser = {
     ...user,
     userId,
@@ -257,6 +270,7 @@ export function evaluateHabitsAndStreaks({
     overallStreak: finalOverallStreak,
     unifiedCodingStreak,
     platformStreaks,
+    platformStats,
     isActiveToday: isAnyCodingDoneToday,
     lastSyncedAt: new Date().toISOString(),
   };
