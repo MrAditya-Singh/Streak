@@ -127,7 +127,12 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
     }
 
     const submissions: CFSubmission[] = data.result || [];
-    const todaySubmissions = submissions.filter((s) => s.creationTimeSeconds >= startOfToday);
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+
+    const todaySubmissions = submissions.filter((s) => {
+      const subDate = new Date(s.creationTimeSeconds * 1000).toLocaleDateString('en-CA');
+      return subDate === todayStr;
+    });
 
     const hasActivity = todaySubmissions.length > 0;
     const acceptedCount = todaySubmissions.filter((s) => s.verdict === 'OK').length;
@@ -135,25 +140,25 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
     
     const details = hasActivity
       ? `${todaySubmissions.length} submissions today (${acceptedCount} AC) • ${latestProblem}`
-      : `CF active: ${submissions.length} total recent submissions for @${cleanHandle}`;
+      : `No submissions today (checked recent ${submissions.length} for @${cleanHandle})`;
 
     return {
       platform: 'Codeforces',
-      hasActivityToday: hasActivity || submissions.length > 0,
-      eventCount: Math.max(1, todaySubmissions.length),
+      hasActivityToday: hasActivity,
+      eventCount: todaySubmissions.length,
       details,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: hasActivity,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Network error';
     return {
       platform: 'Codeforces',
-      hasActivityToday: true,
-      eventCount: 2,
-      details: `Codeforces verified for @${handle} (${errorMsg})`,
+      hasActivityToday: false,
+      eventCount: 0,
+      details: `Codeforces sync warning: ${errorMsg}`,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: false,
     };
   }
 }
@@ -414,13 +419,25 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
       const recent = data.recentSubmissions?.[0]?.title || 'Daily Problem';
       const recentStatus = data.recentSubmissions?.[0]?.statusDisplay || 'Accepted';
 
+      const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+      const todaySubmissions = (data.recentSubmissions || []).filter((s: any) => {
+        const ts = Number(s.timestamp || s.creationTime) * 1000;
+        if (!ts) return false;
+        const subDate = new Date(ts).toLocaleDateString('en-CA');
+        return subDate === todayStr;
+      });
+
+      const hasActivity = todaySubmissions.length > 0;
+
       return {
         platform: 'LeetCode',
-        hasActivityToday: true,
-        eventCount: totalSolved,
-        details: `${totalSolved} Solved (${easy}E, ${medium}M, ${hard}H) • Latest: ${recent} (${recentStatus})`,
+        hasActivityToday: hasActivity,
+        eventCount: todaySubmissions.length || totalSolved,
+        details: hasActivity
+          ? `${todaySubmissions.length} submissions today on LeetCode • Latest: ${recent} (${recentStatus})`
+          : `LeetCode sync: ${totalSolved} total solved problems for @${cleanUser}`,
         timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: true,
+        autoCompleted: hasActivity,
       };
     }
   } catch {
@@ -437,11 +454,11 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
       const solved = data2.totalSolved || 344;
       return {
         platform: 'LeetCode',
-        hasActivityToday: true,
+        hasActivityToday: false,
         eventCount: solved,
-        details: `${solved} Problems Solved on LeetCode for @${cleanUser}`,
+        details: `LeetCode synced: ${solved} problems solved for @${cleanUser}`,
         timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: true,
+        autoCompleted: false,
       };
     }
   } catch {
@@ -511,8 +528,8 @@ export async function syncAtCoder(username: string): Promise<SyncResult> {
       if (Array.isArray(subs) && subs.length > 0) {
         const acCount = subs.filter((s: any) => s.result === 'AC').length;
         const hasToday = subs.some((s: any) => {
-          const subDate = new Date(s.epoch_second * 1000).toISOString().split('T')[0];
-          return subDate === new Date().toISOString().split('T')[0];
+          const subDate = new Date(s.epoch_second * 1000).toLocaleDateString('en-CA');
+          return subDate === new Date().toLocaleDateString('en-CA');
         });
         return {
           platform: 'AtCoder',
@@ -699,7 +716,7 @@ export function reconcileActivity(
   return { updatedActivity, logEntry };
 }
 
-export const BACKEND_API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? window.location.origin : 'http://localhost:5000');
+export const BACKEND_API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? 'https://effectivestreak-backend.onrender.com' : 'http://localhost:5000');
 export const BACKEND_API_BASE = `${BACKEND_API_URL}/api`;
 
 /**

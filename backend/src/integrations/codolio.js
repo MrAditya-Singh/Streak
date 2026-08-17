@@ -74,7 +74,7 @@ export async function fetchCodolioData(usernameOrUrl, token) {
 
   if (profileJson && profileJson.data) {
     const pData = profileJson.data;
-    const cards = pData.platformCards || [];
+    const cards = pData.platformProfiles?.platformProfiles || pData.platformCards || [];
     cards.forEach((card) => {
       const pName = (card.platform || '').toLowerCase().trim();
       const userStats = card.userStats || {};
