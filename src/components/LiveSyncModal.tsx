@@ -30,7 +30,7 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
   onUpdateUser,
   onSyncActivities,
 }) => {
-  const [codolioUser, setCodolioUser] = useState(user.codolioUsername || 'mraditya');
+  const [codolioUser, setCodolioUser] = useState(user.codolioUsername || 'Mr.Aditya');
   const [ghUser, setGhUser] = useState(user.githubUsername || 'MrAditya-Singh');
   const [lcUser, setLcUser] = useState(user.leetcodeUsername || 'mradityasingh');
   const [cfHandle, setCfHandle] = useState(user.codeforcesHandle || 'Aditya__YUPP');
