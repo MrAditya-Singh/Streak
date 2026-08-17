@@ -223,20 +223,9 @@ export const App: React.FC = () => {
         return;
       }
 
-      // 1. SMART UNION MERGE FOR ACTIVITIES (GUARANTEES IDENTICAL HABIT LIST ACROSS DEVICES)
-      if (remoteState.activities && Array.isArray(remoteState.activities) && remoteState.activities.length > 0) {
-        setActivities((prevActs) => {
-          return remoteState.activities.map((rAct: ActivityItem) => {
-            const pAct = prevActs.find((p) => p.id === rAct.id || p.name === rAct.name);
-            if (!pAct) return rAct;
-            return {
-              ...rAct,
-              completed: pAct.completed || rAct.completed,
-              streak: Math.max(pAct.streak || 0, rAct.streak || 0),
-              completedAt: pAct.completedAt || rAct.completedAt,
-            };
-          });
-        });
+      // 1. DIRECT HABIT LIST MIRROR (INSTANT ADD / DELETE HABIT SYNC ACROSS DEVICES)
+      if (remoteState.activities && Array.isArray(remoteState.activities)) {
+        setActivities(remoteState.activities);
       }
 
       // 2. SMART UNION MERGE FOR MASTER HABIT MATRIX GRID (HANDLES ALL FORMATS & KEYS)
@@ -964,28 +953,68 @@ export const App: React.FC = () => {
   };
 
   const handleAddActivity = (newAct: ActivityItem) => {
-    setActivities((prev) => {
-      const exists = prev.some((a) => a.id === newAct.id);
-      if (exists) return prev;
-      return [...prev, newAct];
-    });
+    const exists = activities.some((a) => a.id === newAct.id);
+    if (exists) return;
 
-    setMatrixState((prev) => ({
-      ...prev,
-      [newAct.id]: Array.from({ length: daysInMonth }, () => false),
-    }));
+    const nextActs = [...activities, newAct];
+    const newEmptyArr = Array.from({ length: daysInMonth }, () => false);
+    const nextMatrix = { ...matrixState, [newAct.id]: newEmptyArr };
+
+    setActivities(nextActs);
+    setMatrixState(nextMatrix);
+
+    // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT ADDITION
+    const syncKey = activeSyncKey;
+    const payload = {
+      user,
+      activities: nextActs,
+      matrixState: nextMatrix,
+      emergencyTasks,
+      logs,
+      updatedAt: Date.now(),
+    };
+
+    pushStateToCloud(syncKey, payload);
+    syncFullStateToFirestore(syncKey, payload);
+
+    fetch(`${BACKEND_API_BASE}/sync/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: syncKey, state: payload }),
+    }).catch((err) => console.warn('Habit add sync warning:', err));
 
     handleAwardXP(20);
     soundFx.playCheck();
   };
 
   const handleDeleteActivity = (id: string) => {
-    setActivities((prev) => prev.filter((a) => a.id !== id));
-    setMatrixState((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
+    const nextActs = activities.filter((a) => a.id !== id);
+    const nextMatrix = { ...matrixState };
+    delete nextMatrix[id];
+
+    setActivities(nextActs);
+    setMatrixState(nextMatrix);
+
+    // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT DELETION
+    const syncKey = activeSyncKey;
+    const payload = {
+      user,
+      activities: nextActs,
+      matrixState: nextMatrix,
+      emergencyTasks,
+      logs,
+      updatedAt: Date.now(),
+    };
+
+    pushStateToCloud(syncKey, payload);
+    syncFullStateToFirestore(syncKey, payload);
+
+    fetch(`${BACKEND_API_BASE}/sync/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: syncKey, state: payload }),
+    }).catch((err) => console.warn('Habit delete sync warning:', err));
+
     soundFx.playClick();
   };
 
