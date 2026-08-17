@@ -60,6 +60,7 @@ interface SettingsModalProps {
   onResetData: () => void;
   onSyncActivities?: (updates: { id: string; completed: boolean }[]) => void;
   onApplyFullSync?: (payload: { habits?: ActivityItem[]; matrixState?: Record<string, boolean[]>; user?: Partial<UserProfile> }) => void;
+  isDarkMode?: boolean;
 }
 
 interface PlatformConfig {
@@ -182,6 +183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetData,
   onSyncActivities,
   onApplyFullSync,
+  isDarkMode = false,
 }) => {
   // Activity creation form state
   const [newActivityName, setNewActivityName] = useState('');
@@ -550,31 +552,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-[#121622] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+      isDarkMode ? 'bg-black/80 backdrop-blur-md' : 'bg-slate-900/50 backdrop-blur-md'
+    }`}>
+      <div className={`border rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col transition-all duration-300 ${
+        isDarkMode 
+          ? 'bg-[#121622] border-white/10 text-white shadow-purple-950/20' 
+          : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-slate-900/15'
+      }`}>
         
         {/* Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#121622]/95 backdrop-blur-md z-10">
+        <div className={`p-5 border-b flex items-center justify-between sticky top-0 backdrop-blur-md z-10 transition-colors ${
+          isDarkMode ? 'bg-[#121622]/95 border-white/10' : 'bg-[#F5F2EB]/95 border-[#E8E3D9]'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center text-slate-200">
+            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
+              isDarkMode ? 'bg-slate-800 border-white/10 text-slate-200' : 'bg-white border-[#D5CFBF] text-slate-800 shadow-2xs'
+            }`}>
               <Settings className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">System Settings & Data</h2>
-              <p className="text-xs text-slate-400">Configure activities, streak rules, connected accounts, and export state</p>
+              <h2 className={`text-lg font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                System Settings & Data
+              </h2>
+              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500 font-medium'}`}>
+                Configure activities, streak rules, connected accounts, and export state
+              </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+            className={`p-2 rounded-xl transition-all cursor-pointer ${
+              isDarkMode 
+                ? 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white' 
+                : 'bg-slate-200/70 hover:bg-slate-300/70 text-slate-600 hover:text-slate-900'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-white/10 px-6 bg-black/20 overflow-x-auto">
+        <div className={`flex border-b px-6 overflow-x-auto transition-colors ${
+          isDarkMode ? 'bg-black/20 border-white/10' : 'bg-[#F5F2EB]/60 border-[#E8E3D9]'
+        }`}>
           {[
             { id: 'profile', label: '👤 Profile & Cloud Sync' },
             { id: 'accounts', label: 'Connected Accounts' },
@@ -585,10 +607,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`py-3.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 cursor-pointer shrink-0 ${
+              className={`py-3.5 px-4 text-xs uppercase tracking-wider transition-colors border-b-2 cursor-pointer shrink-0 ${
                 activeTab === tab.id
-                  ? 'border-duoGreen text-duoGreen'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? (isDarkMode ? 'border-duoGreen text-duoGreen font-black' : 'border-purple-600 text-purple-700 font-black')
+                  : (isDarkMode ? 'border-transparent text-slate-400 hover:text-slate-200 font-bold' : 'border-transparent text-slate-500 hover:text-slate-900 font-bold')
               }`}
             >
               {tab.label}
@@ -599,9 +621,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Floating Toast Notification */}
         {fetchToast && (
           <div className={`mx-6 mt-4 p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-fade-in ${
-            fetchToast.type === 'success' ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300' :
-            fetchToast.type === 'error' ? 'bg-rose-500/20 border border-rose-500/40 text-rose-300' :
-            'bg-blue-500/20 border border-blue-500/40 text-blue-300'
+            fetchToast.type === 'success' ? (isDarkMode ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border border-emerald-300 text-emerald-900 shadow-2xs') :
+            fetchToast.type === 'error' ? (isDarkMode ? 'bg-rose-500/20 border border-rose-500/40 text-rose-300' : 'bg-rose-50 border border-rose-300 text-rose-900 shadow-2xs') :
+            (isDarkMode ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300' : 'bg-blue-50 border border-blue-300 text-blue-900 shadow-2xs')
           }`}>
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{fetchToast.message}</span>
@@ -618,9 +640,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-6 animate-fade-in">
               
               {/* Google Gmail Multi-Device Sync Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-900/30 via-indigo-900/30 to-purple-900/30 border border-blue-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+                isDarkMode 
+                  ? 'bg-gradient-to-r from-blue-900/30 via-indigo-900/30 to-purple-900/30 border-blue-500/30' 
+                  : 'bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-purple-50/90 border-blue-200 shadow-xs'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md">
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md border border-slate-200">
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -629,13 +655,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <h3 className={`text-sm font-black flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                       <span>Gmail Cloud Account Sync</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-mono">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                        isDarkMode ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                      }`}>
                         Active Sync
                       </span>
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
                       Login with your Gmail to keep all progress identical across Laptop, Mobile App, and Web.
                     </p>
                   </div>
@@ -644,7 +672,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={handleGoogleSignIn}
-                  className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-black flex items-center gap-2 shadow-lg transition-all cursor-pointer shrink-0"
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 shadow-lg transition-all cursor-pointer shrink-0 ${
+                    isDarkMode 
+                      ? 'bg-white hover:bg-slate-100 text-slate-900' 
+                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 shadow-sm hover:shadow-md'
+                  }`}
                 >
                   <ShieldCheck className="w-4 h-4 text-blue-600" />
                   <span>Sync Google Account</span>
@@ -653,12 +685,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Comprehensive Personal Information Form */}
               <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
-                    <User className="w-4 h-4 text-purple-400" />
+                <div className={`flex items-center justify-between border-b pb-2 ${isDarkMode ? 'border-white/10' : 'border-[#E8E3D9]'}`}>
+                  <h4 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-900'}`}>
+                    <User className="w-4 h-4 text-purple-500" />
                     Personal & Bio Information
                   </h4>
-                  <span className="text-[11px] text-slate-400 font-mono">
+                  <span className={`text-[11px] font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     Stored securely in Cloud Database
                   </span>
                 </div>
@@ -666,7 +698,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Name */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                       <User className="w-3.5 h-3.5 text-slate-400" /> Full Name
                     </label>
                     <input
@@ -674,14 +706,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileName}
                       onChange={(e) => setProfileName(e.target.value)}
                       placeholder="e.g. Aditya Singh"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                       required
                     />
                   </div>
 
                   {/* Gmail / Email */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                       <Mail className="w-3.5 h-3.5 text-slate-400" /> Gmail / Email Address
                     </label>
                     <input
@@ -689,14 +725,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileEmail}
                       onChange={(e) => setProfileEmail(e.target.value)}
                       placeholder="e.g. mradityasinghofficial1@gmail.com"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs font-mono transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                       required
                     />
                   </div>
 
                   {/* Age */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                       <Activity className="w-3.5 h-3.5 text-slate-400" /> Age (Years)
                     </label>
                     <input
@@ -706,19 +746,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={profileAge}
                       onChange={(e) => setProfileAge(e.target.value)}
                       placeholder="e.g. 21"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs font-mono transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                     />
                   </div>
 
                   {/* Blood Group */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <HeartPulse className="w-3.5 h-3.5 text-rose-400" /> Blood Group
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <HeartPulse className="w-3.5 h-3.5 text-rose-500" /> Blood Group
                     </label>
                     <select
                       value={profileBloodGroup}
                       onChange={(e) => setProfileBloodGroup(e.target.value)}
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                      className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs focus:border-purple-600'
+                      }`}
                     >
                       <option value="A+">A+</option>
                       <option value="A-">A-</option>
@@ -733,72 +781,92 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Height */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Ruler className="w-3.5 h-3.5 text-blue-400" /> Height
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <Ruler className="w-3.5 h-3.5 text-blue-500" /> Height
                     </label>
                     <input
                       type="text"
                       value={profileHeight}
                       onChange={(e) => setProfileHeight(e.target.value)}
                       placeholder="e.g. 178 cm or 5'10"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                     />
                   </div>
 
                   {/* Weight */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Scale className="w-3.5 h-3.5 text-emerald-400" /> Weight
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <Scale className="w-3.5 h-3.5 text-emerald-500" /> Weight
                     </label>
                     <input
                       type="text"
                       value={profileWeight}
                       onChange={(e) => setProfileWeight(e.target.value)}
                       placeholder="e.g. 68 kg"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                     />
                   </div>
 
                   {/* Resident / City */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-amber-400" /> Resident / City / State
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <MapPin className="w-3.5 h-3.5 text-amber-500" /> Resident / City / State
                     </label>
                     <input
                       type="text"
                       value={profileResident}
                       onChange={(e) => setProfileResident(e.target.value)}
                       placeholder="e.g. Delhi, India"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                     />
                   </div>
 
                   {/* Phone Number */}
                   <div>
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-green-400" /> Phone Number
+                    <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <Phone className="w-3.5 h-3.5 text-green-500" /> Phone Number
                     </label>
                     <input
                       type="tel"
                       value={profilePhone}
                       onChange={(e) => setProfilePhone(e.target.value)}
                       placeholder="e.g. +91 9876543210"
-                      className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                      className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs font-mono transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                      }`}
                     />
                   </div>
                 </div>
 
                 {/* Hunter Tagline / Bio */}
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Hunter Tagline & Motivation
+                  <label className={`text-[11px] font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <Sparkles className="w-3.5 h-3.5 text-purple-500" /> Hunter Tagline & Motivation
                   </label>
                   <textarea
                     rows={2}
                     value={profileBio}
                     onChange={(e) => setProfileBio(e.target.value)}
                     placeholder="e.g. Solo Hunter • S-Rank Aspirant • Competitive Programmer & Developer"
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 resize-none"
+                    className={`w-full mt-1 border rounded-xl px-3.5 py-2 text-xs transition-all focus:outline-none resize-none ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
+                        : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                    }`}
                   />
                 </div>
 
@@ -807,7 +875,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="submit"
                     disabled={isSavingProfile}
-                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-xs font-black shadow-lg shadow-purple-500/25 flex items-center gap-2 transition-all cursor-pointer"
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black shadow-lg shadow-purple-500/25 flex items-center gap-2 transition-all cursor-pointer active:scale-95"
                   >
                     <Check className="w-4 h-4" />
                     <span>{isSavingProfile ? 'Saving to Database...' : 'Save & Sync Profile to Database'}</span>
@@ -816,21 +884,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </form>
 
               {/* Reset All Data Clean Zero Card */}
-              <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/30 space-y-2 mt-6">
+              <div className={`p-4 rounded-2xl border space-y-2 mt-6 transition-all ${
+                isDarkMode 
+                  ? 'bg-rose-950/30 border-rose-500/30' 
+                  : 'bg-rose-50/90 border-rose-200 shadow-2xs'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-rose-400 text-xs font-black uppercase tracking-wider">
-                    <AlertTriangle className="w-4 h-4" />
+                  <div className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider ${
+                    isDarkMode ? 'text-rose-400' : 'text-rose-800'
+                  }`}>
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
                     <span>Clean Reset All Data to Zero</span>
                   </div>
                   <button
                     type="button"
                     onClick={onResetData}
-                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all cursor-pointer shadow-md"
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-all cursor-pointer shadow-md active:scale-95"
                   >
                     Reset All Data (0%)
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-400">
+                <p className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-rose-700 font-medium'}`}>
                   Wipes level to 0, streaks to 0, XP to 0, clears emergency tasks, matrix checkmarks, and resets cloud sync baseline to 0%.
                 </p>
               </div>
@@ -845,13 +919,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-6">
               
               {/* Top Banner & Quick Fetch Button */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-500/30">
+              <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all ${
+                isDarkMode 
+                  ? 'bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border-blue-500/30' 
+                  : 'bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-purple-50/90 border-blue-200 shadow-xs'
+              }`}>
                 <div>
-                  <div className="text-sm font-black text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+                  <div className={`text-sm font-black flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    <Sparkles className="w-4 h-4 text-amber-500" />
                     Multi-Platform Real-Time Sync & Scraper
                   </div>
-                  <p className="text-xs text-slate-300 mt-0.5">
+                  <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600 font-medium'}`}>
                     Connect your public handles to auto-fetch daily commits, solved problems, and rating changes into your unified streak!
                   </p>
                 </div>
@@ -859,7 +937,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => setShowAddCustomPlatform(!showAddCustomPlatform)}
-                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      isDarkMode 
+                        ? 'bg-white/10 hover:bg-white/20 text-white' 
+                        : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 shadow-2xs font-black'
+                    }`}
                   >
                     <Plus className="w-3.5 h-3.5 text-duoGreen" />
                     <span>Add Platform</span>
@@ -868,7 +950,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     onClick={handleFetchAllData}
                     disabled={isFetchingAll}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-blue-500/25 transition-all cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-blue-500/25 transition-all cursor-pointer active:scale-95"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isFetchingAll ? 'animate-spin' : ''}`} />
                     <span>{isFetchingAll ? 'Fetching Data...' : 'Fetch Data Now'}</span>
@@ -878,9 +960,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Add Custom Platform Form Drawer */}
               {showAddCustomPlatform && (
-                <form onSubmit={handleAddCustomPlatformSubmit} className="p-4 rounded-2xl bg-black/60 border border-purple-500/30 space-y-3 animate-fade-in">
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Link2 className="w-4 h-4 text-purple-400" />
+                <form onSubmit={handleAddCustomPlatformSubmit} className={`p-4 rounded-2xl border space-y-3 animate-fade-in ${
+                  isDarkMode ? 'bg-black/60 border-purple-500/30' : 'bg-purple-50/70 border-purple-200 shadow-2xs'
+                }`}>
+                  <div className={`text-xs font-bold flex items-center gap-1.5 ${isDarkMode ? 'text-white' : 'text-purple-900 font-black'}`}>
+                    <Link2 className="w-4 h-4 text-purple-500" />
                     Add Custom Platform / Service
                   </div>
                   
@@ -890,7 +974,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="Platform Name (e.g. Kaggle, TryHackMe)"
                       value={customPlatformName}
                       onChange={(e) => setCustomPlatformName(e.target.value)}
-                      className="bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500"
+                      className={`border rounded-lg px-3 py-2 text-xs transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-purple-600 font-semibold shadow-2xs'
+                      }`}
                       required
                     />
 
@@ -899,7 +987,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="Profile URL or Username"
                       value={customPlatformUrl}
                       onChange={(e) => setCustomPlatformUrl(e.target.value)}
-                      className="bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 font-mono"
+                      className={`border rounded-lg px-3 py-2 text-xs font-mono transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-purple-600 font-semibold shadow-2xs'
+                      }`}
                       required
                     />
 
@@ -907,7 +999,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <select
                         value={customPlatformCategory}
                         onChange={(e) => setCustomPlatformCategory(e.target.value as any)}
-                        className="bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none flex-1"
+                        className={`border rounded-lg px-3 py-2 text-xs transition-all focus:outline-none flex-1 ${
+                          isDarkMode 
+                            ? 'bg-black/60 border-white/10 text-white' 
+                            : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
+                        }`}
                       >
                         <option value="problem_solving">Problem Solving</option>
                         <option value="development">Development</option>
@@ -915,7 +1011,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                       <button
                         type="submit"
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer shrink-0"
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-xs transition-all cursor-pointer shrink-0 shadow-md"
                       >
                         Save
                       </button>
@@ -926,9 +1022,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* 1. Development Platforms */}
               <div className="space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                <h3 className={`text-xs font-black uppercase tracking-wider flex items-center justify-between ${
+                  isDarkMode ? 'text-slate-300' : 'text-slate-800'
+                }`}>
                   <span>Development</span>
-                  <span className="text-[10px] text-slate-500 font-mono">Git & Repositories</span>
+                  <span className={`text-[10px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-500 font-bold'}`}>
+                    Git & Repositories
+                  </span>
                 </h3>
                 
                 <div className="space-y-2">
@@ -940,14 +1040,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={platform.id}
-                        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-2.5 rounded-xl bg-black/40 border border-white/10 hover:border-white/20 transition-all"
+                        className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-2.5 rounded-xl border transition-all ${
+                          isDarkMode 
+                            ? 'bg-black/40 border-white/10 hover:border-white/20' 
+                            : 'bg-white border-[#E4DFD3] hover:border-slate-300 shadow-2xs'
+                        }`}
                       >
-                        <div className="w-36 shrink-0 flex items-center gap-2 text-xs font-bold text-white">
-                          <div className={`w-7 h-7 rounded-lg ${platform.iconBg} flex items-center justify-center font-mono font-black text-[10px]`}>
+                        <div className={`w-36 shrink-0 flex items-center gap-2 text-xs font-bold ${
+                          isDarkMode ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          <div className={`w-7 h-7 rounded-lg ${platform.iconBg} flex items-center justify-center font-mono font-black text-[10px] shadow-xs`}>
                             {platform.iconText}
                           </div>
                           <span>{platform.name}</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-500 ml-auto mr-1" />
+                          <ChevronRight className={`w-3.5 h-3.5 ml-auto mr-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                         </div>
 
                         <div className="flex-1">
@@ -956,7 +1062,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             value={val}
                             onChange={(e) => handleInputChange(platform.id, e.target.value)}
                             placeholder={platform.placeholder}
-                            className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono"
+                            className={`w-full border rounded-lg px-3 py-1.5 text-xs font-mono transition-all focus:outline-none ${
+                              isDarkMode 
+                                ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500' 
+                                : 'bg-[#F8F6F0] border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-blue-600 font-semibold'
+                            }`}
                           />
                         </div>
 
@@ -965,14 +1075,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <>
                               <div
                                 title="Verified Account"
-                                className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-xs"
+                                className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-500 flex items-center justify-center shadow-xs"
                               >
                                 <Check className="w-4 h-4 stroke-[3]" />
                               </div>
                               <button
                                 onClick={() => handleDeletePlatform(platform)}
                                 title="Remove connection"
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  isDarkMode 
+                                    ? 'bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400' 
+                                    : 'bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600'
+                                }`}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -981,7 +1095,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <button
                               onClick={() => handleSubmitPlatform(platform)}
                               disabled={!val.trim() || isVerifying}
-                              className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-blue-600 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-pointer ${
+                                isDarkMode 
+                                  ? 'bg-white/10 hover:bg-blue-600 text-white' 
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
+                              }`}
                             >
                               {isVerifying ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Submit'}
                             </button>
@@ -995,9 +1113,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* 2. Problem Solving Platforms */}
               <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center justify-between">
+                <h3 className={`text-xs font-black uppercase tracking-wider flex items-center justify-between ${
+                  isDarkMode ? 'text-slate-300' : 'text-slate-800'
+                }`}>
                   <span>Problem Solving & Competitive Programming</span>
-                  <span className="text-[10px] text-slate-500 font-mono">Algorithms & Daily Tasks</span>
+                  <span className={`text-[10px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-500 font-bold'}`}>
+                    Algorithms & Daily Tasks
+                  </span>
                 </h3>
                 
                 <div className="space-y-2">
@@ -1009,14 +1131,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={platform.id}
-                        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-2.5 rounded-xl bg-black/40 border border-white/10 hover:border-white/20 transition-all"
+                        className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-2.5 rounded-xl border transition-all ${
+                          isDarkMode 
+                            ? 'bg-black/40 border-white/10 hover:border-white/20' 
+                            : 'bg-white border-[#E4DFD3] hover:border-slate-300 shadow-2xs'
+                        }`}
                       >
-                        <div className="w-36 shrink-0 flex items-center gap-2 text-xs font-bold text-white">
-                          <div className={`w-7 h-7 rounded-lg ${platform.iconBg} flex items-center justify-center font-mono font-black text-[10px]`}>
+                        <div className={`w-36 shrink-0 flex items-center gap-2 text-xs font-bold ${
+                          isDarkMode ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          <div className={`w-7 h-7 rounded-lg ${platform.iconBg} flex items-center justify-center font-mono font-black text-[10px] shadow-xs`}>
                             {platform.iconText}
                           </div>
                           <span>{platform.name}</span>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-500 ml-auto mr-1" />
+                          <ChevronRight className={`w-3.5 h-3.5 ml-auto mr-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                         </div>
 
                         <div className="flex-1">
@@ -1025,7 +1153,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             value={val}
                             onChange={(e) => handleInputChange(platform.id, e.target.value)}
                             placeholder={platform.placeholder}
-                            className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-mono"
+                            className={`w-full border rounded-lg px-3 py-1.5 text-xs font-mono transition-all focus:outline-none ${
+                              isDarkMode 
+                                ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500' 
+                                : 'bg-[#F8F6F0] border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-blue-600 font-semibold'
+                            }`}
                           />
                         </div>
 
@@ -1034,14 +1166,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <>
                               <div
                                 title="Verified Account"
-                                className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-xs"
+                                className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-500 flex items-center justify-center shadow-xs"
                               >
                                 <Check className="w-4 h-4 stroke-[3]" />
                               </div>
                               <button
                                 onClick={() => handleDeletePlatform(platform)}
                                 title="Remove connection"
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  isDarkMode 
+                                    ? 'bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400' 
+                                    : 'bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600'
+                                }`}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -1050,7 +1186,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <button
                               onClick={() => handleSubmitPlatform(platform)}
                               disabled={!val.trim() || isVerifying}
-                              className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-blue-600 text-white text-xs font-bold transition-all disabled:opacity-40 cursor-pointer"
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 cursor-pointer ${
+                                isDarkMode 
+                                  ? 'bg-white/10 hover:bg-blue-600 text-white' 
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
+                              }`}
                             >
                               {isVerifying ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Submit'}
                             </button>
@@ -1071,9 +1211,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="space-y-5">
               
               {/* Add New Custom Activity Form */}
-              <form onSubmit={handleCreateActivity} className="space-y-3 bg-black/40 p-4 rounded-xl border border-white/10">
-                <h4 className="text-xs font-black text-white flex items-center gap-1.5">
-                  <Plus className="w-4 h-4 text-duoGreen" /> Add New Habit / Activity
+              <form onSubmit={handleCreateActivity} className={`space-y-3 p-4 rounded-xl border transition-all ${
+                isDarkMode ? 'bg-black/40 border-white/10' : 'bg-[#F8F6F0] border-[#E4DFD3] shadow-2xs'
+              }`}>
+                <h4 className={`text-xs font-black flex items-center gap-1.5 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  <Plus className="w-4 h-4 text-emerald-500" /> Add New Habit / Activity
                 </h4>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -1082,14 +1224,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     placeholder="Activity Name (e.g. Sleep, Gym, React)"
                     value={newActivityName}
                     onChange={(e) => setNewActivityName(e.target.value)}
-                    className="bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-duoGreen"
+                    className={`border rounded-lg px-3 py-2 text-xs transition-all focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-500 focus:border-duoGreen' 
+                        : 'bg-white border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 font-semibold shadow-2xs'
+                    }`}
                     required
                   />
 
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as ActivityItem['category'])}
-                    className="bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
+                    className={`border rounded-lg px-3 py-2 text-xs transition-all focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
+                    }`}
                   >
                     <option value="coding">Coding / Dev</option>
                     <option value="education">Education / Study</option>
@@ -1106,13 +1256,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       max={360}
                       value={newPlannedMinutes}
                       onChange={(e) => setNewPlannedMinutes(Number(e.target.value))}
-                      className="w-20 bg-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none font-mono"
+                      className={`w-20 border rounded-lg px-3 py-2 text-xs font-mono transition-all focus:outline-none ${
+                        isDarkMode 
+                          ? 'bg-black/60 border-white/10 text-white' 
+                          : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
+                      }`}
                     />
-                    <span className="text-xs text-slate-400">min</span>
+                    <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500 font-bold'}`}>min</span>
 
                     <button
                       type="submit"
-                      className="ml-auto px-4 py-2 bg-duoGreen hover:bg-duoGreenLight text-black font-black rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer"
+                      className="ml-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer shadow-md active:scale-95"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add
                     </button>
@@ -1123,10 +1277,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Tracked Activities List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  <h3 className={`text-xs font-black uppercase tracking-wider ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-800'
+                  }`}>
                     Tracked Activities ({activities.length})
                   </h3>
-                  <span className="text-[11px] text-slate-500 font-mono">
+                  <span className={`text-[11px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-500 font-bold'}`}>
                     {activities.filter((a) => a.countsTowardOverallStreak).length} count toward streak
                   </span>
                 </div>
@@ -1135,27 +1291,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activities.map((a) => (
                     <div 
                       key={a.id} 
-                      className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/10 hover:border-white/20 transition-all text-xs"
+                      className={`flex items-center justify-between p-3 rounded-xl border transition-all text-xs ${
+                        isDarkMode 
+                          ? 'bg-black/40 border-white/10 hover:border-white/20' 
+                          : 'bg-white border-[#E4DFD3] hover:border-slate-300 shadow-2xs'
+                      }`}
                     >
                       <div>
-                        <div className="font-bold text-white flex items-center gap-2">
+                        <div className={`font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                           <span>{a.name}</span>
-                          <span className="text-[10px] text-slate-400 uppercase font-mono px-2 py-0.5 rounded bg-white/5">
+                          <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded ${
+                            isDarkMode ? 'text-slate-400 bg-white/5' : 'text-slate-600 bg-slate-100 border border-slate-200 font-bold'
+                          }`}>
                             {a.category}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                        <div className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500 font-medium'}`}>
                           {a.plannedMinutes}m • +{a.xpReward} XP • 🔥 {a.streak} streak
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+                        <label className={`flex items-center gap-1.5 text-[11px] cursor-pointer font-medium ${
+                          isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                        }`}>
                           <input
                             type="checkbox"
                             checked={a.countsTowardOverallStreak}
                             onChange={() => onToggleActivityStreakInclusion(a.id)}
-                            className="rounded border-white/20 text-duoGreen focus:ring-0 cursor-pointer"
+                            className="rounded border-slate-300 text-emerald-600 focus:ring-0 cursor-pointer"
                           />
                           Counts to Streak
                         </label>
@@ -1166,7 +1330,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             onDeleteActivity(a.id);
                             showToast(`Deleted ${a.name}`, 'info');
                           }}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            isDarkMode 
+                              ? 'bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400' 
+                              : 'bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600'
+                          }`}
                           title="Delete activity"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1184,51 +1352,71 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* ======================================================== */}
           {activeTab === 'general' && (
             <div className="space-y-5">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Profile & Schedule Settings</h3>
+              <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-800'}`}>
+                Profile & Schedule Settings
+              </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[11px] text-slate-400 font-semibold">Display Name</label>
+                  <label className={`text-[11px] font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}>Display Name</label>
                   <input
                     type="text"
                     value={user.name}
                     onChange={(e) => onUpdateUser({ name: e.target.value })}
-                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-duoGreen"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2 text-sm transition-all focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-black/40 border-white/10 text-white focus:border-duoGreen' 
+                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs focus:border-purple-600'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-slate-400 font-semibold">Timezone</label>
-                  <div className="flex items-center gap-2 mt-1 px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-sm text-slate-300 font-mono">
-                    <Globe className="w-4 h-4 text-blue-400 shrink-0" />
+                  <label className={`text-[11px] font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}>Timezone</label>
+                  <div className={`flex items-center gap-2 mt-1 px-3 py-2 rounded-xl border text-sm font-mono ${
+                    isDarkMode ? 'bg-black/40 border-white/10 text-slate-300' : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
+                  }`}>
+                    <Globe className="w-4 h-4 text-blue-500 shrink-0" />
                     <span className="truncate">{user.timezone || 'Asia/Kolkata (GMT+5:30)'}</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-slate-400 font-semibold">Daily Reset Time (Local)</label>
+                  <label className={`text-[11px] font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}>Daily Reset Time (Local)</label>
                   <input
                     type="time"
                     value={user.dailyResetTime || '00:00'}
                     onChange={(e) => onUpdateUser({ dailyResetTime: e.target.value })}
-                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-duoGreen font-mono"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2 text-sm font-mono transition-all focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-black/40 border-white/10 text-white focus:border-duoGreen' 
+                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs focus:border-purple-600'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] text-slate-400 font-semibold">Current Level & Rank</label>
-                  <div className="mt-1 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-sm text-purple-300 font-bold">
+                  <label className={`text-[11px] font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}>Current Level & Rank</label>
+                  <div className={`mt-1 px-3 py-2 rounded-xl border text-sm font-bold ${
+                    isDarkMode ? 'bg-purple-500/10 border-purple-500/20 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-900 shadow-2xs'
+                  }`}>
                     Lv. {user.level} • {user.hunterRank}-Rank Hunter ({user.currentXP}/{user.xpToNextLevel} XP)
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10 space-y-3">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Strict Streak Rule</h3>
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-slate-300 flex items-start gap-3">
-                  <Flame className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+              <div className={`pt-4 border-t space-y-3 ${isDarkMode ? 'border-white/10' : 'border-[#E8E3D9]'}`}>
+                <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-800'}`}>
+                  Strict Streak Rule
+                </h3>
+                <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-3 ${
+                  isDarkMode 
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-slate-300' 
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-900 font-medium shadow-2xs'
+                }`}>
+                  <Flame className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-white">All-Task Streak Policy Active:</span> Overall streak increments only when 100% of scheduled activities are completed.
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-emerald-950'}`}>All-Task Streak Policy Active:</span> Overall streak increments only when 100% of scheduled activities are completed.
                   </div>
                 </div>
               </div>
@@ -1240,24 +1428,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* ======================================================== */}
           {activeTab === 'backup' && (
             <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Data Ownership & Portability</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-800'}`}>
+                Data Ownership & Portability
+              </h3>
+              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
                 You own 100% of your activity records. Export anytime to standard JSON or CSV formats.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <button
                   onClick={handleExportJSON}
-                  className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 text-white text-xs font-bold transition-all cursor-pointer"
+                  className={`flex items-center justify-center gap-2 p-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-blue-600/20 border-blue-500/30 hover:bg-blue-600/30 text-white' 
+                      : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-900 font-bold shadow-xs'
+                  }`}
                 >
-                  <Download className="w-4 h-4 text-blue-400" /> Export Full State (JSON)
+                  <Download className="w-4 h-4 text-blue-500" /> Export Full State (JSON)
                 </button>
 
                 <button
                   onClick={handleExportCSV}
-                  className="flex items-center justify-center gap-2 p-3.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-white text-xs font-bold transition-all cursor-pointer"
+                  className={`flex items-center justify-center gap-2 p-3.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-emerald-600/20 border-emerald-500/30 hover:bg-emerald-600/30 text-white' 
+                      : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900 font-bold shadow-xs'
+                  }`}
                 >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> Export History (CSV)
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Export History (CSV)
                 </button>
               </div>
             </div>
@@ -1265,18 +1463,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 flex items-center justify-between bg-black/40">
+        <div className={`p-4 border-t flex items-center justify-between transition-colors ${
+          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-[#F5F2EB] border-[#E8E3D9]'
+        }`}>
           <button
             onClick={onResetData}
-            className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg hover:bg-rose-500/10 transition-colors"
+            className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg hover:bg-rose-500/10 transition-colors"
           >
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
             <span>Reset All Data</span>
           </button>
           
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer"
+            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              isDarkMode 
+                ? 'bg-white/10 hover:bg-white/20 text-white' 
+                : 'bg-slate-900 hover:bg-slate-800 text-white shadow-md'
+            }`}
           >
             Save & Close
           </button>
@@ -1285,3 +1489,4 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     </div>
   );
 };
+

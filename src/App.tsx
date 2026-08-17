@@ -1102,6 +1102,7 @@ export const App: React.FC = () => {
         onResetData={handleResetData}
         onSyncActivities={handleSyncActivities}
         onApplyFullSync={handleApplyFullSync}
+        isDarkMode={isDarkMode}
       />
 
       <AddHabitModal
