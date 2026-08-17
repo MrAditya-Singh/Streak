@@ -206,16 +206,21 @@ router.post('/sync', async (req, res) => {
       console.warn('Failed to fetch GitHub data directly:', err.message);
     }
 
-    // Fetch existing GitHub activity from Firestore to prevent data wiping
+    // Fetch existing GitHub & GFG activity from Firestore to prevent data wiping
     let existingGitHubActivity = {};
+    let existingGFGActivity = {};
     if (isFirebaseInitialized && db) {
       try {
-        const doc = await db.collection('integrations').doc(`${userId}_github`).get();
-        if (doc.exists) {
-          existingGitHubActivity = doc.data().activity || doc.data().dailyActivity || {};
+        const ghDoc = await db.collection('integrations').doc(`${userId}_github`).get();
+        if (ghDoc.exists) {
+          existingGitHubActivity = ghDoc.data().activity || ghDoc.data().dailyActivity || {};
+        }
+        const gfgDoc = await db.collection('integrations').doc(`${userId}_gfg`).get();
+        if (gfgDoc.exists) {
+          existingGFGActivity = gfgDoc.data().activity || gfgDoc.data().dailyActivity || {};
         }
       } catch (err) {
-        console.warn('Failed to load existing GitHub activity from Firestore:', err.message);
+        console.warn('Failed to load existing platform activity from Firestore:', err.message);
       }
     }
 
@@ -234,6 +239,10 @@ router.post('/sync', async (req, res) => {
     let normalizedGFG = null;
     if (rawGFG) {
       normalizedGFG = normalizePlatformActivity(rawGFG);
+      normalizedGFG.dailyActivity = {
+        ...existingGFGActivity,
+        ...normalizedGFG.dailyActivity
+      };
     }
 
     let normalizedGitHub = null;

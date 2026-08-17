@@ -91,15 +91,20 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
             console.warn(`[Cron] GitHub fetch warning for ${userId}:`, err.message);
           }
 
-          // Fetch existing GitHub activity from Firestore to prevent data wiping
+          // Fetch existing GitHub & GFG activity from Firestore to prevent data wiping
           let existingGitHubActivity = {};
+          let existingGFGActivity = {};
           try {
             const ghDoc = await db.collection('integrations').doc(`${userId}_github`).get();
             if (ghDoc.exists) {
               existingGitHubActivity = ghDoc.data().activity || ghDoc.data().dailyActivity || {};
             }
+            const gfgDoc = await db.collection('integrations').doc(`${userId}_gfg`).get();
+            if (gfgDoc.exists) {
+              existingGFGActivity = gfgDoc.data().activity || gfgDoc.data().dailyActivity || {};
+            }
           } catch (err) {
-            console.warn(`[Cron] Warning loading existing GitHub integration for ${userId}:`, err.message);
+            console.warn(`[Cron] Warning loading existing platform activity for ${userId}:`, err.message);
           }
 
           const normalizedPlatforms = [];
@@ -116,6 +121,10 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           let normalizedGFG = null;
           if (rawGFG) {
             normalizedGFG = normalizePlatformActivity(rawGFG);
+            normalizedGFG.dailyActivity = {
+              ...existingGFGActivity,
+              ...normalizedGFG.dailyActivity
+            };
           }
 
           let normalizedGitHub = null;
