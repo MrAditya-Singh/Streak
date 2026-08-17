@@ -51,9 +51,10 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           const codolioUsername = user.codolioUsername || platforms.codolio?.username || 'Mr.Aditya';
           const leetcodeUsername = user.leetcodeUsername || platforms.leetcode?.username || 'mradityasingh';
           const codeforcesHandle = user.codeforcesHandle || platforms.codeforces?.username || 'Aditya__YUPP';
+          const gfgUsername = user.gfgUsername || platforms.gfg?.username || 'mraditya';
           const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
-          // Fetch Codolio, LeetCode direct, & Codeforces direct
+          // Fetch Codolio, LeetCode direct, Codeforces direct, & GFG direct
           let rawCodolio = null;
           try {
             rawCodolio = await fetchPlatformData('codolio', codolioUsername);
@@ -75,6 +76,13 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
             console.warn(`[Cron] Codeforces fetch warning for ${userId}:`, err.message);
           }
 
+          let rawGFG = null;
+          try {
+            rawGFG = await fetchPlatformData('gfg', gfgUsername);
+          } catch (err) {
+            console.warn(`[Cron] GFG fetch warning for ${userId}:`, err.message);
+          }
+
           const normalizedPlatforms = [];
           let normalizedLC = null;
           if (rawLeetCode) {
@@ -84,6 +92,11 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           let normalizedCF = null;
           if (rawCodeforces) {
             normalizedCF = normalizePlatformActivity(rawCodeforces);
+          }
+
+          let normalizedGFG = null;
+          if (rawGFG) {
+            normalizedGFG = normalizePlatformActivity(rawGFG);
           }
 
           if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -192,6 +205,21 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
               codolioCF.stats.rating = Math.max(codolioCF.stats.rating || 0, normalizedCF.stats.rating || 0);
             } else {
               normalizedPlatforms.push(normalizedCF);
+            }
+          }
+
+          // Merge direct GFG stats
+          if (normalizedGFG) {
+            const codolioGFG = normalizedPlatforms.find(p => p.platform === 'gfg');
+            if (codolioGFG) {
+              const mergedDaily = { ...codolioGFG.dailyActivity };
+              for (const [dStr, cnt] of Object.entries(normalizedGFG.dailyActivity)) {
+                mergedDaily[dStr] = Math.max(mergedDaily[dStr] || 0, cnt);
+              }
+              codolioGFG.dailyActivity = mergedDaily;
+              codolioGFG.stats.solved = Math.max(codolioGFG.stats.solved || 0, normalizedGFG.stats.solved || 0);
+            } else {
+              normalizedPlatforms.push(normalizedGFG);
             }
           }
 

@@ -156,6 +156,7 @@ router.post('/sync', async (req, res) => {
     const codolioUsername = userCanonicalIntegrations?.codolio?.username || user?.codolioUsername || user?.platformUrls?.codolio || 'Mr.Aditya';
     const leetcodeUsername = userCanonicalIntegrations?.leetcode?.username || user?.leetcodeUsername || user?.platformUrls?.leetcode || 'mradityasingh';
     const codeforcesHandle = userCanonicalIntegrations?.codeforces?.username || user?.codeforcesHandle || user?.platformUrls?.codeforces || 'Aditya__YUPP';
+    const gfgUsername = userCanonicalIntegrations?.gfg?.username || user?.gfgUsername || user?.platformUrls?.gfg || 'mraditya';
     const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
     // 1. Fetch Codolio profile (includes sub-profiles like GitHub), LeetCode direct, & Codeforces direct
@@ -186,6 +187,15 @@ router.post('/sync', async (req, res) => {
       console.warn('Failed to fetch Codeforces data directly:', err.message);
     }
 
+    let rawGFG = null;
+    try {
+      rawGFG = await fetchWithCache(`gfg_${gfgUsername}`, () =>
+        fetchPlatformData('gfg', gfgUsername)
+      );
+    } catch (err) {
+      console.warn('Failed to fetch GFG data directly:', err.message);
+    }
+
     // 2. Parse Codolio profile JSON & connected platforms
     const normalizedPlatforms = [];
     let normalizedLC = null;
@@ -196,6 +206,11 @@ router.post('/sync', async (req, res) => {
     let normalizedCF = null;
     if (rawCodeforces) {
       normalizedCF = normalizePlatformActivity(rawCodeforces);
+    }
+
+    let normalizedGFG = null;
+    if (rawGFG) {
+      normalizedGFG = normalizePlatformActivity(rawGFG);
     }
 
     if (rawCodolio && rawCodolio.raw?.profileJson?.data) {
@@ -304,6 +319,21 @@ router.post('/sync', async (req, res) => {
         codolioCF.stats.rating = Math.max(codolioCF.stats.rating || 0, normalizedCF.stats.rating || 0);
       } else {
         normalizedPlatforms.push(normalizedCF);
+      }
+    }
+
+    // Merge direct GFG stats with Codolio GFG stats
+    if (normalizedGFG) {
+      const codolioGFG = normalizedPlatforms.find(p => p.platform === 'gfg');
+      if (codolioGFG) {
+        const mergedDaily = { ...codolioGFG.dailyActivity };
+        for (const [dStr, cnt] of Object.entries(normalizedGFG.dailyActivity)) {
+          mergedDaily[dStr] = Math.max(mergedDaily[dStr] || 0, cnt);
+        }
+        codolioGFG.dailyActivity = mergedDaily;
+        codolioGFG.stats.solved = Math.max(codolioGFG.stats.solved || 0, normalizedGFG.stats.solved || 0);
+      } else {
+        normalizedPlatforms.push(normalizedGFG);
       }
     }
 

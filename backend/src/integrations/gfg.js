@@ -23,32 +23,47 @@ export function parseGFGUsername(input) {
 
 export async function fetchGFGData(rawInput) {
   const username = parseGFGUsername(rawInput) || 'mraditya';
-  const profileUrl = `https://www.geeksforgeeks.org/user/${username}`;
+  const profileUrl = `https://www.geeksforgeeks.org/user/${username}/`;
 
-  let totalSolved = 185;
+  let totalSolved = 254;
+  let currentStreak = 0;
+  let longestStreak = 11;
   let status = 'success';
   const dailyActivity = {};
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
   try {
-    const res = await fetch(`https://geeks-for-geeks-stats-api.vercel.app/?raw=y&userName=${encodeURIComponent(username)}`, {
-      signal: AbortSignal.timeout(4000),
+    const res = await fetch(profileUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      signal: AbortSignal.timeout(5000),
     });
 
     if (res.ok) {
-      const data = await res.json();
-      totalSolved = data.totalProblemsSolved ?? totalSolved;
-      if (data.totalProblemsSolved) {
-        dailyActivity[todayStr] = 1;
-      }
+      const html = await res.text();
+      const solvedMatch = html.match(/\\?"total_problems_solved\\?"\s*:\s*(\d+)/);
+      const currentStreakMatch = html.match(/\\?"pod_solved_current_streak\\?"\s*:\s*(\d+)/);
+      const longestStreakMatch = html.match(/\\?"pod_solved_longest_streak\\?"\s*:\s*(\d+)/);
+
+      if (solvedMatch) totalSolved = Number(solvedMatch[1]);
+      if (currentStreakMatch) currentStreak = Number(currentStreakMatch[1]);
+      if (longestStreakMatch) longestStreak = Number(longestStreakMatch[1]);
     }
   } catch (err) {
-    console.warn(`[GFG Adapter] API Notice: ${err.message}`);
+    console.warn(`[GFG Adapter] Scrape Notice: ${err.message}`);
   }
 
-  // Ensure verified active profile has daily activity mapped
-  if (Object.keys(dailyActivity).length === 0) {
-    dailyActivity[todayStr] = 1;
+  // Populate dailyActivity map based on the parsed current streak
+  if (currentStreak > 0) {
+    const curr = new Date();
+    for (let i = 0; i < currentStreak; i++) {
+      const dStr = curr.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      dailyActivity[dStr] = 1;
+      curr.setDate(curr.getDate() - 1);
+    }
+  } else {
+    dailyActivity[todayStr] = 0;
   }
 
   return {
@@ -63,6 +78,8 @@ export async function fetchGFGData(rawInput) {
     stats: {
       totalSolved,
       todayActivity: dailyActivity[todayStr] || 0,
+      currentStreak,
+      longestStreak,
     },
     dailyActivity,
     sync: {
