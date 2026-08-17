@@ -660,14 +660,14 @@ export const App: React.FC = () => {
       // 3. Map active platforms for today
       const updates = [
         { id: 'codolio', completed: codolioRes.hasActivityToday },
-        { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
-        { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
-        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'leetcode', completed: !!codolioActive.leetcode },
+        { id: 'lc', completed: !!codolioActive.leetcode },
+        { id: 'codeforces', completed: !!codolioActive.codeforces },
+        { id: 'cf', completed: !!codolioActive.codeforces },
+        { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
         { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
-        { id: 'atcoder', completed: atcoderRes.hasActivityToday || !!codolioActive.atcoder },
+        { id: 'atcoder', completed: !!codolioActive.atcoder },
       ];
 
       handleSyncActivities(updates);
@@ -684,7 +684,7 @@ export const App: React.FC = () => {
       setUser(updatedUserObj);
       localStorage.setItem('effstreak_user', JSON.stringify(updatedUserObj));
 
-      // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's dates
+      // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's exact dates
       const platformDailyMaps = codolioRes.platformDailyMaps || {};
       const hasPlatformData = Object.keys(platformDailyMaps).length > 0;
 
@@ -721,16 +721,10 @@ export const App: React.FC = () => {
               ? (codolioRes.dailyActivityMap || {})
               : (platformDailyMaps[pKey] || {});
 
-            if (Object.keys(pMap).length === 0) return; // no data from Codolio for this platform
-
-            const row = nextMatrix[act.id] ? [...nextMatrix[act.id]] : Array.from({ length: daysInCurMonth }, () => false);
+            const row = Array.from({ length: daysInCurMonth }, () => false);
             for (let day = 1; day <= daysInCurMonth; day++) {
               const dateStr = `${curYear}-${curMonthStr}-${String(day).padStart(2, '0')}`;
-              if ((pMap[dateStr] || 0) > 0) {
-                row[day - 1] = true;
-              }
-              // Note: we only SET true, never reset an existing true to false
-              // (user may have manually checked something we don't have data for)
+              row[day - 1] = (pMap[dateStr] || 0) > 0;
             }
             nextMatrix[act.id] = row;
           });

@@ -450,11 +450,11 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
 
   return {
     platform: 'LeetCode',
-    hasActivityToday: true,
-    eventCount: 344,
-    details: `LeetCode verified: 344+ solved problems for @${cleanUser}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `LeetCode sync via Codolio aggregator for @${cleanUser}`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
@@ -475,56 +475,13 @@ export async function syncGFG(username: string): Promise<SyncResult> {
 
   const cleanUser = username.trim();
 
-  // Endpoint 1: GFG stats API
-  try {
-    const res = await fetch(`https://geeks-for-geeks-stats-api.vercel.app/?raw=y&userName=${encodeURIComponent(cleanUser)}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (!data.error && data.totalProblemsSolved) {
-        return {
-          platform: 'GeeksForGeeks',
-          hasActivityToday: true,
-          eventCount: data.totalProblemsSolved,
-          details: `GFG: ${data.totalProblemsSolved} problems solved • Score: ${data.codingScore || 'Active'}`,
-          timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: true,
-        };
-      }
-    }
-  } catch {
-    // Fallback
-  }
-
-  // Endpoint 2: GFG alternate API
-  try {
-    const res2 = await fetch(`https://geeks-for-geeks-api.vercel.app/user/${encodeURIComponent(cleanUser)}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (res2.ok) {
-      const data2 = await res2.json();
-      const solved = data2.total_problems_solved || 180;
-      return {
-        platform: 'GeeksForGeeks',
-        hasActivityToday: true,
-        eventCount: solved,
-        details: `GFG: ${solved}+ problems solved for @${cleanUser}`,
-        timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: true,
-      };
-    }
-  } catch {
-    // Fallback
-  }
-
   return {
     platform: 'GeeksForGeeks',
-    hasActivityToday: true,
-    eventCount: 180,
-    details: `POTD & GFG Practice verified for @${cleanUser}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `GFG practice synced via Codolio for @${cleanUser}`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
@@ -553,13 +510,17 @@ export async function syncAtCoder(username: string): Promise<SyncResult> {
       const subs = await res.json();
       if (Array.isArray(subs) && subs.length > 0) {
         const acCount = subs.filter((s: any) => s.result === 'AC').length;
+        const hasToday = subs.some((s: any) => {
+          const subDate = new Date(s.epoch_second * 1000).toISOString().split('T')[0];
+          return subDate === new Date().toISOString().split('T')[0];
+        });
         return {
           platform: 'AtCoder',
-          hasActivityToday: true,
+          hasActivityToday: hasToday,
           eventCount: subs.length,
           details: `${subs.length} submissions (${acCount} AC) on AtCoder`,
           timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: true,
+          autoCompleted: hasToday,
         };
       }
     }
@@ -569,11 +530,11 @@ export async function syncAtCoder(username: string): Promise<SyncResult> {
 
   return {
     platform: 'AtCoder',
-    hasActivityToday: true,
-    eventCount: 1,
-    details: `AtCoder verified for @${cleanUser}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `AtCoder synced via Codolio for @${cleanUser}`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
@@ -594,11 +555,11 @@ export async function syncCodeChef(username: string): Promise<SyncResult> {
 
   return {
     platform: 'CodeChef',
-    hasActivityToday: true,
-    eventCount: 1,
-    details: `CodeChef contest/practice verified for @${username}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `CodeChef synced via Codolio for @${username}`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
