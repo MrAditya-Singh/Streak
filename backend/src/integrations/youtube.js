@@ -1,7 +1,8 @@
 /**
  * ⚡ YouTube Platform Adapter
- * - Content Creation Platform (Separated from Coding Streak!)
- * - Tracks video uploads / channel feed
+ * - Tracks channel uploads via YouTube RSS feed
+ * - Checks if a video was uploaded today (YES -> ACTIVE, NO -> INACTIVE)
+ * - Calculates upload streak over the last 15 days
  */
 
 export function parseYouTubeHandle(input) {
@@ -13,46 +14,82 @@ export function parseYouTubeHandle(input) {
   try {
     const url = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
     const parts = url.pathname.split('/').filter(Boolean);
-    return (parts[0] || trimmed).replace(/^@/, '');
+    const handle = parts.find(p => p.startsWith('@')) || parts[0] || trimmed;
+    return handle.replace(/^@/, '');
   } catch {
     const parts = trimmed.split('/').filter(Boolean);
     return (parts[0] || trimmed).replace(/^@/, '');
   }
 }
 
-export async function fetchYouTubeData(rawInput, apiKey) {
+export async function fetchYouTubeData(rawInput) {
   const channelOrHandle = parseYouTubeHandle(rawInput) || 'Viralhit-1';
   const profileUrl = `https://www.youtube.com/@${channelOrHandle}`;
 
   const dailyActivity = {};
-  const todayStr = new Date().toISOString().split('T')[0];
-  let uploadsCount = 1;
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  let uploadsCount = 0;
   let status = 'success';
 
   try {
-    // If it is a full channel ID (UC...)
-    if (channelOrHandle.startsWith('UC')) {
-      const feedRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelOrHandle)}`, {
-        signal: AbortSignal.timeout(5000),
+    let channelId = channelOrHandle.startsWith('UC') ? channelOrHandle : null;
+
+    if (!channelId) {
+      const channelRes = await fetch(`https://www.youtube.com/@${encodeURIComponent(channelOrHandle)}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (channelRes.ok) {
+        const html = await channelRes.text();
+        const rssMatch = html.match(/https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=([A-Za-z0-9_-]+)/);
+        const extId = html.match(/"externalId":"(UC[^"]+)"/);
+        const ucMatches = html.match(/UC[A-Za-z0-9_-]{22}/g);
+        channelId = rssMatch?.[1] || extId?.[1] || (ucMatches?.[0]) || null;
+      }
+    }
+
+    if (channelId) {
+      const feedRes = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`, {
+        signal: AbortSignal.timeout(6000),
       });
       if (feedRes.ok) {
-        const text = await feedRes.text();
-        if (text.includes(todayStr)) {
-          dailyActivity[todayStr] = 1;
-        }
+        const xml = await feedRes.text();
+        const publishedMatches = [...xml.matchAll(/<published>([^<]+)<\/published>/g)];
+        uploadsCount = publishedMatches.length;
+
+        publishedMatches.forEach((m) => {
+          const rawIso = m[1];
+          const localDateStr = new Date(rawIso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+          dailyActivity[localDateStr] = (dailyActivity[localDateStr] || 0) + 1;
+        });
       }
-    } else {
-      // Handle / @Channel profile verified
-      dailyActivity[todayStr] = 1;
     }
   } catch (err) {
-    status = 'success'; // graceful fallback
+    console.warn(`[YouTube Adapter] Notice: ${err.message}`);
+  }
+
+  // 1. Check if a video was uploaded today (YES -> ACTIVE = 1, NO -> INACTIVE = 0)
+  const isUploadedToday = (dailyActivity[todayStr] || 0) > 0;
+  dailyActivity[todayStr] = isUploadedToday ? 1 : 0;
+
+  // 2. Count upload streak over the last 15 days
+  let uploadStreak15Days = 0;
+  const curr = new Date();
+  for (let i = 0; i < 15; i++) {
+    const dStr = curr.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    if ((dailyActivity[dStr] || 0) > 0) {
+      uploadStreak15Days++;
+    }
+    curr.setDate(curr.getDate() - 1);
   }
 
   return {
     platform: 'youtube',
     username: channelOrHandle,
-    isContentPlatform: true, // IMPORTANT: Does NOT count toward coding streak
+    isContentPlatform: true,
     identity: {
       username: channelOrHandle,
       profileUrl,
@@ -61,7 +98,10 @@ export async function fetchYouTubeData(rawInput, apiKey) {
     stats: {
       channelHandle: `@${channelOrHandle}`,
       uploadsCount,
-      todayContentActivity: dailyActivity[todayStr] || 0,
+      todayContentActivity: isUploadedToday ? 1 : 0,
+      isUploadedToday,
+      currentStreak: uploadStreak15Days,
+      uploadStreak15Days,
     },
     dailyActivity,
     sync: {
