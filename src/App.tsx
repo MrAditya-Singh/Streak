@@ -84,7 +84,6 @@ export const App: React.FC = () => {
   // Dynamic Month & Year state synced to real-time date
   const [selectedMonth, setSelectedMonth] = useState<string>(currentRealMonth);
   const [selectedYear, setSelectedYear] = useState<number>(currentRealYear);
-  const [showFullWidgetsPanel, setShowFullWidgetsPanel] = useState<boolean>(false);
 
   // Dynamic days in selected month
   const daysInMonth = useMemo(() => {
@@ -1183,82 +1182,6 @@ export const App: React.FC = () => {
           daysInMonth={daysInMonth}
           todayDayNumber={todayDayNumber}
         />
-
-        {/* 4. EXPANDABLE COMPANION PANELS: TODAY'S PLAN, PERFORMANCE, & PLATFORMS */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => setShowFullWidgetsPanel(!showFullWidgetsPanel)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#0f172a] text-xs font-bold transition-all cursor-pointer shadow-xs"
-            >
-              <LayoutGrid className="w-4 h-4 text-purple-600" />
-              <span>{showFullWidgetsPanel ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}</span>
-              {showFullWidgetsPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-            
-            <div className="text-xs text-slate-500 font-mono font-bold">
-              Live Solo Leveling Sync • {user.hunterRank}-Rank
-            </div>
-          </div>
-
-          {showFullWidgetsPanel && (
-            <div className="space-y-5 animate-fade-in">
-              
-              {/* Today's Live Activity Timeline (7-col) + [Efficiency Gauge + PlanStreakStatsRibbon] (5-col) Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                <div className="lg:col-span-7">
-                  <TodayActivityTimeline
-                    logs={logs}
-                    activities={activities}
-                    onToggleActivity={handleToggleActivity}
-                    onOpenAll={() => setIsTodayActivityOpen(true)}
-                  />
-                </div>
-
-                <div className="lg:col-span-5 space-y-4">
-                  <EfficiencyGauge
-                    efficiencyPct={summary.efficiencyPct}
-                    changeFromYesterday={summary.efficiencyChangeFromYesterday}
-                    plannedMinutes={summary.plannedMinutes}
-                    completedMinutes={summary.completedMinutes}
-                    onOpenEfficiencyAnalytics={() => setIsEfficiencyAnalyticsOpen(true)}
-                  />
-
-                  {/* Placed directly beneath Efficiency Gauge */}
-                  <PlanStreakStatsRibbon
-                    user={user}
-                    totalTasks={activities.length}
-                    completedTasks={activities.filter((a) => a.completed).length}
-                    onFreezeStreak={() => {
-                      if (user.currentXP >= 500) {
-                        setUser((prev) => ({ ...prev, currentXP: prev.currentXP - 500 }));
-                        soundFx.playLevelUp();
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Emergency Directives */}
-              <EmergencyWorkCard
-                tasks={emergencyTasks}
-                onAddTask={handleAddEmergencyTask}
-                onCompleteTask={handleCompleteEmergencyTask}
-                onDeleteTask={handleDeleteEmergencyTask}
-              />
-
-              {/* Showcase Connected Platform Streak Cards */}
-              <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-sm">
-                <div className="text-xs font-black uppercase tracking-wider text-[#0f172a] mb-3.5 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  Connected Competitive Platforms & Streaks
-                </div>
-                <PlatformCardsGrid activities={activities} />
-              </div>
-            </div>
-          )}
-        </div>
-
       </main>
 
       {/* ======================================================== */}
