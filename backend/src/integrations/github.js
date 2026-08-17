@@ -42,9 +42,11 @@ export async function fetchGitHubData(rawInput, customToken) {
   let stars = 3;
   let avatarUrl = `https://github.com/${username}.png`;
   const dailyActivity = {};
+  let syncStatus = 'success';
+  let hasFetchedAnyData = false;
 
+  // 1. Fetch user profile stats
   try {
-    // 1. Fetch user profile stats
     const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
       headers: getHeaders(customToken),
       signal: AbortSignal.timeout(6000),
@@ -54,28 +56,37 @@ export async function fetchGitHubData(rawInput, customToken) {
       const uData = await userRes.json();
       repositories = uData.public_repos ?? 32;
       avatarUrl = uData.avatar_url || avatarUrl;
+    } else {
+      console.warn(`[GitHub Adapter] Profile fetch failed with status: ${userRes.status}`);
     }
+  } catch (err) {
+    console.warn(`[GitHub Adapter] Profile fetch notice: ${err.message}`);
+  }
 
-    // 2. Fetch full GitHub contribution calendar (365 days of true daily commits)
-    try {
-      const calRes = await fetch(`https://github-contributions-api.jogruber.de/v4/${encodeURIComponent(username)}?y=last`, {
-        signal: AbortSignal.timeout(6000),
-      });
-      if (calRes.ok) {
-        const calData = await calRes.json();
-        if (Array.isArray(calData.contributions)) {
-          calData.contributions.forEach((dayItem) => {
-            if (dayItem.date && dayItem.count > 0) {
-              dailyActivity[dayItem.date] = dayItem.count;
-            }
-          });
-        }
+  // 2. Fetch full GitHub contribution calendar (365 days of true daily commits)
+  try {
+    const calRes = await fetch(`https://github-contributions-api.jogruber.de/v4/${encodeURIComponent(username)}?y=last`, {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (calRes.ok) {
+      const calData = await calRes.json();
+      if (Array.isArray(calData.contributions)) {
+        calData.contributions.forEach((dayItem) => {
+          if (dayItem.date && dayItem.count > 0) {
+            dailyActivity[dayItem.date] = dayItem.count;
+          }
+        });
+        hasFetchedAnyData = true;
       }
-    } catch (calErr) {
-      console.warn(`[GitHub Adapter] Contribution calendar notice: ${calErr.message}`);
+    } else {
+      console.warn(`[GitHub Adapter] Contribution calendar failed with status: ${calRes.status}`);
     }
+  } catch (calErr) {
+    console.warn(`[GitHub Adapter] Contribution calendar notice: ${calErr.message}`);
+  }
 
-    // 3. Fetch public events timeline for real-time push & PR timestamps
+  // 3. Fetch public events timeline for real-time push & PR timestamps
+  try {
     const eventsRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`, {
       headers: getHeaders(customToken),
       signal: AbortSignal.timeout(6000),
@@ -103,10 +114,17 @@ export async function fetchGitHubData(rawInput, customToken) {
             dailyActivity[dateStr] = (dailyActivity[dateStr] || 0) + weight;
           }
         });
+        hasFetchedAnyData = true;
       }
+    } else {
+      console.warn(`[GitHub Adapter] Public events failed with status: ${eventsRes.status}`);
     }
   } catch (err) {
-    console.warn(`[GitHub Adapter] Notice: ${err.message}`);
+    console.warn(`[GitHub Adapter] Public events notice: ${err.message}`);
+  }
+
+  if (!hasFetchedAnyData) {
+    syncStatus = 'error';
   }
 
   // Ensure current date window has a baseline
@@ -131,7 +149,7 @@ export async function fetchGitHubData(rawInput, customToken) {
     },
     dailyActivity,
     sync: {
-      status: 'success',
+      status: syncStatus,
       lastSyncedAt: new Date().toISOString(),
     },
   };
