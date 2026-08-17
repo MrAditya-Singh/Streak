@@ -21,6 +21,7 @@ interface AestheticHeaderTrackerProps {
   onOpenSync: () => void;
   onOpenSettings: () => void;
   onOpenAuth?: () => void;
+  onOpenPerformanceDeck?: () => void;
   onToggleSound: () => void;
   isSyncing?: boolean;
 }
@@ -48,6 +49,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
   onOpenSync,
   onOpenSettings,
   onOpenAuth,
+  onOpenPerformanceDeck,
   onToggleSound,
   isSyncing = false,
 }) => {
@@ -243,6 +245,16 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
             <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
             <span>Emergency Directives</span>
           </button>
+
+          {onOpenPerformanceDeck && (
+            <button
+              onClick={onOpenPerformanceDeck}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/40 text-indigo-700 dark:text-indigo-300 font-bold hover:scale-105 transition-all shadow-xs cursor-pointer"
+            >
+              <Zap className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+              <span>Live Performance Deck</span>
+            </button>
+          )}
         </div>
 
         {/* Right Tools: Today Timestamps, Efficiency Matrix, Sync, Simulator, Settings, Theme */}
