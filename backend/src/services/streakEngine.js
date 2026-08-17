@@ -162,7 +162,7 @@ export function evaluateHabitsAndStreaks({
     }
 
     let habitStreak = habit.streak || 0;
-    if (sourcePlatform && platformStreaks[sourcePlatform] !== undefined) {
+    if (sourcePlatform && sourcePlatform !== 'leetcode' && platformStreaks[sourcePlatform] !== undefined) {
       habitStreak = platformStreaks[sourcePlatform];
     } else {
       habitStreak = habit.streak || (isNowCompleted ? 1 : 0);
