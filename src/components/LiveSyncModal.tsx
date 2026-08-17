@@ -88,20 +88,22 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
       };
       setPlatformResults(pResults);
 
+      const codolioActive = codolioRes.activePlatforms || {};
+
       // 2. Map completed platforms to habit checklist updates
       const updates = [
         { id: 'codolio', completed: codolioRes.hasActivityToday },
-        { id: 'leetcode', completed: lcRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'lc', completed: lcRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'codeforces', completed: cfRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'cf', completed: cfRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'gfg', completed: gfgRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'github', completed: ghRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'gh', completed: ghRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'leetcode', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
+        { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
+        { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
+        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
+        { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'youtube', completed: ytRes.hasActivityToday },
         { id: 'yt', completed: ytRes.hasActivityToday },
-        { id: 'atcoder', completed: atcoderRes.hasActivityToday || codolioRes.hasActivityToday },
-        { id: 'hackerrank', completed: hrRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'atcoder', completed: atcoderRes.hasActivityToday || !!codolioActive.atcoder },
+        { id: 'hackerrank', completed: hrRes.hasActivityToday || !!codolioActive.hackerrank },
       ];
       onSyncActivities(updates);
 

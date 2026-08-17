@@ -162,19 +162,37 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
  * ⚡ Live Codolio Profile Sync Fetcher
  * Aggregates coding platform activity via user's Codolio profile
  */
-export async function syncCodolio(username?: string): Promise<SyncResult> {
+export interface CodolioSyncResult extends SyncResult {
+  activePlatforms?: Record<string, boolean>;
+}
+
+export async function syncCodolio(username?: string): Promise<CodolioSyncResult> {
   const cleanUsername = username?.trim().replace(/^@/, '') || 'Mr.Aditya';
 
   try {
     const backendRes = await connectPlatformViaBackend('codolio', cleanUsername);
-    if (backendRes && backendRes.success) {
+    if (backendRes && backendRes.success && backendRes.data) {
+      const pStats = backendRes.data.stats?.platforms || {};
+      const activePlatforms: Record<string, boolean> = {};
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      Object.keys(pStats).forEach((p) => {
+        const pObj = pStats[p] || {};
+        if (pObj.hasActivityToday || pObj.lastActive === todayStr) {
+          activePlatforms[p.toLowerCase()] = true;
+        }
+      });
+
+      const hasToday = backendRes.data.hasActivityToday || Object.keys(activePlatforms).length > 0;
+
       return {
         platform: 'Codolio',
-        hasActivityToday: backendRes.data?.hasActivityToday ?? true,
-        eventCount: backendRes.data?.todayCount || backendRes.data?.stats?.totalContributions || 5,
-        details: `Codolio Single Aggregator (@${cleanUsername}) verified! Connected: LeetCode, Codeforces, GitHub, GFG`,
+        hasActivityToday: hasToday,
+        eventCount: backendRes.data.todayCount || Object.keys(activePlatforms).length,
+        details: `Codolio Single Aggregator (@${cleanUsername}) verified! (${hasToday ? 'Activity today' : 'No activity today'})`,
         timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: true,
+        autoCompleted: hasToday,
+        activePlatforms,
       };
     }
 
@@ -182,34 +200,59 @@ export async function syncCodolio(username?: string): Promise<SyncResult> {
     if (apiRes.ok) {
       const data = await apiRes.json();
       const pData = data.data || {};
-      const numCards = (pData.platformCards || []).length;
+      const todayStr = new Date().toISOString().split('T')[0];
+      let hasToday = false;
+      const activePlatforms: Record<string, boolean> = {};
+      const cards = pData.platformCards || [];
+
+      cards.forEach((card: any) => {
+        const pName = (card.platform || '').toLowerCase().trim();
+        const calendar = card.dailyActivityStatsResponse?.submissionCalendar || {};
+        let cardHasToday = false;
+
+        Object.keys(calendar).forEach((ts) => {
+          const dStr = new Date(Number(ts) * 1000).toISOString().split('T')[0];
+          if (dStr === todayStr && calendar[ts] > 0) {
+            hasToday = true;
+            cardHasToday = true;
+          }
+        });
+
+        if (cardHasToday) {
+          activePlatforms[pName] = true;
+        }
+      });
+
       return {
         platform: 'Codolio',
-        hasActivityToday: true,
-        eventCount: numCards > 0 ? numCards : 4,
-        details: `Codolio profile @${cleanUsername} synced! (${pData.firstName || 'Aditya'} ${pData.secondName || 'Singh'}) • Platforms: ${numCards}`,
+        hasActivityToday: hasToday,
+        eventCount: Object.keys(activePlatforms).length,
+        details: `Codolio profile @${cleanUsername} synced! (${hasToday ? 'Activity today' : 'No activity today'})`,
         timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: true,
+        autoCompleted: hasToday,
+        activePlatforms,
       };
     }
 
     return {
       platform: 'Codolio',
-      hasActivityToday: true,
-      eventCount: 5,
-      details: `Codolio Aggregation Layer active for @${cleanUsername}`,
+      hasActivityToday: false,
+      eventCount: 0,
+      details: `Codolio Aggregation Layer ready for @${cleanUsername}`,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: false,
+      activePlatforms: {},
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Connection fallback';
     return {
       platform: 'Codolio',
-      hasActivityToday: true,
-      eventCount: 5,
-      details: `Codolio Aggregator active for @${cleanUsername} (${errorMsg})`,
+      hasActivityToday: false,
+      eventCount: 0,
+      details: `Codolio Aggregator ready for @${cleanUsername} (${errorMsg})`,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: false,
+      activePlatforms: {},
     };
   }
 }
