@@ -42,6 +42,7 @@ import { TodayActivityModal } from './components/TodayActivityModal';
 import { EfficiencyAnalyticsModal } from './components/EfficiencyAnalyticsModal';
 import { AddHabitModal } from './components/AddHabitModal';
 import { AuthModal } from './components/AuthModal';
+import { LivePerformanceDeck } from './components/LivePerformanceDeck';
 import { ChevronDown, ChevronUp, Sparkles, LayoutGrid, Layers } from 'lucide-react';
 
 const MONTH_NAMES = [
@@ -1266,6 +1267,20 @@ export const App: React.FC = () => {
           todayDayNumber={todayDayNumber}
         />
       </main>
+
+      {/* ============================================================ */}
+      {/* ⚡ LIVE PERFORMANCE & PLATFORM DECK — Collapsible Footer     */}
+      {/* ============================================================ */}
+      <LivePerformanceDeck
+        user={user}
+        activities={activities}
+        emergencyTasks={emergencyTasks}
+        matrixState={matrixState}
+        isDarkMode={isDarkMode}
+        onAddEmergencyTask={handleAddEmergencyTask}
+        onCompleteEmergencyTask={handleCompleteEmergencyTask}
+        onDeleteEmergencyTask={handleDeleteEmergencyTask}
+      />
 
       {/* ======================================================== */}
       {/* FULL INTERACTIVE MODALS & DIALOGS                       */}
