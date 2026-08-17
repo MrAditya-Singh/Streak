@@ -86,12 +86,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       <div className={`rounded-3xl w-full max-w-md shadow-2xl border overflow-hidden flex flex-col animate-fade-in transition-all duration-300 ${
         isDarkMode 
           ? 'bg-[#121622] text-white border-white/10 shadow-purple-950/20' 
-          : 'bg-[#FCFBF8] text-slate-900 border-[#E8E3D9] shadow-slate-900/15'
+          : 'bg-white text-slate-900 border-slate-200 shadow-2xl shadow-slate-900/10'
       }`}>
         
         {/* Header */}
         <div className={`p-5 border-b flex items-center justify-between transition-colors ${
-          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-[#F5F2EB] border-[#E8E3D9]'
+          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -269,7 +269,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Footer */}
         <div className={`p-4 border-t flex items-center justify-end transition-colors ${
-          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-[#F5F2EB] border-[#E8E3D9]'
+          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-slate-200'
         }`}>
           <button
             onClick={onClose}

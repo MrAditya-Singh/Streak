@@ -558,16 +558,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <div className={`border rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col transition-all duration-300 ${
         isDarkMode 
           ? 'bg-[#121622] border-white/10 text-white shadow-purple-950/20' 
-          : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-slate-900/15'
+          : 'bg-white border-slate-200 text-slate-900 shadow-2xl shadow-slate-900/10'
       }`}>
         
         {/* Header */}
         <div className={`p-5 border-b flex items-center justify-between sticky top-0 backdrop-blur-md z-10 transition-colors ${
-          isDarkMode ? 'bg-[#121622]/95 border-white/10' : 'bg-[#F5F2EB]/95 border-[#E8E3D9]'
+          isDarkMode ? 'bg-[#121622]/95 border-white/10' : 'bg-white/95 border-slate-200'
         }`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
-              isDarkMode ? 'bg-slate-800 border-white/10 text-slate-200' : 'bg-white border-[#D5CFBF] text-slate-800 shadow-2xs'
+              isDarkMode ? 'bg-slate-800 border-white/10 text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-800 shadow-2xs'
             }`}>
               <Settings className="w-5 h-5" />
             </div>
@@ -586,7 +586,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             className={`p-2 rounded-xl transition-all cursor-pointer ${
               isDarkMode 
                 ? 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white' 
-                : 'bg-slate-200/70 hover:bg-slate-300/70 text-slate-600 hover:text-slate-900'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -595,7 +595,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tab Navigation */}
         <div className={`flex border-b px-6 overflow-x-auto transition-colors ${
-          isDarkMode ? 'bg-black/20 border-white/10' : 'bg-[#F5F2EB]/60 border-[#E8E3D9]'
+          isDarkMode ? 'bg-black/20 border-white/10' : 'bg-slate-50/80 border-slate-200'
         }`}>
           {[
             { id: 'profile', label: '👤 Profile & Cloud Sync' },
@@ -1464,7 +1464,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Footer */}
         <div className={`p-4 border-t flex items-center justify-between transition-colors ${
-          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-[#F5F2EB] border-[#E8E3D9]'
+          isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-slate-200'
         }`}>
           <button
             onClick={onResetData}
