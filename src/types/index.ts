@@ -88,6 +88,7 @@ export interface UserProfile {
   soundEnabled: boolean;
   notificationsEnabled: boolean;
   reminderTime?: string; // e.g. "21:30"
+  codolioUsername?: string;
   githubUsername?: string;
   githubToken?: string;
   codeforcesHandle?: string;

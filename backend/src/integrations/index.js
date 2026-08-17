@@ -10,8 +10,10 @@ import { fetchHackerRankData, parseHackerRankUsername } from './hackerrank.js';
 import { fetchAtCoderData, parseAtCoderUsername } from './atcoder.js';
 import { fetchGFGData, parseGFGUsername } from './gfg.js';
 import { fetchYouTubeData, parseYouTubeHandle } from './youtube.js';
+import { fetchCodolioData, parseCodolioUsername } from './codolio.js';
 
 export const SUPPORTED_PLATFORMS = [
+  'codolio',
   'github',
   'leetcode',
   'codeforces',
@@ -29,6 +31,12 @@ export const CANONICAL_MAPPING = {
   displayName: 'Aditya',
   timezone: 'Asia/Kolkata',
   integrations: {
+    codolio: {
+      platform: 'codolio',
+      username: 'mraditya',
+      url: 'https://codolio.com/profile/mraditya',
+      enabled: true,
+    },
     github: {
       platform: 'github',
       username: 'MrAditya-Singh',
@@ -77,6 +85,8 @@ export const CANONICAL_MAPPING = {
 export async function fetchPlatformData(platform, usernameOrUrl, token) {
   const p = (platform || '').toLowerCase().trim();
   switch (p) {
+    case 'codolio':
+      return await fetchCodolioData(usernameOrUrl, token);
     case 'github':
       return await fetchGitHubData(usernameOrUrl, token);
     case 'leetcode':
@@ -138,6 +148,7 @@ export async function fetchPlatformData(platform, usernameOrUrl, token) {
 }
 
 export {
+  fetchCodolioData,
   fetchGitHubData,
   fetchLeetCodeData,
   fetchCodeforcesData,
@@ -145,6 +156,7 @@ export {
   fetchAtCoderData,
   fetchGFGData,
   fetchYouTubeData,
+  parseCodolioUsername,
   parseGitHubUsername,
   parseLeetCodeUsername,
   parseCodeforcesHandle,

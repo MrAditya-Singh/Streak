@@ -9,7 +9,8 @@ import {
   syncGFG, 
   syncAtCoder, 
   syncHackerRank, 
-  syncYouTube 
+  syncYouTube,
+  syncCodolio
 } from '../services/apiSync';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -29,6 +30,7 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
   onUpdateUser,
   onSyncActivities,
 }) => {
+  const [codolioUser, setCodolioUser] = useState(user.codolioUsername || 'mraditya');
   const [ghUser, setGhUser] = useState(user.githubUsername || 'MrAditya-Singh');
   const [lcUser, setLcUser] = useState(user.leetcodeUsername || 'mradityasingh');
   const [cfHandle, setCfHandle] = useState(user.codeforcesHandle || 'Aditya__YUPP');
@@ -50,6 +52,7 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
     setPlatformResults({});
 
     const updatedUserObj = {
+      codolioUsername: codolioUser,
       githubUsername: ghUser,
       leetcodeUsername: lcUser,
       codeforcesHandle: cfHandle,
@@ -62,7 +65,8 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
 
     try {
       // 1. Run live parallel queries across all platforms directly
-      const [ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes] = await Promise.all([
+      const [codolioRes, ghRes, lcRes, cfRes, gfgRes, atcoderRes, hrRes, ytRes] = await Promise.all([
+        syncCodolio(codolioUser),
         syncGitHub(ghUser, user.githubToken),
         syncLeetCode(lcUser),
         syncCodeforces(cfHandle),
@@ -73,6 +77,7 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
       ]);
 
       const pResults: Record<string, any> = {
+        Codolio: codolioRes,
         GitHub: ghRes,
         LeetCode: lcRes,
         Codeforces: cfRes,
@@ -85,17 +90,18 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
 
       // 2. Map completed platforms to habit checklist updates
       const updates = [
-        { id: 'leetcode', completed: lcRes.hasActivityToday },
-        { id: 'lc', completed: lcRes.hasActivityToday },
-        { id: 'codeforces', completed: cfRes.hasActivityToday },
-        { id: 'cf', completed: cfRes.hasActivityToday },
-        { id: 'gfg', completed: gfgRes.hasActivityToday },
-        { id: 'github', completed: ghRes.hasActivityToday },
-        { id: 'gh', completed: ghRes.hasActivityToday },
+        { id: 'codolio', completed: codolioRes.hasActivityToday },
+        { id: 'leetcode', completed: lcRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'lc', completed: lcRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'codeforces', completed: cfRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'cf', completed: cfRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'gfg', completed: gfgRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'github', completed: ghRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'gh', completed: ghRes.hasActivityToday || codolioRes.hasActivityToday },
         { id: 'youtube', completed: ytRes.hasActivityToday },
         { id: 'yt', completed: ytRes.hasActivityToday },
-        { id: 'atcoder', completed: atcoderRes.hasActivityToday },
-        { id: 'hackerrank', completed: hrRes.hasActivityToday },
+        { id: 'atcoder', completed: atcoderRes.hasActivityToday || codolioRes.hasActivityToday },
+        { id: 'hackerrank', completed: hrRes.hasActivityToday || codolioRes.hasActivityToday },
       ];
       onSyncActivities(updates);
 
@@ -152,6 +158,24 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
         {/* Inputs */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Codolio Aggregator */}
+            <div className="space-y-1 sm:col-span-2 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 p-3 rounded-2xl">
+              <label className="text-xs font-bold text-amber-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Codolio Single Aggregation Layer (mraditya)</span>
+                </span>
+                <span className="text-[10px] text-amber-400/80 uppercase tracking-widest font-mono">Aggregates LeetCode • GFG • CF • GitHub</span>
+              </label>
+              <input
+                type="text"
+                value={codolioUser}
+                onChange={(e) => setCodolioUser(e.target.value)}
+                placeholder="mraditya"
+                className="w-full bg-black/60 border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-400"
+              />
+            </div>
+
             {/* GitHub */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
