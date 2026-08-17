@@ -228,7 +228,7 @@ EffectiveStreak/
 
 ## 🌐 7. LIVE PRODUCTION LINKS
 
-- **Cloud Web & PWA App (24/7 Live)**: 👉 **[https://effstreak-tracker.surge.sh](https://effstreak-tracker.surge.sh)**
+- **Cloud Web & PWA App (24/7 Live)**: 👉 **[https://effectivestreak-app.surge.sh](https://effectivestreak-app.surge.sh)**
 - **GitHub Repository**: 👉 **`https://github.com/MrAditya-Singh/EffectiveStreak`**
 - **Android APK Build**: `d:\AndroidStudio\TestProject\EffectiveStreak\android_wrapper\app\build\outputs\apk\debug\app-debug.apk`
 - **Windows Desktop App**: `C:\Users\Dell\Desktop\EffStreak.lnk`
