@@ -16,6 +16,7 @@ import { soundFx } from './utils/audio';
 import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState } from './services/firebase';
 import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, syncAtCoder } from './services/apiSync';
 import { pushStateToCloud, subscribeToCloudSync, getStableUserId } from './services/cloudSync';
+import { SyncSetupCard } from './components/SyncSetupCard';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
 import { WeeklyConsistencyOverview } from './components/WeeklyConsistencyOverview';
@@ -108,6 +109,22 @@ export const App: React.FC = () => {
     return initial;
   });
 
+  // ─── Sync Identity (email or phone) ────────────────────────────────────────
+  // Stored in localStorage. Same value on both devices = same Firestore doc = sync.
+  const [syncIdentity, setSyncIdentity] = useState<string>(() => {
+    return localStorage.getItem('effstreak_sync_key') || '';
+  });
+
+  const handleConfirmSyncIdentity = (identity: string) => {
+    localStorage.setItem('effstreak_sync_key', identity);
+    setSyncIdentity(identity);
+  };
+
+  // Derived stable sync key used everywhere (email/phone → sanitized Firestore key)
+  const activeSyncKey = syncIdentity
+    ? `user_${syncIdentity.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 64)}`
+    : getStableUserId(user);
+
   // Modals state
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
   const [isSyncOpen, setIsSyncOpen] = useState(false);
@@ -172,7 +189,7 @@ export const App: React.FC = () => {
 
   // 📡 1. PUSH STATE TO CLOUD RELAY & FIRESTORE (Phone ⇄ Laptop Sync)
   useEffect(() => {
-    const syncKey = getStableUserId(user);
+    const syncKey = activeSyncKey;
     pushStateToCloud(syncKey, {
       user,
       activities,
@@ -187,11 +204,11 @@ export const App: React.FC = () => {
       emergencyTasks,
       logs,
     });
-  }, [user, activities, matrixState, emergencyTasks, logs]);
+  }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey]);
 
   // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop) WITH SMART UNION MERGE
   useEffect(() => {
-    const syncKey = getStableUserId(user);
+    const syncKey = activeSyncKey;
 
     const applyRemoteState = (remoteState: any) => {
       console.log('⚡ [Cloud 2-Way Union Sync] Received real-time state from peer device:', remoteState);
@@ -280,11 +297,11 @@ export const App: React.FC = () => {
       unsubscribeCloud();
       unsubscribeFirestore();
     };
-  }, [user.email, user.phoneNumber, user.uid]);
+  }, [user.email, user.phoneNumber, user.uid, syncIdentity]);
 
   // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
   useEffect(() => {
-    const syncKey = user.email || user.uid || 'user_aditya_canonical';
+    const syncKey = activeSyncKey;
     const sseUrl = `${BACKEND_API_BASE}/sync/events?userId=${encodeURIComponent(syncKey)}`;
 
     let es: EventSource | null = null;
@@ -449,7 +466,7 @@ export const App: React.FC = () => {
       }
 
       // ⚡ Broadcast this matrix toggle to ALL peer devices via backend SSE
-      const syncKey = user.email || user.uid || 'user_aditya_canonical';
+      const syncKey = activeSyncKey;
       const dateStr = new Date(new Date().getFullYear(), MONTH_NAMES.indexOf(selectedMonth), dayIndex + 1)
         .toISOString().split('T')[0];
       fetch(`${BACKEND_API_BASE}/sync/toggle`, {
@@ -510,7 +527,7 @@ export const App: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.email || user.uid || 'aditya-singh',
+          userId: activeSyncKey,
           habitId: id,
           completed: targetAct.completed,
           date: new Date().toISOString().split('T')[0],
@@ -1249,6 +1266,15 @@ export const App: React.FC = () => {
         onSelectUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
         isDarkMode={isDarkMode}
       />
+
+      {/* ⚡ EMAIL / PHONE NUMBER SYNC SETUP MODAL OVERLAY */}
+      {!syncIdentity && (
+        <SyncSetupCard
+          onConfirm={handleConfirmSyncIdentity}
+          currentIdentity={syncIdentity}
+          isInline={false}
+        />
+      )}
     </div>
   );
 };
