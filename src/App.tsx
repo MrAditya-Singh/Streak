@@ -1266,21 +1266,19 @@ export const App: React.FC = () => {
           daysInMonth={daysInMonth}
           todayDayNumber={todayDayNumber}
         />
-      </main>
 
-      {/* ============================================================ */}
-      {/* ⚡ LIVE PERFORMANCE & PLATFORM DECK — Collapsible Footer     */}
-      {/* ============================================================ */}
-      <LivePerformanceDeck
-        user={user}
-        activities={activities}
-        emergencyTasks={emergencyTasks}
-        matrixState={matrixState}
-        isDarkMode={isDarkMode}
-        onAddEmergencyTask={handleAddEmergencyTask}
-        onCompleteEmergencyTask={handleCompleteEmergencyTask}
-        onDeleteEmergencyTask={handleDeleteEmergencyTask}
-      />
+        {/* 4. ⚡ LIVE PERFORMANCE & PLATFORM DECK — Collapsible Inline Card */}
+        <LivePerformanceDeck
+          user={user}
+          activities={activities}
+          emergencyTasks={emergencyTasks}
+          matrixState={matrixState}
+          isDarkMode={isDarkMode}
+          onAddEmergencyTask={handleAddEmergencyTask}
+          onCompleteEmergencyTask={handleCompleteEmergencyTask}
+          onDeleteEmergencyTask={handleDeleteEmergencyTask}
+        />
+      </main>
 
       {/* ======================================================== */}
       {/* FULL INTERACTIVE MODALS & DIALOGS                       */}

@@ -741,134 +741,123 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
 
   // ─── Shell ────────────────────────────────────────────────────────────────
   return (
-    <>
-      {/* Spacer to prevent fixed footer overlapping last element when scrolled to bottom */}
-      <div style={{ height: '54px' }} />
-
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      fontFamily: '"Inter", system-ui, sans-serif',
+      marginTop: '16px',
+      marginBottom: '24px',
+    }}>
+      {/* ── Toggle Bar (Rendered at top of this component inline) ── */}
       <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 9999,
         display: 'flex',
-        flexDirection: 'column',
-        fontFamily: '"Inter", system-ui, sans-serif',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        height: '48px',
+        boxSizing: 'border-box',
+        marginBottom: isExpanded ? '16px' : '0px',
       }}>
-        {/* ── Expandable Panel (Slides up from the bottom) ── */}
-        {isExpanded && (
-          <div style={{
-            background: D.panelBg,
-            borderTop: `1px solid ${D.border}`,
-            borderBottom: `1.5px solid ${D.border}`,
-            maxHeight: '60vh',
-            overflowY: 'auto',
-            backdropFilter: 'blur(16px)',
-            boxShadow: isDarkMode 
-              ? '0 -10px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(99, 102, 241, 0.1)'
-              : '0 -10px 30px rgba(15, 23, 42, 0.08)',
-          }}>
-            {/* Tab navigation */}
-            <div style={{
-              display: 'flex', borderBottom: `1px solid ${D.border}`,
-              paddingLeft: 24, paddingRight: 24,
-              background: isDarkMode ? 'rgba(255,255,255,0.01)' : 'rgba(99,102,241,0.01)',
-            }}>
-              {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
-                  padding: '11px 16px 13px',
-                  border: 'none', borderBottom: `2.5px solid ${activeTab === tab.id ? D.accent : 'transparent'}`,
-                  background: 'transparent', cursor: 'pointer',
-                  color: activeTab === tab.id ? D.accent : D.textSub,
-                  fontSize: 13, fontWeight: activeTab === tab.id ? 800 : 600,
-                  transition: 'all 0.15s',
-                }}>
-                  {tab.icon}
-                  {tab.label}
-                  {tab.badge && (
-                    <span style={{
-                      position: 'absolute', top: 6, right: 4,
-                      width: 16, height: 16, borderRadius: '50%',
-                      background: D.red, color: '#fff', fontSize: 9, fontWeight: 900,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>{tab.badge}</span>
-                  )}
-                </button>
-              ))}
-            </div>
+        {/* Left: Button Styled exactly like the image */}
+        <button
+          onClick={() => setIsExpanded(v => !v)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 14px',
+            borderRadius: '9px',
+            border: `1px solid ${D.btnBorder}`,
+            background: D.btnBg,
+            color: D.text,
+            fontSize: '12px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            outline: 'none',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = D.btnHover}
+          onMouseLeave={e => e.currentTarget.style.background = D.btnBg}
+        >
+          {/* Blue-purple layout/layers icon */}
+          <Layers size={13} style={{ color: '#818cf8' }} />
+          <span>
+            {isExpanded ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}
+          </span>
+          {isExpanded ? (
+            <ChevronUp size={13} style={{ opacity: 0.8 }} />
+          ) : (
+            <ChevronDown size={13} style={{ opacity: 0.8 }} />
+          )}
+        </button>
 
-            {/* Tab content */}
-            <div style={{
-              padding: '20px 24px 24px',
-              maxWidth: 1280, margin: '0 auto',
-              scrollbarWidth: 'thin',
-            }}>
-              {activeTab === 'emergency'  && renderEmergency()}
-              {activeTab === 'efficiency' && renderEfficiency()}
-              {activeTab === 'profiles'   && renderProfiles()}
-              {activeTab === 'improve'    && renderImprove()}
-            </div>
-          </div>
-        )}
-
-        {/* ── Toggle Footer Bar (Exact Visual Copy of Image) ── */}
+        {/* Right: Muted status text */}
         <div style={{
-          background: D.footerBg,
-          borderTop: `1px solid ${D.border}`,
-          padding: '8px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: '48px',
-          boxSizing: 'border-box',
-          boxShadow: isDarkMode ? '0 -4px 10px rgba(0,0,0,0.3)' : '0 -2px 8px rgba(0,0,0,0.03)',
+          fontSize: '11.5px',
+          color: D.textMut,
+          fontWeight: '600',
+          letterSpacing: '0.2px',
         }}>
-          {/* Left: Button Styled exactly like the image */}
-          <button
-            onClick={() => setIsExpanded(v => !v)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 14px',
-              borderRadius: '9px',
-              border: `1px solid ${D.btnBorder}`,
-              background: D.btnBg,
-              color: D.text,
-              fontSize: '12px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              outline: 'none',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = D.btnHover}
-            onMouseLeave={e => e.currentTarget.style.background = D.btnBg}
-          >
-            {/* Blue-purple layout/layers icon */}
-            <Layers size={13} style={{ color: '#818cf8' }} />
-            <span>
-              {isExpanded ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}
-            </span>
-            {isExpanded ? (
-              <ChevronDown size={13} style={{ opacity: 0.8 }} />
-            ) : (
-              <ChevronDown size={13} style={{ opacity: 0.8 }} />
-            )}
-          </button>
-
-          {/* Right: Muted status text */}
-          <div style={{
-            fontSize: '11.5px',
-            color: D.textMut,
-            fontWeight: '600',
-            letterSpacing: '0.2px',
-          }}>
-            Live Solo Leveling Sync • {user.hunterRank || 'E'}-Rank
-          </div>
+          Live Solo Leveling Sync • {user.hunterRank || 'E'}-Rank
         </div>
       </div>
-    </>
+
+      {/* ── Expandable Panel (Expands downward inline) ── */}
+      {isExpanded && (
+        <div style={{
+          background: D.panelBg,
+          border: `1.5px solid ${D.border}`,
+          borderRadius: '16px',
+          boxShadow: isDarkMode 
+            ? '0 10px 40px rgba(0, 0, 0, 0.4), 0 0 25px rgba(99, 102, 241, 0.05)'
+            : '0 10px 30px rgba(15, 23, 42, 0.04)',
+          overflow: 'hidden',
+          transition: 'all 0.3s ease',
+        }}>
+          {/* Tab navigation */}
+          <div style={{
+            display: 'flex',
+            borderBottom: `1px solid ${D.border}`,
+            paddingLeft: 20,
+            paddingRight: 20,
+            background: isDarkMode ? 'rgba(255,255,255,0.01)' : 'rgba(99,102,241,0.01)',
+          }}>
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
+                padding: '11px 16px 13px',
+                border: 'none', borderBottom: `2.5px solid ${activeTab === tab.id ? D.accent : 'transparent'}`,
+                background: 'transparent', cursor: 'pointer',
+                color: activeTab === tab.id ? D.accent : D.textSub,
+                fontSize: 13, fontWeight: activeTab === tab.id ? 800 : 600,
+                transition: 'all 0.15s',
+              }}>
+                {tab.icon}
+                {tab.label}
+                {tab.badge && (
+                  <span style={{
+                    position: 'absolute', top: 6, right: 4,
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: D.red, color: '#fff', fontSize: 9, fontWeight: 900,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{tab.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div style={{
+            padding: '20px',
+            scrollbarWidth: 'thin',
+          }}>
+            {activeTab === 'emergency'  && renderEmergency()}
+            {activeTab === 'efficiency' && renderEfficiency()}
+            {activeTab === 'profiles'   && renderProfiles()}
+            {activeTab === 'improve'    && renderImprove()}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
