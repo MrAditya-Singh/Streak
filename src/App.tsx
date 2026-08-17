@@ -83,7 +83,7 @@ export const App: React.FC = () => {
   // Dynamic Month & Year state synced to real-time date
   const [selectedMonth, setSelectedMonth] = useState<string>(currentRealMonth);
   const [selectedYear, setSelectedYear] = useState<number>(currentRealYear);
-  const [showFullWidgetsPanel, setShowFullWidgetsPanel] = useState<boolean>(true);
+  const [showFullWidgetsPanel, setShowFullWidgetsPanel] = useState<boolean>(false);
 
   // Dynamic days in selected month
   const daysInMonth = useMemo(() => {
