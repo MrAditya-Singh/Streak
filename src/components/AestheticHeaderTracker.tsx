@@ -250,25 +250,25 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
           <button
             onClick={onOpenTodayActivity}
             title="Inspect Today's Timestamps"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 hover:bg-purple-500/20 text-slate-700 dark:text-slate-200 font-semibold transition-all border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-800 dark:text-slate-200 font-bold transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
-            <Zap className="w-3.5 h-3.5 text-purple-500" />
+            <Zap className="w-3.5 h-3.5 text-purple-600" />
             <span>Today's Activity</span>
           </button>
 
           <button
             onClick={onOpenEfficiencyMatrix}
             title="Open Efficiency Day/Month/Year Matrix"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 hover:bg-emerald-500/20 text-slate-700 dark:text-slate-200 font-semibold transition-all border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-800 dark:text-slate-200 font-bold transition-all border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
-            <BarChart3 className="w-3.5 h-3.5 text-emerald-500" />
+            <BarChart3 className="w-3.5 h-3.5 text-emerald-600" />
             <span>Efficiency Matrix</span>
           </button>
 
           <button
             onClick={onOpenSimulator}
             title="Widget Simulator"
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 hover:bg-cyan-500/20 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
             <Smartphone className="w-3.5 h-3.5" />
           </button>
@@ -276,23 +276,23 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
           <button
             onClick={onOpenSync}
             title="Live Sync"
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 hover:bg-blue-500/20 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-500' : ''}`} />
           </button>
 
           <button
             onClick={onToggleSound}
             title="Toggle Sound Effects"
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
-            {user.soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-500" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
+            {user.soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-600" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
           </button>
 
           <button
             onClick={onToggleTheme}
             title="Toggle Dark / Editorial Paper Mode"
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
             {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-600" />}
           </button>
@@ -301,16 +301,16 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
             <button
               onClick={onOpenAuth}
               title="Switch Accounts & Profiles"
-              className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 transition-colors border border-purple-200 cursor-pointer shadow-2xs"
+              className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-purple-700 dark:text-purple-300 transition-colors border border-purple-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
             >
-              <Users className="w-3.5 h-3.5" />
+              <Users className="w-3.5 h-3.5 text-purple-600" />
             </button>
           )}
 
           <button
             onClick={onOpenSettings}
             title="Settings"
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200/60 dark:border-slate-700/60 cursor-pointer shadow-2xs"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-slate-700 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
