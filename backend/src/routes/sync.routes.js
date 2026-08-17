@@ -252,3 +252,52 @@ syncRouter.post('/state', async (req, res) => {
   res.json({ success: true, message: 'Task/Streak/XP state synced & persisted to Cloud', state });
 });
 
+// -------------------------------------------------------------
+// 5. Force Reset Endpoint (POST /api/sync/reset)
+// -------------------------------------------------------------
+syncRouter.post('/reset', async (req, res) => {
+  const userId = await resolveTargetUserId(req, req.body.userId || 'local_user_1');
+
+  const cleanState = {
+    userId,
+    activities: [],
+    matrix: {},
+    emergencyTasks: [],
+    user: {
+      currentXP: 0,
+      level: 0,
+      overallStreak: 0,
+      longestStreak: 0,
+      efficiencyPct: 0,
+      hunterRank: 'E',
+      isActiveToday: false,
+    },
+    isReset: true,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  memoryState.set(userId, cleanState);
+
+  // Broadcast FORCE_RESET to all connected clients
+  broadcastToClients(userId, {
+    type: 'FORCE_RESET',
+    state: cleanState,
+    timestamp: Date.now(),
+  });
+
+  // Wipe Firestore documents cleanly WITHOUT merge: true!
+  if (db) {
+    try {
+      await db.collection('matrix').doc(`${userId}_matrix`).set({ isReset: true, lastUpdated: new Date().toISOString() }, { merge: false });
+      await db.collection('unified_sync').doc(userId).set({ ...cleanState, updatedAt: Date.now() }, { merge: false });
+      await db.collection('users').doc(userId).set(cleanState.user, { merge: false });
+    } catch (err) {
+      console.warn('Firestore force reset error:', err.message);
+    }
+  }
+
+  console.log(`⚡ [Force Reset] Wiped all streak, matrix, and user data to clean 0 for ${userId}`);
+
+  res.json({ success: true, message: 'All streak, matrix, and user data force-wiped to 0!', state: cleanState });
+});
+

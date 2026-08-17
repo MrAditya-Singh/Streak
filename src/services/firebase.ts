@@ -125,7 +125,8 @@ export async function syncFullStateToFirestore(userId: string, state: any): Prom
   if (!db || !userId) return;
   try {
     const docRef = doc(db, 'unified_sync', userId);
-    await setDoc(docRef, { ...state, updatedAt: Date.now() }, { merge: true });
+    const isReset = Boolean(state?.isReset);
+    await setDoc(docRef, { ...state, updatedAt: Date.now() }, { merge: !isReset });
   } catch (err) {
     console.warn('Firestore unified sync warning:', err);
   }

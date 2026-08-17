@@ -345,6 +345,17 @@ export const App: React.FC = () => {
       es.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
+          
+          if (msg.type === 'FORCE_RESET' && msg.state) {
+            console.log('⚡ [SSE FORCE_RESET] Received reset signal from peer device!');
+            if (msg.state.user) setUser(msg.state.user);
+            if (msg.state.activities) setActivities(msg.state.activities);
+            setMatrixState(msg.state.matrixState || {});
+            setEmergencyTasks([]);
+            setLogs([]);
+            return;
+          }
+
           if (msg.type === 'HABIT_TOGGLED' && msg.habitId && msg.date) {
             const parts = msg.date.split('-');
             const targetDay = parseInt(parts[2], 10);
@@ -1070,7 +1081,13 @@ export const App: React.FC = () => {
       pushStateToCloud(activeSyncKey, resetPayload);
       syncFullStateToFirestore(activeSyncKey, resetPayload);
 
-      // Sync reset state to cloud backend
+      // Sync force reset state to cloud backend & Firestore
+      fetch(`${BACKEND_API_BASE}/sync/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: activeSyncKey }),
+      }).catch((err) => console.warn('Sync force reset warning:', err));
+
       fetch(`${BACKEND_API_BASE}/auth/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
