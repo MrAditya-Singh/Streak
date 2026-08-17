@@ -15,11 +15,11 @@ function getOrCreateUserState(userId) {
       matrix: {},
       emergencyTasks: [],
       user: {
-        currentXP: 1840,
-        level: 18,
-        overallStreak: 97,
-        longestStreak: 97,
-        efficiencyPct: 85,
+        currentXP: 0,
+        level: 0,
+        overallStreak: 0,
+        longestStreak: 0,
+        efficiencyPct: 0,
       },
       lastUpdated: new Date().toISOString(),
     });
@@ -211,10 +211,17 @@ syncRouter.post('/state', async (req, res) => {
   const state = getOrCreateUserState(userId);
   Object.assign(state, incomingState, { lastUpdated: new Date().toISOString() });
 
-  // Broadcast to laptop/mobile subscribers
+  // ⚡ Broadcast FULL incoming state to ALL peer devices via SSE
+  // This ensures habit add / delete / toggle on one device instantly reflects on all others
   broadcastToClients(userId, {
     type: 'STATE_UPDATED',
-    state,
+    state: {
+      ...incomingState,
+      activities: incomingState.activities || state.activities,
+      matrixState: incomingState.matrixState || incomingState.matrix || state.matrix,
+      user: incomingState.user || state.user,
+      emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
+    },
     timestamp: Date.now(),
   });
 
@@ -244,12 +251,24 @@ syncRouter.post('/state', async (req, res) => {
           { merge: true }
         );
       }
+
+      // Also persist to unified_sync so Firestore real-time listeners on peer devices receive it
+      await db.collection('unified_sync').doc(userId).set(
+        {
+          activities: incomingState.activities || state.activities,
+          matrixState: incomingState.matrixState || state.matrix,
+          user: incomingState.user || state.user,
+          emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
     } catch (err) {
       console.warn('Firestore full state save warning:', err.message);
     }
   }
 
-  res.json({ success: true, message: 'Task/Streak/XP state synced & persisted to Cloud', state });
+  res.json({ success: true, message: 'State synced & broadcast to all peer devices', state });
 });
 
 // -------------------------------------------------------------

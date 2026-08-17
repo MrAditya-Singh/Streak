@@ -319,7 +319,7 @@ export const App: React.FC = () => {
       unsubscribeCloud();
       unsubscribeFirestore();
     };
-  }, [user.email, user.phoneNumber, user.uid, syncIdentity]);
+  }, [syncIdentity, activeSyncKey]);
 
   // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
   useEffect(() => {
@@ -341,6 +341,29 @@ export const App: React.FC = () => {
             setMatrixState(msg.state.matrixState || {});
             setEmergencyTasks([]);
             setLogs([]);
+            return;
+          }
+
+          // ⚡ STATE_UPDATED: peer device added/deleted a habit or synced full state
+          if (msg.type === 'STATE_UPDATED' && msg.state) {
+            console.log('⚡ [SSE STATE_UPDATED] Peer device synced full state — applying now...');
+            if (msg.state.activities && Array.isArray(msg.state.activities)) {
+              setActivities(msg.state.activities);
+            }
+            if (msg.state.matrixState && typeof msg.state.matrixState === 'object') {
+              setMatrixState((prev) => ({ ...prev, ...msg.state.matrixState }));
+            }
+            if (msg.state.emergencyTasks && Array.isArray(msg.state.emergencyTasks)) {
+              setEmergencyTasks(msg.state.emergencyTasks);
+            }
+            if (msg.state.user) {
+              setUser((prev) => ({
+                ...prev,
+                ...msg.state.user,
+                currentXP: Math.max(prev.currentXP || 0, msg.state.user.currentXP || 0),
+                overallStreak: Math.max(prev.overallStreak || 0, msg.state.user.overallStreak || 0),
+              }));
+            }
             return;
           }
 
@@ -386,7 +409,7 @@ export const App: React.FC = () => {
     return () => {
       if (es) es.close();
     };
-  }, [user.uid, user.email]);
+  }, [activeSyncKey]);
 
   // Calculations
   const summary = useMemo(() => calculateSummary(activities), [activities]);

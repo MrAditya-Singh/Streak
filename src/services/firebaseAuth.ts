@@ -1,48 +1,22 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  User
-} from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { app, isFirebaseConfigured } from './firebase';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDummyKeyForDevelopment123456789',
-  authDomain: 'streak-82b82.firebaseapp.com',
-  projectId: 'streak-82b82',
-  storageBucket: 'streak-82b82.appspot.com',
-  messagingSenderId: '768234561234',
-  appId: '1:768234561234:web:98abc765def4321',
-};
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+// Reuse the same Firebase app instance from firebase.ts — NEVER create a duplicate!
+const _auth = (isFirebaseConfigured && app) ? getAuth(app) : null;
+export { _auth as auth };
 export const googleProvider = new GoogleAuthProvider();
 
 /**
  * ⚡ Sign In with Google Popup
  */
 export async function signInWithGoogle(): Promise<{ user: User | null; token?: string; error?: string }> {
+  if (!_auth) throw new Error('Firebase not configured. Add your .env credentials.');
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(_auth, googleProvider);
     const token = await result.user.getIdToken();
     return { user: result.user, token };
   } catch (err: any) {
-    console.warn('Google Sign In fallback/simulation:', err.message);
-    // Fallback simulation for local offline environments
-    return {
-      user: {
-        uid: `google_user_${Date.now()}`,
-        displayName: 'Aditya (Google Verified)',
-        email: 'aditya.streak@gmail.com',
-        photoURL: '/images/char_hero.jpg',
-      } as any,
-      token: 'simulated_firebase_token',
-    };
+    throw new Error(err.message || 'Google Sign-In failed');
   }
 }
 
@@ -50,8 +24,9 @@ export async function signInWithGoogle(): Promise<{ user: User | null; token?: s
  * ⚡ Sign In with Email & Password
  */
 export async function signInWithEmail(email: string, pass: string) {
+  if (!_auth) throw new Error('Firebase not configured.');
   try {
-    const result = await signInWithEmailAndPassword(auth, email, pass);
+    const result = await signInWithEmailAndPassword(_auth, email, pass);
     const token = await result.user.getIdToken();
     return { user: result.user, token };
   } catch (err: any) {
@@ -63,8 +38,9 @@ export async function signInWithEmail(email: string, pass: string) {
  * ⚡ Register with Email & Password
  */
 export async function registerWithEmail(email: string, pass: string) {
+  if (!_auth) throw new Error('Firebase not configured.');
   try {
-    const result = await createUserWithEmailAndPassword(auth, email, pass);
+    const result = await createUserWithEmailAndPassword(_auth, email, pass);
     const token = await result.user.getIdToken();
     return { user: result.user, token };
   } catch (err: any) {
@@ -76,5 +52,13 @@ export async function registerWithEmail(email: string, pass: string) {
  * ⚡ Sign Out
  */
 export async function logOutUser() {
-  await signOut(auth);
+  if (_auth) await signOut(_auth);
+}
+
+/**
+ * ⚡ Auth State Listener
+ */
+export function onAuthStateChange(callback: (user: User | null) => void): () => void {
+  if (!_auth) { callback(null); return () => {}; }
+  return onAuthStateChanged(_auth, callback);
 }
