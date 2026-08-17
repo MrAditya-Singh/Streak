@@ -213,6 +213,17 @@ export const App: React.FC = () => {
     const applyRemoteState = (remoteState: any) => {
       console.log('⚡ [Cloud 2-Way Union Sync] Received real-time state from peer device:', remoteState);
       
+      // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO ZERO
+      if (remoteState.isReset) {
+        console.log('⚡ [Reset Triggered] Wiping all data to clean 0 across devices...');
+        if (remoteState.user) setUser(remoteState.user);
+        if (remoteState.activities) setActivities(remoteState.activities);
+        if (remoteState.matrixState) setMatrixState(remoteState.matrixState);
+        setEmergencyTasks([]);
+        setLogs([]);
+        return;
+      }
+
       // 1. SMART UNION MERGE FOR ACTIVITIES
       if (remoteState.activities && Array.isArray(remoteState.activities)) {
         setActivities((prevActs) => {
@@ -1038,32 +1049,40 @@ export const App: React.FC = () => {
       setLogs([]);
       setEmergencyTasks([]);
 
-      localStorage.removeItem('effstreak_user');
-      localStorage.removeItem('effstreak_activities');
-      localStorage.removeItem('effstreak_logs');
-      localStorage.removeItem('effstreak_emergency_tasks');
-      localStorage.removeItem('effstreak_matrix_state');
-      localStorage.removeItem('streak_monthly_matrix');
+      // Overwrite LocalStorage with clean 0 state
+      localStorage.setItem('effstreak_user', JSON.stringify(cleanUser));
+      localStorage.setItem('effstreak_activities', JSON.stringify(cleanActs));
+      localStorage.setItem('streak_monthly_matrix', JSON.stringify(cleanMatrix));
+      localStorage.setItem('effstreak_logs', JSON.stringify([]));
+      localStorage.setItem('effstreak_emergency_tasks', JSON.stringify([]));
 
-      // Sync reset state to cloud backend and Firestore
+      // Push clean 0 reset state to Cloud Relay & Firestore with isReset flag
+      const resetPayload = {
+        user: cleanUser,
+        activities: cleanActs,
+        matrixState: cleanMatrix,
+        emergencyTasks: [],
+        logs: [],
+        isReset: true,
+        updatedAt: Date.now() + 10000,
+      };
+
+      pushStateToCloud(activeSyncKey, resetPayload);
+      syncFullStateToFirestore(activeSyncKey, resetPayload);
+
+      // Sync reset state to cloud backend
       fetch(`${BACKEND_API_BASE}/auth/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.uid || 'aditya-singh' }),
+        body: JSON.stringify({ userId: activeSyncKey }),
       }).catch((err) => console.warn('Auth reset warning:', err));
 
       fetch(`${BACKEND_API_BASE}/sync/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.uid || 'aditya-singh',
-          state: {
-            user: cleanUser,
-            activities: cleanActs,
-            matrix: {},
-            emergencyTasks: [],
-            isReset: true,
-          },
+          userId: activeSyncKey,
+          state: resetPayload,
         }),
       }).catch((err) => console.warn('Reset sync warning:', err));
 
