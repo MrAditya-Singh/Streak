@@ -1,114 +1,134 @@
 import React, { useState } from 'react';
 
 interface SyncSetupCardProps {
-  onConfirm: (identity: string) => void;
-  currentIdentity?: string;
+  onConfirm: (email: string, phone: string) => void;
+  currentEmail?: string;
+  currentPhone?: string;
   isInline?: boolean; // true = settings panel, false = first-time overlay
 }
 
-export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({ onConfirm, currentIdentity, isInline = false }) => {
-  const [value, setValue] = useState(currentIdentity || '');
-  const [inputType, setInputType] = useState<'email' | 'phone'>('email');
+export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
+  onConfirm,
+  currentEmail = '',
+  currentPhone = '',
+  isInline = false
+}) => {
+  const [email, setEmail] = useState(currentEmail);
+  const [phone, setPhone] = useState(currentPhone);
   const [error, setError] = useState('');
 
-  const validate = (v: string) => {
-    if (!v.trim()) return 'Please enter your email or phone number.';
-    if (inputType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Enter a valid email address.';
-    if (inputType === 'phone' && !/^\+?[0-9\s\-]{8,15}$/.test(v.trim())) return 'Enter a valid phone number (with country code).';
+  const validate = () => {
+    if (!email.trim() && !phone.trim()) {
+      return 'Please enter at least your Gmail address or Contact number.';
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return 'Please enter a valid Gmail / email address.';
+    }
+    if (phone.trim() && !/^\+?[0-9\s\-]{8,15}$/.test(phone.trim())) {
+      return 'Please enter a valid Contact number.';
+    }
     return '';
   };
 
   const handleSubmit = () => {
-    const err = validate(value);
-    if (err) { setError(err); return; }
-    onConfirm(value.trim().toLowerCase());
+    const err = validate();
+    if (err) {
+      setError(err);
+      return;
+    }
+    setError('');
+    onConfirm(email.trim().toLowerCase(), phone.trim());
   };
 
   const card = (
     <div style={{
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-      border: '1px solid rgba(99,102,241,0.4)',
-      borderRadius: 20,
+      background: 'linear-gradient(135deg, #101428 0%, #161e38 50%, #0c2040 100%)',
+      border: '1.5px solid rgba(99,102,241,0.4)',
+      borderRadius: 24,
       padding: '32px 28px',
-      maxWidth: 420,
+      maxWidth: 440,
       width: '100%',
-      boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(99,102,241,0.15)',
+      boxShadow: '0 25px 70px rgba(0,0,0,0.6), 0 0 50px rgba(99,102,241,0.2)',
       color: '#fff',
-      fontFamily: 'Inter, system-ui, sans-serif',
+      fontFamily: '"Inter", system-ui, sans-serif',
+      boxSizing: 'border-box',
     }}>
       {/* Icon */}
-      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{
-          width: 64, height: 64, borderRadius: '50%',
+          width: 68, height: 68, borderRadius: '50%',
           background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 28, marginBottom: 12,
+          fontSize: 30, marginBottom: 14,
           boxShadow: '0 8px 24px rgba(99,102,241,0.4)',
         }}>🔗</div>
-        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px' }}>
-          Set Sync Identity
+        <h2 style={{ margin: '0 0 8px', fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px' }}>
+          Connect Unified Account
         </h2>
-        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
-          Enter the same email or phone on all your devices to keep data in sync automatically.
+        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+          Enter your Gmail and Contact number to link your account. Your habits will sync instantly across laptop and mobile.
         </p>
       </div>
 
-      {/* Toggle Email / Phone */}
-      <div style={{
-        display: 'flex', gap: 8, marginBottom: 16,
-        background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 4,
-      }}>
-        {(['email', 'phone'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => { setInputType(t); setValue(''); setError(''); }}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16 }}>
+        {/* Email Field */}
+        <div>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6, letterSpacing: '0.05em' }}>
+            ✉️ Gmail Address
+          </label>
+          <input
+            type="email"
+            placeholder="example@gmail.com"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(''); }}
             style={{
-              flex: 1, padding: '8px 0', border: 'none', borderRadius: 7, cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
-              background: inputType === t ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
-              color: inputType === t ? '#fff' : 'rgba(255,255,255,0.5)',
+              width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid rgba(99,102,241,0.3)',
+              background: 'rgba(255,255,255,0.06)', color: '#fff',
+              fontSize: 14, outline: 'none', boxSizing: 'border-box',
+              transition: 'border-color 0.2s',
             }}
-          >
-            {t === 'email' ? '✉️ Email' : '📱 Phone'}
-          </button>
-        ))}
+          />
+        </div>
+
+        {/* Phone Field */}
+        <div>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6, letterSpacing: '0.05em' }}>
+            📱 Contact Number
+          </label>
+          <input
+            type="tel"
+            placeholder="+91 98765 43210"
+            value={phone}
+            onChange={(e) => { setPhone(e.target.value); setError(''); }}
+            style={{
+              width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid rgba(99,102,241,0.3)',
+              background: 'rgba(255,255,255,0.06)', color: '#fff',
+              fontSize: 14, outline: 'none', boxSizing: 'border-box',
+              transition: 'border-color 0.2s',
+            }}
+          />
+        </div>
       </div>
 
-      {/* Input */}
-      <div style={{ marginBottom: 8 }}>
-        <input
-          type={inputType === 'email' ? 'email' : 'tel'}
-          placeholder={inputType === 'email' ? 'your@email.com' : '+91 9876543210'}
-          value={value}
-          onChange={(e) => { setValue(e.target.value); setError(''); }}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          style={{
-            width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid',
-            borderColor: error ? '#f87171' : 'rgba(99,102,241,0.35)',
-            background: 'rgba(255,255,255,0.06)', color: '#fff',
-            fontSize: 15, outline: 'none', boxSizing: 'border-box',
-            transition: 'border-color 0.2s',
-          }}
-          autoComplete={inputType === 'email' ? 'email' : 'tel'}
-        />
-        {error && (
-          <p style={{ margin: '6px 0 0', fontSize: 12, color: '#f87171' }}>{error}</p>
-        )}
-      </div>
-
-      <p style={{ margin: '0 0 16px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-        💡 This is used only as your sync key — no OTP or password needed.
-      </p>
+      {error && (
+        <div style={{
+          background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)',
+          borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#f87171',
+          marginBottom: 16,
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       {/* Submit */}
       <button
         onClick={handleSubmit}
         style={{
-          width: '100%', padding: '13px 0', border: 'none', borderRadius: 11, cursor: 'pointer',
+          width: '100%', padding: '14px 0', border: 'none', borderRadius: 12, cursor: 'pointer',
           background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)',
           color: '#fff', fontSize: 15, fontWeight: 700, letterSpacing: '0.3px',
           boxShadow: '0 6px 20px rgba(99,102,241,0.4)',
-          transition: 'transform 0.15s, box-shadow 0.15s',
+          transition: 'all 0.2s',
         }}
         onMouseEnter={(e) => {
           (e.target as HTMLButtonElement).style.transform = 'translateY(-1px)';
@@ -119,13 +139,14 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({ onConfirm, current
           (e.target as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(99,102,241,0.4)';
         }}
       >
-        {currentIdentity ? 'Update Sync Identity' : 'Start Syncing →'}
+        {currentEmail || currentPhone ? 'Update Linked Account' : 'Connect & Sync Account →'}
       </button>
 
-      {currentIdentity && (
-        <p style={{ margin: '12px 0 0', textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-          Current: <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{currentIdentity}</span>
-        </p>
+      {(currentEmail || currentPhone) && (
+        <div style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
+          {currentEmail && <div>Linked Gmail: <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{currentEmail}</span></div>}
+          {currentPhone && <div>Linked Phone: <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{currentPhone}</span></div>}
+        </div>
       )}
     </div>
   );

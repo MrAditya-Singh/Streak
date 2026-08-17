@@ -13,7 +13,7 @@ import {
   getRankByLevel,
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
-import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState } from './services/firebase';
+import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState, resolveAccountId } from './services/firebase';
 import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, syncAtCoder } from './services/apiSync';
 import { pushStateToCloud, subscribeToCloudSync, getStableUserId } from './services/cloudSync';
 import { SyncSetupCard } from './components/SyncSetupCard';
@@ -109,21 +109,56 @@ export const App: React.FC = () => {
     return initial;
   });
 
-  // ─── Sync Identity (email or phone) ────────────────────────────────────────
-  // Stored in localStorage. Same value on both devices = same Firestore doc = sync.
-  const [syncIdentity, setSyncIdentity] = useState<string>(() => {
-    return localStorage.getItem('effstreak_sync_key') || '';
+  // ─── Sync Identity (Gmail & Phone Number account mapping) ──────────────────
+  const [syncEmail, setSyncEmail] = useState<string>(() => {
+    const oldKey = localStorage.getItem('effstreak_sync_key') || '';
+    if (oldKey && oldKey.includes('@')) {
+      localStorage.setItem('effstreak_sync_email', oldKey);
+      localStorage.removeItem('effstreak_sync_key');
+      return oldKey;
+    }
+    return localStorage.getItem('effstreak_sync_email') || '';
   });
+  const [syncPhone, setSyncPhone] = useState<string>(() => {
+    const oldKey = localStorage.getItem('effstreak_sync_key') || '';
+    if (oldKey && !oldKey.includes('@') && /^\+?[0-9]/.test(oldKey)) {
+      localStorage.setItem('effstreak_sync_phone', oldKey);
+      localStorage.removeItem('effstreak_sync_key');
+      return oldKey;
+    }
+    return localStorage.getItem('effstreak_sync_phone') || '';
+  });
+  const [activeSyncKey, setActiveSyncKey] = useState<string>('');
+  const [isResolvingAccount, setIsResolvingAccount] = useState<boolean>(true);
+  const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
 
-  const handleConfirmSyncIdentity = (identity: string) => {
-    localStorage.setItem('effstreak_sync_key', identity);
-    setSyncIdentity(identity);
+  useEffect(() => {
+    const resolve = async () => {
+      setIsResolvingAccount(true);
+      if (syncEmail || syncPhone) {
+        try {
+          const accId = await resolveAccountId(syncEmail, syncPhone);
+          console.log('🔑 [Account Linked] Resolved stable account key:', accId);
+          setActiveSyncKey(accId);
+        } catch (e) {
+          console.warn('Could not resolve account id:', e);
+          setActiveSyncKey(getStableUserId(user));
+        }
+      } else {
+        // Guest mode fallback
+        setActiveSyncKey(getStableUserId(user));
+      }
+      setIsResolvingAccount(false);
+    };
+    resolve();
+  }, [syncEmail, syncPhone, user]);
+
+  const handleConfirmSyncIdentity = (email: string, phone: string) => {
+    localStorage.setItem('effstreak_sync_email', email);
+    localStorage.setItem('effstreak_sync_phone', phone);
+    setSyncEmail(email);
+    setSyncPhone(phone);
   };
-
-  // Derived stable sync key used everywhere (email/phone → sanitized Firestore key)
-  const activeSyncKey = syncIdentity
-    ? `user_${syncIdentity.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 64)}`
-    : getStableUserId(user);
 
   // ─── Guard: prevent self-echo when we apply remote state ─────────────────
   // When we apply a remote update, we set this to true so the Firestore
@@ -198,6 +233,11 @@ export const App: React.FC = () => {
   // We debounce by 800ms to batch rapid sequential state changes (e.g. toggle + XP update).
   const pendingCloudPush = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    // ⚠️ CRITICAL: Prevent local state from overwriting Firestore during startup load
+    if (!activeSyncKey || !hasLoadedFromCloud) {
+      console.log('📡 [Cloud Push Blocked] Waiting for initial remote state load or account resolution...');
+      return;
+    }
     // Skip push if we're currently applying a remote state update to prevent echo loops
     if (isApplyingRemote.current) return;
 
@@ -210,16 +250,26 @@ export const App: React.FC = () => {
       pushStateToCloud(syncKey, payload);
       syncFullStateToFirestore(syncKey, payload);
     }, 800);
-  }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey]);
+  }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey, hasLoadedFromCloud]);
 
-  // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop) WITH SMART UNION MERGE
+  // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop)
   useEffect(() => {
+    if (!activeSyncKey) return;
     const syncKey = activeSyncKey;
 
-    const applyRemoteState = (remoteState: any) => {
-      console.log('⚡ [Cloud 2-Way Union Sync] Received real-time state from peer device:', remoteState);
+    let resolved = false;
+
+    const applyRemoteState = (remoteState: any, exists: boolean = true) => {
+      console.log('⚡ [Cloud Sync] Received remote state. Exists:', exists);
       
-      // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO ZERO
+      resolved = true;
+      setHasLoadedFromCloud(true);
+
+      if (!exists || !remoteState) {
+        return;
+      }
+
+      // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO CLEAN STATE
       if (remoteState.isReset) {
         console.log('⚡ [Reset Triggered] Wiping all data to clean 0 across devices...');
         isApplyingRemote.current = true;
@@ -238,102 +288,50 @@ export const App: React.FC = () => {
       if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
       remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
 
-      // 1. DIRECT HABIT LIST MIRROR (INSTANT ADD / DELETE HABIT SYNC ACROSS DEVICES)
+      // Overwrite local state directly with remote state (Single Source of Truth)
       if (remoteState.activities && Array.isArray(remoteState.activities)) {
         setActivities(remoteState.activities);
       }
 
-      // 2. SMART UNION MERGE FOR MASTER HABIT MATRIX GRID (HANDLES ALL FORMATS & KEYS)
-      const rawMatrix = remoteState.matrixState || remoteState.matrix || remoteState.state?.matrix || {};
-      if (rawMatrix && typeof rawMatrix === 'object') {
-        setMatrixState((prevMatrix) => {
-          const merged: Record<string, boolean[]> = { ...prevMatrix };
-          const mIdx = MONTH_NAMES.indexOf(selectedMonth);
-          const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
-
-          // Process all habit IDs from both local and remote
-          const remoteActivities = remoteState.activities && Array.isArray(remoteState.activities) ? remoteState.activities : [];
-          const allHabitIds = new Set([...Object.keys(prevMatrix), ...Object.keys(rawMatrix), ...remoteActivities.map((a: any) => a.id)]);
-          
-          allHabitIds.forEach((actId) => {
-            const localArr = prevMatrix[actId] || Array.from({ length: 31 }, () => false);
-            const remoteItem = rawMatrix[actId];
-
-            const mergedArr = Array.from({ length: 31 }, (_, idx) => {
-              const lVal = Boolean(localArr[idx]);
-              let rVal = false;
-
-              if (Array.isArray(remoteItem)) {
-                // Array format: [true, false, ...]
-                rVal = Boolean(remoteItem[idx]);
-              } else if (remoteItem && typeof remoteItem === 'object') {
-                // Date Object format: { "2026-08-18": true }
-                const dayStr = String(idx + 1).padStart(2, '0');
-                const dateKey = `${selectedYear}-${monthStr}-${dayStr}`;
-                rVal = Boolean(remoteItem[dateKey] || remoteItem[idx + 1] || remoteItem[idx]);
-              } else {
-                // Flat key format: { "leetcode_2026-08-18": true } or { "leetcode_18": true }
-                const dayStr = String(idx + 1).padStart(2, '0');
-                const dateKey = `${selectedYear}-${monthStr}-${dayStr}`;
-                rVal = Boolean(rawMatrix[`${actId}_${dateKey}`] || rawMatrix[`${actId}_${idx + 1}`]);
-              }
-
-              // Union merge: Cell is completed if checked on EITHER device!
-              return lVal || rVal;
-            });
-
-            merged[actId] = mergedArr;
-          });
-          return merged;
-        });
+      if (remoteState.matrixState && typeof remoteState.matrixState === 'object') {
+        setMatrixState(remoteState.matrixState);
       }
 
-      // 3. SMART MERGE FOR USER PROFILE & XP/STREAK STATS
       if (remoteState.user) {
         setUser((prev) => ({
           ...prev,
           ...remoteState.user,
-          currentXP: Math.max(prev.currentXP || 0, remoteState.user.currentXP || 0),
-          overallStreak: Math.max(prev.overallStreak || 0, remoteState.user.overallStreak || 0),
-          longestStreak: Math.max(prev.longestStreak || 0, remoteState.user.longestStreak || 0),
-          level: Math.max(prev.level || 0, remoteState.user.level || 0),
           uid: syncKey,
         }));
       }
 
-      // 4. EMERGENCY TASKS MERGE (NO DUPLICATES)
       if (remoteState.emergencyTasks && Array.isArray(remoteState.emergencyTasks)) {
-        setEmergencyTasks((prevTasks) => {
-          const map = new Map();
-          prevTasks.forEach((t) => map.set(t.id, t));
-          remoteState.emergencyTasks.forEach((t: any) => {
-            if (!map.has(t.id) || t.completed) {
-              map.set(t.id, t);
-            }
-          });
-          return Array.from(map.values());
-        });
+        setEmergencyTasks(remoteState.emergencyTasks);
       }
 
-      // 5. LOGS MERGE
       if (remoteState.logs && Array.isArray(remoteState.logs)) {
-        setLogs((prevLogs) => {
-          const map = new Map();
-          prevLogs.forEach((l) => map.set(l.id, l));
-          remoteState.logs.forEach((l: any) => map.set(l.id, l));
-          return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        });
+        setLogs(remoteState.logs);
       }
     };
 
-    const unsubscribeCloud = subscribeToCloudSync(syncKey, applyRemoteState);
+    const unsubscribeCloud = subscribeToCloudSync(syncKey, (state) => applyRemoteState(state, true));
     const unsubscribeFirestore = subscribeToFirestoreFullState(syncKey, applyRemoteState);
+
+    // Safeguard: If no response from Firestore/Cloud after 1.5 seconds,
+    // assume starting fresh or offline, and allow local state updates.
+    const safeguardTimer = setTimeout(() => {
+      if (!resolved) {
+        console.log('⏰ [Cloud Sync Safeguard] No remote response within 1.5s. Enabling local writes.');
+        setHasLoadedFromCloud(true);
+      }
+    }, 1500);
 
     return () => {
       unsubscribeCloud();
       unsubscribeFirestore();
+      clearTimeout(safeguardTimer);
     };
-  }, [syncIdentity, activeSyncKey]);
+  }, [activeSyncKey]);
 
   // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
   useEffect(() => {
@@ -1193,6 +1191,24 @@ export const App: React.FC = () => {
     }
   };
 
+  if (isResolvingAccount && (syncEmail || syncPhone)) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: isDarkMode ? '#0b0f19' : '#F4EFE6', color: isDarkMode ? '#fff' : '#000',
+        fontFamily: 'Inter, system-ui, sans-serif'
+      }}>
+        <div style={{
+          width: 50, height: 50, borderRadius: '50%', border: '4px solid rgba(99,102,241,0.2)',
+          borderTopColor: '#6366f1', animation: 'spin 1s linear infinite', marginBottom: 16
+        }}/>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Connecting to Unified Account...</div>
+        <div style={{ fontSize: 13, color: 'rgba(128,128,128,0.7)', marginTop: 6 }}>Syncing your cross-device habits with Firestore</div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
       isDarkMode 
@@ -1353,10 +1369,11 @@ export const App: React.FC = () => {
       />
 
       {/* ⚡ EMAIL / PHONE NUMBER SYNC SETUP MODAL OVERLAY */}
-      {!syncIdentity && (
+      {!syncEmail && !syncPhone && (
         <SyncSetupCard
           onConfirm={handleConfirmSyncIdentity}
-          currentIdentity={syncIdentity}
+          currentEmail={syncEmail}
+          currentPhone={syncPhone}
           isInline={false}
         />
       )}
