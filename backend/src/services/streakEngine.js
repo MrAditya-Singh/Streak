@@ -109,6 +109,8 @@ export function evaluateHabitsAndStreaks({
       sourcePlatform = 'gfg';
     } else if (srcLower.includes('hackerrank') || idLower.includes('hackerrank') || nameLower.includes('hackerrank')) {
       sourcePlatform = 'hackerrank';
+    } else if (srcLower.includes('codolio') || idLower.includes('codolio') || nameLower.includes('codolio')) {
+      sourcePlatform = 'codolio';
     } else if (srcLower.includes('youtube') || idLower.includes('youtube') || nameLower.includes('youtube')) {
       sourcePlatform = 'youtube';
     }
@@ -190,6 +192,8 @@ export function evaluateHabitsAndStreaks({
       sourcePlatform = 'gfg';
     } else if (srcLower.includes('hackerrank') || idLower.includes('hackerrank') || nameLower.includes('hackerrank')) {
       sourcePlatform = 'hackerrank';
+    } else if (srcLower.includes('codolio') || idLower.includes('codolio') || nameLower.includes('codolio')) {
+      sourcePlatform = 'codolio';
     } else if (srcLower.includes('youtube') || idLower.includes('youtube') || nameLower.includes('youtube')) {
       sourcePlatform = 'youtube';
     }
