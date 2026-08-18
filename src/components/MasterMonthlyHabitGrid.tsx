@@ -24,7 +24,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
   onDeleteHabit,
   isDarkMode,
   daysInMonth = 30,
-  todayDayNumber = 18,
+  todayDayNumber = 15,
 }) => {
   // Week groupings
   const weekGroups = [
@@ -99,27 +99,18 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
 
   const totalPossibleCells = activities.length * daysInMonth;
 
-  // Unified Mathematical Grid Template for 100% Pixel-Perfect Column Alignment
-  const gridStyle: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: `repeat(${daysInMonth}, minmax(26px, 1fr))`,
-    columnGap: '4px',
-  };
-
   return (
-    <section className={`w-full rounded-3xl p-4 sm:p-6 border transition-all duration-300 overflow-x-auto ${
+    <section className={`w-full rounded-3xl p-5 sm:p-6 border transition-all duration-300 overflow-x-auto ${
       isDarkMode 
         ? 'bg-[#0b0f19] border-slate-800 text-white shadow-2xl backdrop-blur-md' 
         : 'bg-[#FCFBF8] border-[#E2DDD3] text-[#0f172a] shadow-sm'
     }`}>
-      <div className="w-full min-w-[1020px] flex items-start gap-3">
+      <div className="w-full min-w-[1040px] flex items-start gap-3">
         
         {/* ======================================================== */}
-        {/* 1. LEFT COLUMN: DAILY HABITS (Pinned/Sticky Header)      */}
+        {/* 1. LEFT COLUMN: DAILY HABITS (Crystal Clear Contrast)    */}
         {/* ======================================================== */}
-        <div className={`w-52 shrink-0 space-y-1.5 sticky left-0 z-20 ${
-          isDarkMode ? 'bg-[#0b0f19]' : 'bg-[#FCFBF8]'
-        }`}>
+        <div className="w-56 shrink-0 space-y-1.5">
           {/* Synchronized Header: EXACT Height h-[76px] */}
           <div className={`h-[76px] flex flex-col justify-between p-2.5 rounded-xl border shadow-xs ${
             isDarkMode 
@@ -162,8 +153,8 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
                     : 'bg-white border-slate-300 text-[#0f172a] hover:border-slate-400 hover:bg-slate-50'
                 }`}
               >
-                <div className="flex items-center gap-2 truncate pr-1">
-                  <span className={`font-cold-mono text-[10px] font-black w-4 shrink-0 ${
+                <div className="flex items-center gap-2.5 truncate pr-1">
+                  <span className={`font-cold-mono text-[10px] font-black w-4 ${
                     isDarkMode ? 'text-slate-400' : 'text-slate-500'
                   }`}>
                     {String(idx + 1).padStart(2, '0')}
@@ -177,7 +168,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
                 {onDeleteHabit && activities.length > 5 && (
                   <button
                     onClick={() => onDeleteHabit(act.id)}
-                    className="opacity-0 group-hover:opacity-100 hover:text-red-500 text-slate-400 p-0.5 transition-opacity cursor-pointer shrink-0"
+                    className="opacity-0 group-hover:opacity-100 hover:text-red-500 text-slate-400 p-0.5 transition-opacity cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -188,20 +179,20 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
         </div>
 
         {/* ======================================================== */}
-        {/* 2. CENTER: MATHEMATICALLY ALIGNED 30-DAY CHECKBOX GRID   */}
+        {/* 2. CENTER: SMALL BOX 30-DAY CHECKBOX GRID                */}
         {/* ======================================================== */}
         <div className="flex-1 shrink-0 space-y-1.5">
           {/* Synchronized Header: EXACT Height h-[76px] */}
           <div className="h-[76px] flex flex-col justify-between">
-            {/* Week Banners Top Row (h-6) with CSS Grid Column Spans */}
-            <div style={gridStyle} className="h-6 items-center">
+            {/* Week Banners Top Row (h-6) */}
+            <div className="flex items-center gap-1 h-6">
               {weekGroups.map((w) => {
                 const span = w.end - w.start + 1;
                 return (
                   <div
                     key={w.name}
-                    style={{ gridColumn: `span ${span}` }}
-                    className={`text-center text-[10px] font-serif-title italic font-black py-0.5 rounded-t-md border-t border-x shadow-2xs flex items-center justify-center ${w.bg} ${w.text}`}
+                    style={{ flex: span }}
+                    className={`text-center text-[10px] font-serif-title italic font-black py-0.5 rounded-t-md border-t border-x shadow-2xs ${w.bg} ${w.text}`}
                   >
                     {w.name}
                   </div>
@@ -209,65 +200,46 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
               })}
             </div>
 
-            {/* Weekday Letters Row (h-5) with Exact 1:1 CSS Grid Columns */}
-            <div 
-              style={gridStyle} 
-              className={`h-5 items-center text-[9px] font-black ${
-                isDarkMode ? 'text-slate-400' : 'text-slate-600'
-              }`}
-            >
+            {/* Weekday Letters Row (h-5) */}
+            <div className={`flex items-center gap-1 h-5 text-[9px] font-black ${
+              isDarkMode ? 'text-slate-400' : 'text-slate-600'
+            }`}>
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
-                <div 
-                  key={`weekday-${day}`} 
-                  className={`text-center font-cold-mono flex items-center justify-center ${
-                    day === todayDayNumber ? 'text-amber-500 font-black' : ''
-                  }`}
-                >
+                <div key={`weekday-${day}`} className={`flex-1 text-center font-cold-mono ${day === todayDayNumber ? 'text-amber-500 font-black' : ''}`}>
                   {getWeekDayLetter(day)}
                 </div>
               ))}
             </div>
 
-            {/* Day Numbers Row (h-6) with Exact 1:1 CSS Grid Columns */}
-            <div 
-              style={gridStyle} 
-              className={`h-6 items-center text-[10px] font-cold-mono font-black border-b pb-0.5 ${
-                isDarkMode ? 'text-slate-200 border-slate-800' : 'text-slate-800 border-slate-300'
-              }`}
-            >
+            {/* Day Numbers Row (h-6) */}
+            <div className={`flex items-center gap-1 h-6 text-[10px] font-cold-mono font-black border-b pb-0.5 ${
+              isDarkMode ? 'text-slate-200 border-slate-800' : 'text-slate-800 border-slate-300'
+            }`}>
               {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                 const isToday = day === todayDayNumber;
                 return (
                   <div
                     key={`num-${day}`}
-                    className="flex items-center justify-center"
+                    className={`flex-1 text-center py-0.5 rounded ${
+                      isToday 
+                        ? 'bg-amber-500 text-white font-black shadow-xs shadow-amber-500/40' 
+                        : ''
+                    }`}
                   >
-                    <span
-                      className={`w-full max-w-[26px] h-5.5 flex items-center justify-center rounded-sm transition-all ${
-                        isToday 
-                          ? 'bg-amber-500 text-white font-black shadow-xs shadow-amber-500/40 scale-105' 
-                          : 'text-center'
-                      }`}
-                    >
-                      {day}
-                    </span>
+                    {day}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Small Box Checkbox Rows - EXACT Height h-8 with 1:1 Vertical Column Alignment */}
+          {/* Small Box Checkbox Rows - EXACT Height h-8 */}
           <div className="space-y-1.5">
             {activities.map((act) => {
               const days = matrixState[act.id] || Array.from({ length: daysInMonth }, () => false);
 
               return (
-                <div 
-                  key={`matrix-row-${act.id}`} 
-                  style={gridStyle}
-                  className="h-8 items-center"
-                >
+                <div key={`matrix-row-${act.id}`} className="h-8 flex items-center gap-1">
                   {Array.from({ length: daysInMonth }, (_, i) => {
                     const dayNum = i + 1;
                     const isChecked = days[i] || false;
@@ -276,18 +248,17 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
                     const chkStyle = getCheckboxStyle(weekIdx, isChecked, isToday);
 
                     return (
-                      <div key={`cell-wrap-${act.id}-${dayNum}`} className="flex items-center justify-center">
-                        <button
-                          onClick={() => {
-                            soundFx.playClick();
-                            onToggleMatrixCell(act.id, i);
-                          }}
-                          title={`Day ${dayNum} - ${act.name}: ${isChecked ? 'Completed' : 'Click to complete'}`}
-                          className={`w-full max-w-[26px] h-6 rounded-sm border flex items-center justify-center transition-all cursor-pointer hover:scale-115 active:scale-90 ${chkStyle}`}
-                        >
-                          {isChecked && <Check className="w-3 h-3 stroke-[3.5]" />}
-                        </button>
-                      </div>
+                      <button
+                        key={`cell-${act.id}-${dayNum}`}
+                        onClick={() => {
+                          soundFx.playClick();
+                          onToggleMatrixCell(act.id, i);
+                        }}
+                        title={`Day ${dayNum} - ${act.name}: ${isChecked ? 'Completed' : 'Click to complete'}`}
+                        className={`flex-1 h-6 max-w-[28px] mx-auto rounded-sm border flex items-center justify-center transition-all cursor-pointer hover:scale-120 active:scale-90 ${chkStyle}`}
+                      >
+                        {isChecked && <Check className="w-3 h-3 stroke-[3.5]" />}
+                      </button>
                     );
                   })}
                 </div>
@@ -299,7 +270,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
         {/* ======================================================== */}
         {/* 3. RIGHT TABLE: DAILY PROGRESS (Crystal Clear Contrast)  */}
         {/* ======================================================== */}
-        <div className="w-64 shrink-0 space-y-1.5">
+        <div className="w-72 shrink-0 space-y-1.5">
           {/* Synchronized Header: EXACT Height h-[76px] */}
           <div className={`h-[76px] flex flex-col justify-between p-2.5 rounded-xl border shadow-xs ${
             isDarkMode 
@@ -316,7 +287,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
               <span className={`text-[10px] font-cold-mono font-bold ${
                 isDarkMode ? 'text-slate-300' : 'text-blue-900'
               }`}>
-                {totalCompletedCells} / {totalPossibleCells} done
+                {totalCompletedCells} / {totalPossibleCells} completed
               </span>
             </div>
 
@@ -324,10 +295,10 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
             <div className={`flex items-center justify-between text-[9px] font-serif-title italic font-black pt-1 border-t ${
               isDarkMode ? 'text-slate-300 border-slate-700' : 'text-blue-950 border-blue-300/80'
             }`}>
-              <span className="w-6 text-center">goal</span>
+              <span className="w-7 text-center">goal</span>
               <span className="flex-1 text-center">percentage</span>
-              <span className="w-10 text-center">count</span>
-              <span className="w-9 text-right">streak</span>
+              <span className="w-12 text-center">count</span>
+              <span className="w-10 text-right">streak</span>
             </div>
           </div>
 
@@ -354,20 +325,20 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
               return (
                 <div
                   key={`prog-row-${act.id}`}
-                  className={`h-8 flex items-center justify-between px-2 rounded-lg border text-xs font-cold-mono transition-all ${
+                  className={`h-8 flex items-center justify-between px-2.5 rounded-lg border text-xs font-cold-mono transition-all ${
                     isDarkMode 
                       ? 'bg-[#121826] border-slate-800 text-white' 
                       : 'bg-white border-slate-300 text-[#0f172a] shadow-2xs'
                   }`}
                 >
                   {/* Goal */}
-                  <span className={`w-6 text-center text-[10px] font-black ${
+                  <span className={`w-7 text-center text-[10px] font-black ${
                     isDarkMode ? 'text-slate-400' : 'text-slate-500'
                   }`}>{goal}</span>
 
                   {/* Percentage Progress Bar */}
-                  <div className="flex-1 px-1.5 flex items-center gap-1">
-                    <span className={`text-[10px] font-black w-6 text-right ${
+                  <div className="flex-1 px-2 flex items-center gap-1.5">
+                    <span className={`text-[10px] font-black w-7 text-right ${
                       isDarkMode ? 'text-white' : 'text-[#0f172a]'
                     }`}>{pct}%</span>
                     <div className={`flex-1 rounded-full h-1.5 overflow-hidden ${
@@ -381,14 +352,14 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
                   </div>
 
                   {/* Count Fraction */}
-                  <span className={`w-10 text-center text-[10px] font-black ${
+                  <span className={`w-12 text-center text-[10px] font-black ${
                     isDarkMode ? 'text-slate-200' : 'text-slate-800'
                   }`}>
                     {doneCount}/{goal}
                   </span>
 
                   {/* Longest Streak */}
-                  <span className="w-9 text-right text-[10px] font-black text-amber-500 dark:text-amber-400 flex items-center justify-end gap-0.5">
+                  <span className="w-10 text-right text-[11px] font-black text-amber-500 dark:text-amber-400 flex items-center justify-end gap-0.5">
                     <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
                     <span>{Math.max(act.streak || 0, maxStreak || 0)}</span>
                   </span>
