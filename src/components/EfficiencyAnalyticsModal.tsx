@@ -6,12 +6,14 @@ interface EfficiencyAnalyticsModalProps {
   isOpen: boolean;
   onClose: () => void;
   activities: ActivityItem[];
+  isDarkMode?: boolean;
 }
 
 export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> = ({
   isOpen,
   onClose,
   activities,
+  isDarkMode = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'day' | 'month' | 'year'>('overview');
   const [hoveredMonthDay, setHoveredMonthDay] = useState<{ day: number; rate: number } | null>(null);
@@ -43,7 +45,6 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
   // 30-Day Daily Data for Month Graph
   const monthDays = Array.from({ length: 30 }, (_, i) => {
     const day = i + 1;
-    // Current day uses exact live calculation
     if (day === 15) {
       return { day, rate: dayEfficiencyNum, completed: dayCompleted, total: dayTotal };
     }
@@ -84,23 +85,37 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl text-white">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in ${
+      isDarkMode ? 'bg-black/80' : 'bg-slate-900/50'
+    }`}>
+      <div className={`relative w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col rounded-3xl shadow-2xl border transition-colors duration-300 ${
+        isDarkMode 
+          ? 'bg-slate-900 border-slate-700/60 text-white' 
+          : 'bg-white border-slate-200 text-slate-900 shadow-slate-900/10'
+      }`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-900/90">
+        <div className={`flex items-center justify-between p-6 border-b transition-colors ${
+          isDarkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-100 bg-white/90'
+        }`}>
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
               <TrendingUp className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-white">Efficiency Matrix</h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                <h2 className={`text-lg font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  Efficiency Matrix
+                </h2>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                  isDarkMode 
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' 
+                    : 'bg-purple-100 text-purple-800 border-purple-200'
+                }`}>
                   Day • Month • Year
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 Formula-based efficiency tracking across all timeframes
               </p>
             </div>
@@ -108,20 +123,28 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              isDarkMode 
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white' 
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 p-2 gap-1.5 overflow-x-auto">
+        <div className={`flex border-b p-2 gap-1.5 overflow-x-auto transition-colors ${
+          isDarkMode ? 'border-slate-800 bg-slate-950/40' : 'border-slate-100 bg-slate-50'
+        }`}>
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 ${
+            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 cursor-pointer ${
               activeTab === 'overview'
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                : isDarkMode 
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -130,10 +153,12 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
 
           <button
             onClick={() => setActiveTab('day')}
-            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 ${
+            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 cursor-pointer ${
               activeTab === 'day'
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                : isDarkMode 
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Zap className="w-3.5 h-3.5" />
@@ -142,10 +167,12 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
 
           <button
             onClick={() => setActiveTab('month')}
-            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 ${
+            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 cursor-pointer ${
               activeTab === 'month'
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                : isDarkMode 
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -154,10 +181,12 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
 
           <button
             onClick={() => setActiveTab('year')}
-            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 ${
+            className={`py-2 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 flex-1 cursor-pointer ${
               activeTab === 'year'
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                : isDarkMode 
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5" />
@@ -166,7 +195,9 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className={`p-6 overflow-y-auto space-y-6 flex-1 transition-colors ${
+          isDarkMode ? 'bg-slate-900' : 'bg-slate-50/50'
+        }`}>
           
           {/* TAB 0: OVERVIEW & COMPARISON */}
           {activeTab === 'overview' && (
@@ -176,17 +207,21 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                 {/* Day Card */}
                 <div
                   onClick={() => setActiveTab('day')}
-                  className="p-4 rounded-2xl bg-slate-800/60 border border-purple-500/30 hover:border-purple-500/60 cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between group"
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between group ${
+                    isDarkMode 
+                      ? 'bg-slate-800/60 border-purple-500/30 hover:border-purple-500/60' 
+                      : 'bg-white border-purple-200 hover:border-purple-400 shadow-xs'
+                  }`}
                 >
-                  <div className="flex items-center justify-between text-xs text-purple-400 font-bold mb-1">
+                  <div className="flex items-center justify-between text-xs font-bold mb-1 text-purple-600 dark:text-purple-400">
                     <span className="flex items-center gap-1"><Zap className="w-3.5 h-3.5" /> Day Efficiency</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-purple-300">View →</span>
+                    <span className={`text-[10px] ${isDarkMode ? 'text-slate-400 group-hover:text-purple-300' : 'text-slate-500 group-hover:text-purple-600'}`}>View →</span>
                   </div>
-                  <div className="text-2xl font-black text-white my-1">{dayEfficiency}%</div>
-                  <div className="text-[11px] text-slate-400">
-                    <span className="text-emerald-400 font-bold">{dayCompleted}</span> / {dayTotal} tasks done today
+                  <div className={`text-2xl font-black my-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{dayEfficiency}%</div>
+                  <div className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{dayCompleted}</span> / {dayTotal} tasks done today
                   </div>
-                  <div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden">
+                  <div className={`w-full rounded-full h-1.5 mt-2 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
                     <div className="bg-purple-500 h-full rounded-full" style={{ width: `${dayEfficiencyNum}%` }} />
                   </div>
                 </div>
@@ -194,17 +229,21 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                 {/* Month Card */}
                 <div
                   onClick={() => setActiveTab('month')}
-                  className="p-4 rounded-2xl bg-slate-800/60 border border-blue-500/30 hover:border-blue-500/60 cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between group"
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between group ${
+                    isDarkMode 
+                      ? 'bg-slate-800/60 border-blue-500/30 hover:border-blue-500/60' 
+                      : 'bg-white border-blue-200 hover:border-blue-400 shadow-xs'
+                  }`}
                 >
-                  <div className="flex items-center justify-between text-xs text-blue-400 font-bold mb-1">
+                  <div className="flex items-center justify-between text-xs font-bold mb-1 text-blue-600 dark:text-blue-400">
                     <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Month Efficiency</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-300">View →</span>
+                    <span className={`text-[10px] ${isDarkMode ? 'text-slate-400 group-hover:text-blue-300' : 'text-slate-500 group-hover:text-blue-600'}`}>View →</span>
                   </div>
-                  <div className="text-2xl font-black text-white my-1">{monthEfficiency}%</div>
-                  <div className="text-[11px] text-slate-400">
-                    <span className="text-blue-400 font-bold">{monthCompleted}</span> / {monthTotal} tasks done
+                  <div className={`text-2xl font-black my-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{monthEfficiency}%</div>
+                  <div className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className="text-blue-600 dark:text-blue-400 font-bold">{monthCompleted}</span> / {monthTotal} tasks done
                   </div>
-                  <div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden">
+                  <div className={`w-full rounded-full h-1.5 mt-2 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
                     <div className="bg-blue-500 h-full rounded-full" style={{ width: `${monthEfficiencyNum}%` }} />
                   </div>
                 </div>
@@ -212,40 +251,48 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                 {/* Year Card */}
                 <div
                   onClick={() => setActiveTab('year')}
-                  className="p-4 rounded-2xl bg-slate-800/60 border border-emerald-500/30 hover:border-emerald-500/60 cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between group"
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between group ${
+                    isDarkMode 
+                      ? 'bg-slate-800/60 border-emerald-500/30 hover:border-emerald-500/60' 
+                      : 'bg-white border-emerald-200 hover:border-emerald-400 shadow-xs'
+                  }`}
                 >
-                  <div className="flex items-center justify-between text-xs text-emerald-400 font-bold mb-1">
+                  <div className="flex items-center justify-between text-xs font-bold mb-1 text-emerald-600 dark:text-emerald-400">
                     <span className="flex items-center gap-1"><Trophy className="w-3.5 h-3.5" /> Year Efficiency</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-emerald-300">View →</span>
+                    <span className={`text-[10px] ${isDarkMode ? 'text-slate-400 group-hover:text-emerald-300' : 'text-slate-500 group-hover:text-emerald-600'}`}>View →</span>
                   </div>
-                  <div className="text-2xl font-black text-white my-1">{yearEfficiency}%</div>
-                  <div className="text-[11px] text-slate-400">
-                    <span className="text-emerald-400 font-bold">{yearCompleted.toLocaleString()}</span> / {yearTotal.toLocaleString()} tasks
+                  <div className={`text-2xl font-black my-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{yearEfficiency}%</div>
+                  <div className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{yearCompleted.toLocaleString()}</span> / {yearTotal.toLocaleString()} tasks
                   </div>
-                  <div className="w-full bg-slate-900 rounded-full h-1.5 mt-2 overflow-hidden">
+                  <div className={`w-full rounded-full h-1.5 mt-2 overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
                     <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${yearEfficiencyNum}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* Comparative Multi-Spectrum Bar Chart */}
-              <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+              <div className={`p-5 rounded-2xl border space-y-4 ${
+                isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold ${
+                  isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                }`}>
                   <span className="flex items-center gap-1.5">
-                    <BarChart3 className="w-4 h-4 text-purple-400" />
+                    <BarChart3 className="w-4 h-4 text-purple-500" />
                     COMPARATIVE EFFICIENCY SPECTRUM (DAY vs MONTH vs YEAR)
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Target: ≥85%</span>
+                  <span className={`text-[10px] font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Target: ≥85%</span>
                 </div>
 
                 {/* Bars */}
                 <div className="space-y-3.5 pt-2">
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-purple-300">Day Efficiency</span>
-                      <span className="font-bold text-white">{dayEfficiency}% ({dayCompleted}/{dayTotal} tasks)</span>
+                      <span className={`font-semibold ${isDarkMode ? 'text-purple-300' : 'text-purple-700'}`}>Day Efficiency</span>
+                      <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{dayEfficiency}% ({dayCompleted}/{dayTotal} tasks)</span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-xl h-4 overflow-hidden p-0.5">
+                    <div className={`w-full rounded-xl h-4 overflow-hidden p-0.5 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                       <div
                         className="bg-gradient-to-r from-purple-600 to-indigo-400 h-full rounded-lg transition-all duration-700"
                         style={{ width: `${dayEfficiencyNum}%` }}
@@ -255,10 +302,10 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
 
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-blue-300">Month Efficiency (August)</span>
-                      <span className="font-bold text-white">{monthEfficiency}% ({monthCompleted}/{monthTotal} tasks)</span>
+                      <span className={`font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-700'}`}>Month Efficiency (August)</span>
+                      <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{monthEfficiency}% ({monthCompleted}/{monthTotal} tasks)</span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-xl h-4 overflow-hidden p-0.5">
+                    <div className={`w-full rounded-xl h-4 overflow-hidden p-0.5 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                       <div
                         className="bg-gradient-to-r from-blue-600 to-cyan-400 h-full rounded-lg transition-all duration-700"
                         style={{ width: `${monthEfficiencyNum}%` }}
@@ -268,10 +315,10 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
 
                   <div>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="font-semibold text-emerald-300">Year Efficiency (2026 Annual)</span>
-                      <span className="font-bold text-white">{yearEfficiency}% ({yearCompleted.toLocaleString()}/{yearTotal.toLocaleString()} tasks)</span>
+                      <span className={`font-semibold ${isDarkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>Year Efficiency (2026 Annual)</span>
+                      <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{yearEfficiency}% ({yearCompleted.toLocaleString()}/{yearTotal.toLocaleString()} tasks)</span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-xl h-4 overflow-hidden p-0.5">
+                    <div className={`w-full rounded-xl h-4 overflow-hidden p-0.5 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                       <div
                         className="bg-gradient-to-r from-emerald-600 to-teal-400 h-full rounded-lg transition-all duration-700"
                         style={{ width: `${yearEfficiencyNum}%` }}
@@ -282,23 +329,35 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
               </div>
 
               {/* Exact Formula Explanation Card */}
-              <div className="p-4 rounded-2xl bg-purple-950/20 border border-purple-500/20 space-y-2 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-purple-300">
-                  <Info className="w-4 h-4 text-purple-400" />
+              <div className={`p-4 rounded-2xl border space-y-2 text-xs ${
+                isDarkMode 
+                  ? 'bg-purple-950/20 border-purple-500/20' 
+                  : 'bg-purple-50/50 border-purple-200 text-purple-950'
+              }`}>
+                <div className="flex items-center gap-1.5 font-bold text-purple-600 dark:text-purple-300">
+                  <Info className="w-4 h-4 text-purple-500" />
                   <span>Standard Efficiency Calculation Engine</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-300 pt-1">
-                  <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                    <div className="font-bold text-purple-300 mb-1">Day Formula</div>
-                    <code>(Plan Tasks Done / Total Plan Tasks) × 100%</code>
+                <div className={`grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] pt-1 ${
+                  isDarkMode ? 'text-slate-300' : 'text-slate-600'
+                }`}>
+                  <div className={`p-2.5 rounded-xl border ${
+                    isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-purple-100 shadow-2xs'
+                  }`}>
+                    <div className="font-bold text-purple-600 dark:text-purple-300 mb-1">Day Formula</div>
+                    <code className="text-[10px]">(Plan Tasks Done / Total Plan Tasks) × 100%</code>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                    <div className="font-bold text-blue-300 mb-1">Month Formula</div>
-                    <code>(Month Tasks Done / Total Month Tasks) × 100%</code>
+                  <div className={`p-2.5 rounded-xl border ${
+                    isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-purple-100 shadow-2xs'
+                  }`}>
+                    <div className="font-bold text-blue-600 dark:text-blue-300 mb-1">Month Formula</div>
+                    <code className="text-[10px]">(Month Tasks Done / Total Month Tasks) × 100%</code>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                    <div className="font-bold text-emerald-300 mb-1">Year Formula</div>
-                    <code>(Year Tasks Done / Total Year Tasks) × 100%</code>
+                  <div className={`p-2.5 rounded-xl border ${
+                    isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-purple-100 shadow-2xs'
+                  }`}>
+                    <div className="font-bold text-emerald-600 dark:text-emerald-300 mb-1">Year Formula</div>
+                    <code className="text-[10px]">(Year Tasks Done / Total Year Tasks) × 100%</code>
                   </div>
                 </div>
               </div>
@@ -309,23 +368,25 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
           {activeTab === 'day' && (
             <div className="space-y-6">
               {/* Formula & Figures Card */}
-              <div className="p-5 rounded-2xl bg-slate-800/50 border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className={`p-5 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-6 ${
+                isDarkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div className="space-y-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/40 uppercase tracking-wider">
                     Formula: (Plan Done on Day / Total Plan on Day) × 100%
                   </span>
-                  <div className="text-3xl font-black text-purple-400">
-                    {dayEfficiency}% <span className="text-sm font-normal text-slate-300">Day Efficiency</span>
+                  <div className="text-3xl font-black text-purple-600 dark:text-purple-400">
+                    {dayEfficiency}% <span className={`text-sm font-normal ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Day Efficiency</span>
                   </div>
-                  <p className="text-xs text-slate-300">
-                    <span className="font-bold text-white">{dayCompleted}</span> of <span className="font-bold text-white">{dayTotal}</span> "PLAN" tasks completed today within the active 12 AM – 12 PM cycle.
+                  <p className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{dayCompleted}</span> of <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{dayTotal}</span> "PLAN" tasks completed today within the active 12 AM – 12 PM cycle.
                   </p>
                 </div>
 
                 {/* Circular Gauge */}
                 <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
                   <svg className="w-24 h-24 transform -rotate-90">
-                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" className="text-slate-800" fill="transparent" />
+                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" className={isDarkMode ? 'text-slate-800' : 'text-slate-100'} fill="transparent" />
                     <circle
                       cx="48"
                       cy="48"
@@ -338,30 +399,34 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                       strokeLinecap="round"
                     />
                   </svg>
-                  <span className="absolute text-lg font-black text-white">{dayEfficiency}%</span>
+                  <span className={`absolute text-lg font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{dayEfficiency}%</span>
                 </div>
               </div>
 
               {/* Day Hourly Progress Graph (12 AM - 12 PM) */}
-              <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
+              <div className={`p-5 rounded-2xl border space-y-4 ${
+                isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                }`}>
                   <span>TODAY'S COMPLETION CURVE (12 AM – 12 PM CYCLE)</span>
-                  <span className="text-purple-400">Live Progress: {dayEfficiency}%</span>
+                  <span className="text-purple-600 dark:text-purple-400">Live Progress: {dayEfficiency}%</span>
                 </div>
 
                 <div className="h-44 flex items-end justify-between gap-2 pt-6 px-2">
                   {todayHourlyCurve.map((item, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                      <span className="text-[9px] font-bold text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[9px] font-bold text-purple-600 dark:text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity">
                         {item.pct}%
                       </span>
-                      <div className="w-full bg-slate-800 rounded-t-lg overflow-hidden h-28 flex items-end">
+                      <div className={`w-full rounded-t-lg overflow-hidden h-28 flex items-end ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                         <div
                           className="w-full bg-gradient-to-t from-purple-700 to-indigo-400 rounded-t-lg group-hover:from-purple-600 group-hover:to-indigo-300 transition-all duration-500"
                           style={{ height: `${Math.max(4, item.pct)}%` }}
                         />
                       </div>
-                      <span className="text-[9px] text-slate-400 font-mono text-center truncate w-full">{item.label}</span>
+                      <span className={`text-[9px] font-mono text-center truncate w-full ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.label}</span>
                     </div>
                   ))}
                 </div>
@@ -373,22 +438,24 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
           {activeTab === 'month' && (
             <div className="space-y-6">
               {/* Formula & Figures Card */}
-              <div className="p-5 rounded-2xl bg-slate-800/50 border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className={`p-5 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-6 ${
+                isDarkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div className="space-y-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/40 uppercase tracking-wider">
                     Formula: (Month Plan Done / Total Month Plan Tasks) × 100%
                   </span>
-                  <div className="text-3xl font-black text-blue-400">
-                    {monthEfficiency}% <span className="text-sm font-normal text-slate-300">August Efficiency</span>
+                  <div className="text-3xl font-black text-blue-600 dark:text-blue-400">
+                    {monthEfficiency}% <span className={`text-sm font-normal ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>August Efficiency</span>
                   </div>
-                  <p className="text-xs text-slate-300">
-                    <span className="font-bold text-white">{monthCompleted}</span> of <span className="font-bold text-white">{monthTotal}</span> cumulative tasks completed across the current 30-day window.
+                  <p className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{monthCompleted}</span> of <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{monthTotal}</span> cumulative tasks completed across the current 30-day window.
                   </p>
                 </div>
 
                 <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
                   <svg className="w-24 h-24 transform -rotate-90">
-                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" className="text-slate-800" fill="transparent" />
+                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" className={isDarkMode ? 'text-slate-800' : 'text-slate-100'} fill="transparent" />
                     <circle
                       cx="48"
                       cy="48"
@@ -401,15 +468,19 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                       strokeLinecap="round"
                     />
                   </svg>
-                  <span className="absolute text-lg font-black text-white">{monthEfficiency}%</span>
+                  <span className={`absolute text-lg font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{monthEfficiency}%</span>
                 </div>
               </div>
 
               {/* 30-Day Month Graph with Interactive Hover */}
-              <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
+              <div className={`p-5 rounded-2xl border space-y-4 ${
+                isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                }`}>
                   <span>30-DAY DAILY CONSISTENCY GRAPH</span>
-                  <span className="text-blue-400">
+                  <span className="text-blue-600 dark:text-blue-400">
                     {hoveredMonthDay ? `Day ${hoveredMonthDay.day}: ${hoveredMonthDay.rate}%` : `Monthly Avg: ${monthEfficiency}%`}
                   </span>
                 </div>
@@ -422,11 +493,11 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                       onMouseLeave={() => setHoveredMonthDay(null)}
                       className="flex-1 flex flex-col items-center gap-1 h-full justify-end group cursor-pointer"
                     >
-                      <div className="w-full bg-slate-800 rounded-t-sm overflow-hidden h-32 flex items-end">
+                      <div className={`w-full rounded-t-sm overflow-hidden h-32 flex items-end ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                         <div
                           className={`w-full transition-all duration-300 rounded-t-sm ${
                             item.rate >= 90
-                              ? 'bg-blue-400 group-hover:bg-blue-300'
+                              ? 'bg-blue-500 group-hover:bg-blue-400'
                               : item.rate >= 75
                               ? 'bg-blue-600 group-hover:bg-blue-500'
                               : 'bg-amber-500'
@@ -435,12 +506,12 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                         />
                       </div>
                       {item.day % 5 === 0 && (
-                        <span className="text-[9px] text-slate-500 font-mono">{item.day}</span>
+                        <span className={`text-[9px] font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{item.day}</span>
                       )}
                     </div>
                   ))}
                 </div>
-                <div className="text-[10px] text-slate-500 text-center">
+                <div className={`text-[10px] text-center ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                   Hover over bars to inspect daily rate across all 30 days
                 </div>
               </div>
@@ -451,22 +522,24 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
           {activeTab === 'year' && (
             <div className="space-y-6">
               {/* Formula & Figures Card */}
-              <div className="p-5 rounded-2xl bg-slate-800/50 border border-slate-700/60 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className={`p-5 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-6 ${
+                isDarkMode ? 'bg-slate-800/50 border-slate-700/60' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
                 <div className="space-y-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
                     Formula: (Year Plan Done / Total Year Plan Tasks) × 100%
                   </span>
-                  <div className="text-3xl font-black text-emerald-400">
-                    {yearEfficiency}% <span className="text-sm font-normal text-slate-300">Annual Efficiency</span>
+                  <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                    {yearEfficiency}% <span className={`text-sm font-normal ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>Annual Efficiency</span>
                   </div>
-                  <p className="text-xs text-slate-300">
-                    <span className="font-bold text-white">{yearCompleted.toLocaleString()}</span> of <span className="font-bold text-white">{yearTotal.toLocaleString()}</span> tasks fulfilled across 365 calendar days.
+                  <p className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{yearCompleted.toLocaleString()}</span> of <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{yearTotal.toLocaleString()}</span> tasks fulfilled across 365 calendar days.
                   </p>
                 </div>
 
                 <div className="relative w-24 h-24 flex items-center justify-center flex-shrink-0">
                   <svg className="w-24 h-24 transform -rotate-90">
-                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" className="text-slate-800" fill="transparent" />
+                    <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" className={isDarkMode ? 'text-slate-800' : 'text-slate-100'} fill="transparent" />
                     <circle
                       cx="48"
                       cy="48"
@@ -479,15 +552,19 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                       strokeLinecap="round"
                     />
                   </svg>
-                  <span className="absolute text-lg font-black text-white">{yearEfficiency}%</span>
+                  <span className={`absolute text-lg font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{yearEfficiency}%</span>
                 </div>
               </div>
 
               {/* 12-Month Year Bar Graph */}
-              <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
+              <div className={`p-5 rounded-2xl border space-y-4 ${
+                isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div className={`flex items-center justify-between text-xs font-bold ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                }`}>
                   <span>12-MONTH ANNUAL PERFORMANCE BREAKDOWN</span>
-                  <span className="text-emerald-400">
+                  <span className="text-emerald-600 dark:text-emerald-400">
                     {hoveredYearMonth ? `${hoveredYearMonth.name}: ${hoveredYearMonth.rate}% (${hoveredYearMonth.completed}/${hoveredYearMonth.total})` : 'Target: ≥90%'}
                   </span>
                 </div>
@@ -500,16 +577,16 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                       onMouseLeave={() => setHoveredYearMonth(null)}
                       className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-pointer"
                     >
-                      <span className="text-[9px] font-bold text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity">
                         {item.rate}%
                       </span>
-                      <div className="w-full bg-slate-800 rounded-t-lg overflow-hidden h-28 flex items-end">
+                      <div className={`w-full rounded-t-lg overflow-hidden h-28 flex items-end ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                         <div
                           className="w-full bg-gradient-to-t from-emerald-600 to-teal-400 rounded-t-lg group-hover:from-emerald-500 group-hover:to-teal-300 transition-all duration-300"
                           style={{ height: `${item.rate}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-slate-400 font-bold">{item.name}</span>
+                      <span className={`text-[10px] font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{item.name}</span>
                     </div>
                   ))}
                 </div>
@@ -520,11 +597,15 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex justify-between items-center text-xs text-slate-400">
+        <div className={`p-4 border-t flex justify-between items-center text-xs transition-colors ${
+          isDarkMode 
+            ? 'border-slate-800 bg-slate-900/90 text-slate-400' 
+            : 'border-slate-100 bg-white/90 text-slate-500'
+        }`}>
           <span>Real-time formula calculation engine active</span>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold transition-all shadow-md shadow-purple-600/30"
+            className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold transition-all shadow-md shadow-purple-600/30 cursor-pointer"
           >
             Done
           </button>
@@ -534,4 +615,3 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
     </div>
   );
 };
-

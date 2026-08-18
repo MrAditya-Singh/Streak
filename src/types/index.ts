@@ -103,6 +103,7 @@ export interface UserProfile {
   platformUrls?: Record<string, string>;
   platformVerified?: Record<string, boolean>;
   platformStats?: Record<string, { solved?: number; rating?: number; rank?: string; lastFetched?: string }>;
+  platformStreaks?: Record<string, number>;
 }
 
 export interface ActivityLogEntry {

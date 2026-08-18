@@ -173,7 +173,9 @@ export const App: React.FC = () => {
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('effstreak_dark_mode') === 'true';
+  });
 
   useEffect(() => {
     document.documentElement.classList.remove('dark');
@@ -1329,12 +1331,14 @@ export const App: React.FC = () => {
         logs={logs}
         activities={activities}
         onToggleActivity={handleToggleActivity}
+        isDarkMode={isDarkMode}
       />
 
       <EfficiencyAnalyticsModal
         isOpen={isEfficiencyAnalyticsOpen}
         onClose={() => setIsEfficiencyAnalyticsOpen(false)}
         activities={activities}
+        isDarkMode={isDarkMode}
       />
 
       <WidgetSimulatorModal
@@ -1343,6 +1347,7 @@ export const App: React.FC = () => {
         user={user}
         activities={activities}
         summary={summary}
+        isDarkMode={isDarkMode}
       />
 
       <LiveSyncModal
@@ -1351,6 +1356,7 @@ export const App: React.FC = () => {
         user={user}
         onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
         onSyncActivities={handleSyncActivities}
+        isDarkMode={isDarkMode}
       />
 
       <SoloLevelingModal
@@ -1358,6 +1364,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSoloLevelingOpen(false)}
         user={user}
         onLevelUp={() => handleAwardXP(100)}
+        isDarkMode={isDarkMode}
       />
 
       <SettingsModal
@@ -1399,6 +1406,7 @@ export const App: React.FC = () => {
           currentEmail={syncEmail}
           currentPhone={syncPhone}
           isInline={false}
+          isDarkMode={isDarkMode}
         />
       )}
     </div>

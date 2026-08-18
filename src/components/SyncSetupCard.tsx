@@ -5,13 +5,15 @@ interface SyncSetupCardProps {
   currentEmail?: string;
   currentPhone?: string;
   isInline?: boolean; // true = settings panel, false = first-time overlay
+  isDarkMode?: boolean;
 }
 
 export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
   onConfirm,
   currentEmail = '',
   currentPhone = '',
-  isInline = false
+  isInline = false,
+  isDarkMode = false,
 }) => {
   const [email, setEmail] = useState(currentEmail);
   const [phone, setPhone] = useState(currentPhone);
@@ -41,39 +43,30 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
   };
 
   const card = (
-    <div style={{
-      background: 'linear-gradient(135deg, #101428 0%, #161e38 50%, #0c2040 100%)',
-      border: '1.5px solid rgba(99,102,241,0.4)',
-      borderRadius: 24,
-      padding: '32px 28px',
-      maxWidth: 440,
-      width: '100%',
-      boxShadow: '0 25px 70px rgba(0,0,0,0.6), 0 0 50px rgba(99,102,241,0.2)',
-      color: '#fff',
-      fontFamily: '"Inter", system-ui, sans-serif',
-      boxSizing: 'border-box',
-    }}>
+    <div className={`rounded-3xl p-7 sm:p-8 max-w-md w-full shadow-2xl border transition-colors duration-300 ${
+      isDarkMode 
+        ? 'bg-gradient-to-br from-[#101428] via-[#161e38] to-[#0c2040] border-indigo-500/40 text-white shadow-black/60' 
+        : 'bg-white border-indigo-100 text-slate-900 shadow-slate-900/10'
+    }`}>
       {/* Icon */}
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{
-          width: 68, height: 68, borderRadius: '50%',
-          background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 30, marginBottom: 14,
-          boxShadow: '0 8px 24px rgba(99,102,241,0.4)',
-        }}>🔗</div>
-        <h2 style={{ margin: '0 0 8px', fontSize: 21, fontWeight: 800, letterSpacing: '-0.4px' }}>
+      <div className="text-center mb-6">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 inline-flex items-center justify-center text-3xl mb-3.5 shadow-lg shadow-indigo-500/30 text-white">
+          🔗
+        </div>
+        <h2 className={`text-xl font-extrabold tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
           Connect Unified Account
         </h2>
-        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+        <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-white/60' : 'text-slate-500'}`}>
           Enter your Gmail and Contact number to link your account. Your habits will sync instantly across laptop and mobile.
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16 }}>
+      <div className="space-y-3.5 mb-4">
         {/* Email Field */}
         <div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6, letterSpacing: '0.05em' }}>
+          <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${
+            isDarkMode ? 'text-white/50' : 'text-slate-500'
+          }`}>
             ✉️ Gmail Address
           </label>
           <input
@@ -81,18 +74,19 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
             placeholder="example@gmail.com"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setError(''); }}
-            style={{
-              width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid rgba(99,102,241,0.3)',
-              background: 'rgba(255,255,255,0.06)', color: '#fff',
-              fontSize: 14, outline: 'none', boxSizing: 'border-box',
-              transition: 'border-color 0.2s',
-            }}
+            className={`w-full px-4 py-3 rounded-xl text-sm outline-none transition-colors border focus:border-indigo-500 ${
+              isDarkMode 
+                ? 'bg-white/5 border-indigo-500/30 text-white placeholder-slate-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+            }`}
           />
         </div>
 
         {/* Phone Field */}
         <div>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6, letterSpacing: '0.05em' }}>
+          <label className={`block text-[11px] font-bold uppercase tracking-wider mb-1.5 ${
+            isDarkMode ? 'text-white/50' : 'text-slate-500'
+          }`}>
             📱 Contact Number
           </label>
           <input
@@ -100,22 +94,21 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
             placeholder="+91 98765 43210"
             value={phone}
             onChange={(e) => { setPhone(e.target.value); setError(''); }}
-            style={{
-              width: '100%', padding: '12px 16px', borderRadius: 10, border: '1.5px solid rgba(99,102,241,0.3)',
-              background: 'rgba(255,255,255,0.06)', color: '#fff',
-              fontSize: 14, outline: 'none', boxSizing: 'border-box',
-              transition: 'border-color 0.2s',
-            }}
+            className={`w-full px-4 py-3 rounded-xl text-sm outline-none transition-colors border focus:border-indigo-500 ${
+              isDarkMode 
+                ? 'bg-white/5 border-indigo-500/30 text-white placeholder-slate-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+            }`}
           />
         </div>
       </div>
 
       {error && (
-        <div style={{
-          background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)',
-          borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#f87171',
-          marginBottom: 16,
-        }}>
+        <div className={`rounded-xl p-3 text-xs mb-4 border ${
+          isDarkMode 
+            ? 'bg-red-500/15 border-red-500/30 text-red-400' 
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
           ⚠️ {error}
         </div>
       )}
@@ -123,29 +116,17 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
       {/* Submit */}
       <button
         onClick={handleSubmit}
-        style={{
-          width: '100%', padding: '14px 0', border: 'none', borderRadius: 12, cursor: 'pointer',
-          background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)',
-          color: '#fff', fontSize: 15, fontWeight: 700, letterSpacing: '0.3px',
-          boxShadow: '0 6px 20px rgba(99,102,241,0.4)',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          (e.target as HTMLButtonElement).style.transform = 'translateY(-1px)';
-          (e.target as HTMLButtonElement).style.boxShadow = '0 10px 28px rgba(99,102,241,0.5)';
-        }}
-        onMouseLeave={(e) => {
-          (e.target as HTMLButtonElement).style.transform = '';
-          (e.target as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(99,102,241,0.4)';
-        }}
+        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-bold tracking-wide shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 transition-all cursor-pointer"
       >
         {currentEmail || currentPhone ? 'Update Linked Account' : 'Connect & Sync Account →'}
       </button>
 
       {(currentEmail || currentPhone) && (
-        <div style={{ margin: '14px 0 0', textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
-          {currentEmail && <div>Linked Gmail: <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{currentEmail}</span></div>}
-          {currentPhone && <div>Linked Phone: <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{currentPhone}</span></div>}
+        <div className={`mt-3.5 text-center text-xs space-y-0.5 ${
+          isDarkMode ? 'text-white/45' : 'text-slate-500'
+        }`}>
+          {currentEmail && <div>Linked Gmail: <span className="text-indigo-500 font-semibold">{currentEmail}</span></div>}
+          {currentPhone && <div>Linked Phone: <span className="text-indigo-500 font-semibold">{currentPhone}</span></div>}
         </div>
       )}
     </div>
@@ -155,13 +136,9 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
 
   // Full-screen overlay for first-time setup
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.85)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 20,
-      backdropFilter: 'blur(8px)',
-    }}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-5 backdrop-blur-md animate-fade-in ${
+      isDarkMode ? 'bg-black/85' : 'bg-slate-900/50'
+    }`}>
       {card}
     </div>
   );

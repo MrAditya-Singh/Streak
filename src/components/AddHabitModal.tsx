@@ -127,32 +127,52 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-[#121622] border border-white/10 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col animate-fade-in">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in ${
+      isDarkMode ? 'bg-black/80' : 'bg-slate-900/50'
+    }`}>
+      <div className={`rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col border transition-colors duration-300 ${
+        isDarkMode 
+          ? 'bg-[#121622] border-white/10 text-white shadow-purple-950/20' 
+          : 'bg-white border-slate-200 text-slate-900 shadow-slate-900/10'
+      }`}>
         
         {/* Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-black/40">
+        <div className={`p-5 border-b flex items-center justify-between transition-colors ${
+          isDarkMode ? 'border-white/10 bg-black/40' : 'border-slate-100 bg-white'
+        }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
               <Plus className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-base font-black text-white">Add New Habit to Daily Tracker</h2>
-              <p className="text-xs text-slate-400">Choose between self-tracked manual tasks or auto-synced online profiles</p>
+              <h2 className={`text-base font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                Add New Habit to Daily Tracker
+              </h2>
+              <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Choose between self-tracked manual tasks or auto-synced online profiles
+              </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+            className={`p-2 rounded-xl transition-all cursor-pointer ${
+              isDarkMode 
+                ? 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white' 
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 2-Option Segmented Selector: Manual vs Online */}
-        <div className="p-4 bg-black/20 border-b border-white/5">
-          <div className="grid grid-cols-2 p-1 bg-black/50 border border-white/10 rounded-2xl">
+        <div className={`p-4 border-b transition-colors ${
+          isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-50/80 border-slate-100'
+        }`}>
+          <div className={`grid grid-cols-2 p-1 border rounded-2xl ${
+            isDarkMode ? 'bg-black/50 border-white/10' : 'bg-white border-slate-200 shadow-xs'
+          }`}>
             <button
               onClick={() => {
                 soundFx.playClick();
@@ -160,8 +180,10 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
               }}
               className={`py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 mode === 'manual'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25'
+                  : isDarkMode
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Dumbbell className="w-4 h-4" />
@@ -175,8 +197,10 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
               }}
               className={`py-2.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 mode === 'online'
-                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-500/25'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md shadow-purple-500/25'
+                  : isDarkMode
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Globe className="w-4 h-4" />
@@ -186,7 +210,7 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
         </div>
 
         {/* Form Container */}
-        <div className="p-6">
+        <div className={`p-6 transition-colors ${isDarkMode ? 'bg-[#121622]' : 'bg-white'}`}>
           
           {/* ======================================================== */}
           {/* 1. MANUAL HABIT FORM (OFFLINE / PERSONAL / GYM / STUDY)  */}
@@ -194,13 +218,17 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
           {mode === 'manual' && (
             <form onSubmit={handleSubmitManual} className="space-y-4">
               <div>
-                <label className="text-[11px] font-bold text-slate-300">Habit / Task Name</label>
+                <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Habit / Task Name</label>
                 <input
                   type="text"
                   placeholder="e.g. Gym Workout, Read 10 Pages, German B2, Meditation"
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
-                  className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
+                  className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
+                    isDarkMode 
+                      ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600' 
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                  }`}
                   required
                   autoFocus
                 />
@@ -208,11 +236,15 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">Category</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Category</label>
                   <select
                     value={manualCategory}
                     onChange={(e) => setManualCategory(e.target.value as ActivityCategory)}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   >
                     <option value="fitness">Fitness / Health / Gym</option>
                     <option value="education">Education / Study / Books</option>
@@ -225,37 +257,49 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">Planned Duration (Minutes)</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Planned Duration (Minutes)</label>
                   <input
                     type="number"
                     min={5}
                     max={480}
                     value={manualDuration}
                     onChange={(e) => setManualDuration(Number(e.target.value))}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 font-mono ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">XP Reward on Completion</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>XP Reward on Completion</label>
                   <input
                     type="number"
                     min={5}
                     max={100}
                     value={manualXpReward}
                     onChange={(e) => setManualXpReward(Number(e.target.value))}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 font-mono ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">Priority (1-5)</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Priority (1-5)</label>
                   <select
                     value={manualPriority}
                     onChange={(e) => setManualPriority(Number(e.target.value))}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   >
                     <option value={5}>⭐⭐⭐⭐⭐ 5 (High Urgent)</option>
                     <option value={4}>⭐⭐⭐⭐ 4 (High)</option>
@@ -266,16 +310,20 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-                <div className="text-xs text-slate-300">
-                  <span className="font-bold text-white">Counts to Strict Streak Policy:</span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Required every day to increase your overall streak counter.</p>
+              <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                isDarkMode 
+                  ? 'bg-emerald-500/10 border-emerald-500/20' 
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+              }`}>
+                <div className="text-xs">
+                  <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-emerald-950'}`}>Counts to Strict Streak Policy:</span>
+                  <p className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-emerald-800'}`}>Required every day to increase your overall streak counter.</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={countsToStreak}
                   onChange={(e) => setCountsToStreak(e.target.checked)}
-                  className="w-5 h-5 rounded border-white/20 text-emerald-500 focus:ring-0 cursor-pointer"
+                  className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-0 cursor-pointer"
                 />
               </div>
 
@@ -283,7 +331,11 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all cursor-pointer"
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-white/5 hover:bg-white/10 text-slate-300' 
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
                 >
                   Cancel
                 </button>
@@ -303,7 +355,7 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
           {mode === 'online' && (
             <form onSubmit={handleSubmitOnline} className="space-y-4">
               <div>
-                <label className="text-[11px] font-bold text-slate-300">Choose Online Platform</label>
+                <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Choose Online Platform</label>
                 <div className="grid grid-cols-3 gap-2 mt-1.5 max-h-36 overflow-y-auto pr-1">
                   {PRESET_ONLINE_PLATFORMS.map((p) => (
                     <button
@@ -312,12 +364,14 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                       onClick={() => handleSelectPreset(p.id)}
                       className={`p-2 rounded-xl text-left border text-xs font-bold transition-all cursor-pointer ${
                         selectedPlatformPreset === p.id
-                          ? 'bg-purple-600/30 border-purple-500 text-purple-300 shadow-xs'
-                          : 'bg-black/40 border-white/5 text-slate-400 hover:border-white/15'
+                          ? 'bg-purple-600/30 border-purple-500 text-purple-700 dark:text-purple-300 shadow-xs'
+                          : isDarkMode
+                            ? 'bg-black/40 border-white/5 text-slate-400 hover:border-white/15'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-purple-300'
                       }`}
                     >
                       <div>{p.name}</div>
-                      <span className="text-[9px] text-slate-500 uppercase font-mono">{p.category}</span>
+                      <span className={`text-[9px] uppercase font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>{p.category}</span>
                     </button>
                   ))}
                   <button
@@ -325,49 +379,63 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onClick={() => handleSelectPreset('custom')}
                     className={`p-2 rounded-xl text-left border text-xs font-bold transition-all cursor-pointer ${
                       selectedPlatformPreset === 'custom'
-                        ? 'bg-purple-600/30 border-purple-500 text-purple-300 shadow-xs'
-                        : 'bg-black/40 border-white/5 text-slate-400 hover:border-white/15'
+                        ? 'bg-purple-600/30 border-purple-500 text-purple-700 dark:text-purple-300 shadow-xs'
+                        : isDarkMode
+                          ? 'bg-black/40 border-white/5 text-slate-400 hover:border-white/15'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-purple-300'
                     }`}
                   >
                     <div>+ Custom Platform</div>
-                    <span className="text-[9px] text-slate-500 uppercase font-mono">Other</span>
+                    <span className={`text-[9px] uppercase font-mono ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Other</span>
                   </button>
                 </div>
               </div>
 
               {selectedPlatformPreset === 'custom' && (
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">Custom Platform / Service Name</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Custom Platform / Service Name</label>
                   <input
                     type="text"
                     placeholder="e.g. Kaggle, TryHackMe, Monkeytype, Duolingo, CodeChef"
                     value={onlineName}
                     onChange={(e) => setOnlineName(e.target.value)}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500"
+                    className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                    }`}
                     required
                   />
                 </div>
               )}
 
               <div>
-                <label className="text-[11px] font-bold text-slate-300">Public Profile Link or Username</label>
+                <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Public Profile Link or Username</label>
                 <input
                   type="text"
                   placeholder="https://... or username"
                   value={onlineProfileUrl}
                   onChange={(e) => setOnlineProfileUrl(e.target.value)}
-                  className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono"
+                  className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 font-mono ${
+                    isDarkMode 
+                      ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600' 
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                  }`}
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">Category</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Category</label>
                   <select
                     value={onlineCategory}
                     onChange={(e) => setOnlineCategory(e.target.value as ActivityCategory)}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-purple-500 ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   >
                     <option value="coding">Coding / Dev</option>
                     <option value="education">Education / Learning</option>
@@ -377,14 +445,18 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-300">Planned Duration (Minutes)</label>
+                  <label className={`text-[11px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Planned Duration (Minutes)</label>
                   <input
                     type="number"
                     min={10}
                     max={360}
                     value={onlineDuration}
                     onChange={(e) => setOnlineDuration(Number(e.target.value))}
-                    className="w-full mt-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
+                    className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-purple-500 font-mono ${
+                      isDarkMode 
+                        ? 'bg-black/60 border-white/10 text-white' 
+                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
                   />
                 </div>
               </div>
@@ -393,7 +465,11 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all cursor-pointer"
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-white/5 hover:bg-white/10 text-slate-300' 
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
                 >
                   Cancel
                 </button>
