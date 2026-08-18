@@ -56,16 +56,16 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
   };
 
   return (
-    <section className={`w-full rounded-3xl p-6 border transition-all duration-300 ${
+    <section className={`w-full rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all duration-300 ${
       isDarkMode 
         ? 'bg-[#0f1422]/95 border-slate-800/80 text-white shadow-2xl backdrop-blur-md' 
         : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-sm'
     }`}>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
         
         {/* 1. Left: Luxury Polaroid / Motivation Card */}
         <div className="lg:col-span-3 flex flex-col items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xs group">
-          <div className="w-full h-48 sm:h-52 rounded-xl overflow-hidden relative shadow-inner">
+          <div className="w-full h-44 sm:h-52 rounded-xl overflow-hidden relative shadow-inner">
             <img
               src="/images/char_hero.jpg"
               alt="Focus Motivation"
@@ -88,7 +88,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         </div>
 
         {/* 2. Center: 5-Week Grouped Bar Chart & Weekly Circular Efficiency Gauges */}
-        <div className="lg:col-span-6 flex flex-col justify-between space-y-4 p-5 rounded-2xl bg-white/80 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 shadow-xs relative">
+        <div className="lg:col-span-6 flex flex-col justify-between space-y-4 p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 shadow-xs relative overflow-hidden">
           
           {/* Week Header Labels */}
           <div className="grid grid-cols-5 text-center text-xs font-serif-title italic font-bold border-b border-slate-200/80 dark:border-slate-800 pb-2">
@@ -100,8 +100,8 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
           </div>
 
           {/* Daily 30 Bars with Hover Tooltips */}
-          <div className="overflow-x-auto pb-1 relative">
-            <div className="min-w-[480px] h-34 flex items-end justify-between gap-1 pt-2">
+          <div className="overflow-x-auto touch-pan-x pb-1 relative scroller-smooth">
+            <div className="min-w-[420px] sm:min-w-[480px] h-34 flex items-end justify-between gap-1 pt-2">
               {daysData.map((d) => (
                 <div
                   key={d.day}

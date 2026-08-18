@@ -75,13 +75,13 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
   }, []);
 
   return (
-    <header className={`w-full rounded-3xl p-6 transition-all duration-300 border ${
+    <header className={`w-full rounded-2xl sm:rounded-3xl p-4 sm:p-6 transition-all duration-300 border ${
       isDarkMode 
         ? 'bg-[#0f1422]/95 border-slate-800/80 text-white shadow-2xl backdrop-blur-md' 
         : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-sm'
     }`}>
       {/* Top Main Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-center">
         
         {/* Left Section: Serif Calligraphic Title & Period Badges */}
         <div className="lg:col-span-3 space-y-3.5">

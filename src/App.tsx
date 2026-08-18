@@ -1291,12 +1291,12 @@ export const App: React.FC = () => {
 
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
+    <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 ${
       isDarkMode 
         ? 'bg-[#0b0f19] text-slate-100 font-sans' 
         : 'bg-[#F4EFE6] text-slate-900 font-sans'
     }`}>
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6 space-y-4 sm:space-y-6">
         
         {/* 1. TOP SHOWCASE HEADER (ESTHETIC TITLE, CONSISTENCY WAVE & LUXURY RING) */}
         <AestheticHeaderTracker

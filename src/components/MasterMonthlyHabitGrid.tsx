@@ -128,7 +128,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
   };
 
   return (
-    <section className={`w-full rounded-3xl p-5 sm:p-6 border transition-all duration-300 overflow-x-auto ${
+    <section className={`w-full rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all duration-300 overflow-hidden ${
       isDarkMode 
         ? 'bg-[#0b0f19] border-slate-800 text-white shadow-2xl backdrop-blur-md' 
         : 'bg-[#FCFBF8] border-[#E2DDD3] text-[#0f172a] shadow-sm'
@@ -150,7 +150,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
         </div>
 
         {/* 2-Phase Segmented Switch: Phase 1 (1-15) vs Phase 2 (16-31) vs All (1-31) */}
-        <div className={`flex items-center p-1 rounded-2xl border ${
+        <div className={`flex flex-wrap items-center p-1 rounded-2xl border ${
           isDarkMode ? 'bg-[#121622] border-slate-800' : 'bg-slate-100 border-slate-200 shadow-xs'
         }`}>
           <button
@@ -158,7 +158,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
               soundFx.playClick();
               setPhase(1);
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
               phase === 1
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                 : isDarkMode
@@ -174,7 +174,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
               soundFx.playClick();
               setPhase(2);
             }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
               phase === 2
                 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                 : isDarkMode
@@ -203,7 +203,8 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
         </div>
       </div>
 
-      <div className="w-full min-w-[780px] flex items-start gap-3">
+      <div className="w-full overflow-x-auto touch-pan-x scroller-smooth pb-2">
+        <div className="min-w-[700px] sm:min-w-[780px] flex items-start gap-3">
         
         {/* ======================================================== */}
         {/* 1. LEFT COLUMN: DAILY HABITS                             */}
@@ -485,8 +486,8 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
             })}
           </div>
         </div>
-
       </div>
-    </section>
-  );
+    </div>
+  </section>
+);
 };
