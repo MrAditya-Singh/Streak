@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Settings, 
@@ -193,6 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'accounts' | 'activities' | 'general' | 'backup'>('profile');
 
   // Comprehensive Personal Profile Form State
+  // These update whenever the user prop changes (e.g., from Firestore remote load)
   const [profileName, setProfileName] = useState(user.name || 'Aditya Singh');
   const [profileEmail, setProfileEmail] = useState(user.email || 'mradityasinghofficial1@gmail.com');
   const [profileAge, setProfileAge] = useState<number | string>(user.age || 21);
@@ -203,6 +204,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [profilePhone, setProfilePhone] = useState(user.phoneNumber || '+91 9876543210');
   const [profileBio, setProfileBio] = useState(user.bio || 'Solo Hunter • S-Rank Aspirant • Competitive Programmer');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // ✅ FIX: Auto-sync profile form when user prop updates from cloud/Firestore
+  useEffect(() => {
+    if (user.name) setProfileName(user.name);
+    if (user.email) setProfileEmail(user.email);
+    if (user.age) setProfileAge(user.age);
+    if (user.bloodGroup) setProfileBloodGroup(user.bloodGroup);
+    if (user.height) setProfileHeight(user.height);
+    if (user.weight) setProfileWeight(user.weight);
+    if (user.resident) setProfileResident(user.resident);
+    if (user.phoneNumber) setProfilePhone(user.phoneNumber);
+    if (user.bio) setProfileBio(user.bio);
+  }, [user.name, user.email, user.phoneNumber, user.age, user.bloodGroup, user.height, user.weight, user.resident, user.bio]);
 
   // Custom platform creation state
   const [showAddCustomPlatform, setShowAddCustomPlatform] = useState(false);
@@ -489,20 +503,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     e.preventDefault();
     soundFx.playCheck();
     setIsSavingProfile(true);
+
+    const cleanEmail = profileEmail.trim().toLowerCase();
+    const cleanPhone = profilePhone.trim();
+
     const profilePayload: Partial<UserProfile> = {
       name: profileName.trim(),
-      email: profileEmail.trim().toLowerCase(),
+      email: cleanEmail,
       age: Number(profileAge) || 21,
       bloodGroup: profileBloodGroup,
       height: profileHeight.trim(),
       weight: profileWeight.trim(),
       resident: profileResident.trim(),
-      phoneNumber: profilePhone.trim(),
+      phoneNumber: cleanPhone,
       bio: profileBio.trim(),
     };
 
+    // ✅ FIX: onUpdateUser in App.tsx (handleUpdateUser) now also re-anchors
+    // the Firestore listener to the new email/phone sync key automatically.
     onUpdateUser(profilePayload);
     localStorage.setItem('effstreak_user_profile', JSON.stringify(profilePayload));
+
+    // Also persist sync identity directly to localStorage so it survives refresh
+    if (cleanEmail) localStorage.setItem('effstreak_sync_email', cleanEmail);
+    if (cleanPhone) localStorage.setItem('effstreak_sync_phone', cleanPhone);
 
     try {
       const res = await fetch(`${BACKEND_API_BASE}/auth/profile`, {
@@ -515,12 +539,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       });
       if (res.ok) {
         soundFx.playLevelUp();
-        showToast('✓ Profile & Personal Information saved to Cloud Database!', 'success');
+        showToast('✓ Profile saved! Cloud Sync re-anchored to: ' + cleanEmail, 'success');
       } else {
-        showToast('✓ Profile updated locally.', 'success');
+        showToast('✓ Profile & Sync Identity updated locally.', 'success');
       }
     } catch (err) {
-      showToast('✓ Profile updated locally.', 'success');
+      showToast('✓ Profile & Sync Identity updated locally.', 'success');
     } finally {
       setIsSavingProfile(false);
     }

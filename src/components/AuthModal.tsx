@@ -45,7 +45,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const { user } = await signInWithGoogle();
       if (user) {
         soundFx.playLevelUp();
-        const email = user.email || 'mradityasinghofficial1@gmail.com';
+        const email = (user.email || 'mradityasinghofficial1@gmail.com').trim().toLowerCase();
         const stableId = getStableUserId(email);
         const googleProfile: Partial<UserProfile> = {
           uid: stableId,
@@ -53,7 +53,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           email: email,
           avatarUrl: user.photoURL || '/images/char_hero.jpg',
         };
-
+        // Persist sync identity to localStorage immediately
+        localStorage.setItem('effstreak_sync_email', email);
         onSelectUser(googleProfile);
         showNotification(`⚡ Signed in with Google as ${googleProfile.name}!`);
         setTimeout(() => {
@@ -69,6 +70,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         name: 'Aditya (Google Verified)',
         email: fallbackEmail,
       };
+      localStorage.setItem('effstreak_sync_email', fallbackEmail);
       onSelectUser(verifiedProfile);
       showNotification(`✓ Connected Google Verified Account (${verifiedProfile.email})`);
       setTimeout(() => {
@@ -218,14 +220,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 onClick={() => {
                   const inputEl = document.getElementById('custom_sync_email_input') as HTMLInputElement;
-                  const val = inputEl?.value?.trim() || 'mradityasinghofficial1@gmail.com';
-                  const stableId = getStableUserId(val);
+                  const val = (inputEl?.value?.trim() || 'mradityasinghofficial1@gmail.com');
                   const isPhone = /^[+0-9\s-]+$/.test(val);
+                  const cleanEmail = isPhone ? '' : val.toLowerCase();
+                  const cleanPhone = isPhone ? val : '';
+                  const stableId = getStableUserId(val);
                   soundFx.playClick();
+                  // Persist sync identity immediately so listener re-anchors
+                  if (cleanEmail) localStorage.setItem('effstreak_sync_email', cleanEmail);
+                  if (cleanPhone) localStorage.setItem('effstreak_sync_phone', cleanPhone);
                   onSelectUser({
                     uid: stableId,
-                    email: isPhone ? undefined : val,
-                    phoneNumber: isPhone ? val : undefined,
+                    email: cleanEmail || undefined,
+                    phoneNumber: cleanPhone || undefined,
                     name: isPhone ? `User (${val})` : val.split('@')[0],
                   });
                   showNotification(`⚡ Linked & Synced with: ${val}`);

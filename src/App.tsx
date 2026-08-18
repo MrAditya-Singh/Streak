@@ -370,8 +370,32 @@ export const App: React.FC = () => {
       unsubscribeCloud();
       unsubscribeFirestore();
       clearTimeout(safeguardTimer);
+      // Reset on key change so next identity switch re-loads from DB unconditionally
+      initialRemoteLoaded.current = false;
     };
   }, [activeSyncKey]);
+
+  // ⚡ 4. RENDER BACKEND WAKE-UP PING
+  // Render Free Tier shuts down after 15min inactivity (30-50s cold boot).
+  // We fire a lightweight HEAD ping immediately on app mount so the server
+  // is woken up in the background. By the time user clicks Live Sync, the
+  // server is already warm and responds instantly.
+  useEffect(() => {
+    const wakeUpBackend = async () => {
+      try {
+        await fetch(`${BACKEND_API_BASE}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(60000), // wait up to 60s for wake-up
+        });
+        console.log('✅ [Backend] Server warmed up and ready.');
+      } catch {
+        // Silently ignore — backend offline or CORS; app still works via Firestore
+      }
+    };
+    // Slight delay so main UI paint is not blocked
+    const t = setTimeout(wakeUpBackend, 500);
+    return () => clearTimeout(t);
+  }, []); // Run once on mount
 
   // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
   useEffect(() => {
