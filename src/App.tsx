@@ -147,33 +147,10 @@ export const App: React.FC = () => {
   }, [syncEmail, syncPhone, user]);
 
   const handleConfirmSyncIdentity = (email: string, phone: string) => {
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPhone = phone.trim();
-    localStorage.setItem('effstreak_sync_email', cleanEmail);
-    localStorage.setItem('effstreak_sync_phone', cleanPhone);
-    setSyncEmail(cleanEmail);
-    setSyncPhone(cleanPhone);
-    setUser((prev) => ({
-      ...prev,
-      email: cleanEmail || prev.email,
-      phoneNumber: cleanPhone || prev.phoneNumber,
-    }));
-  };
-
-  const handleUpdateUser = (updated: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...updated }));
-    if (updated.email !== undefined || updated.phoneNumber !== undefined) {
-      const nextEmail = (updated.email !== undefined ? updated.email : syncEmail).trim().toLowerCase();
-      const nextPhone = (updated.phoneNumber !== undefined ? updated.phoneNumber : syncPhone).trim();
-      if (nextEmail && nextEmail !== syncEmail) {
-        localStorage.setItem('effstreak_sync_email', nextEmail);
-        setSyncEmail(nextEmail);
-      }
-      if (nextPhone && nextPhone !== syncPhone) {
-        localStorage.setItem('effstreak_sync_phone', nextPhone);
-        setSyncPhone(nextPhone);
-      }
-    }
+    localStorage.setItem('effstreak_sync_email', email);
+    localStorage.setItem('effstreak_sync_phone', phone);
+    setSyncEmail(email);
+    setSyncPhone(phone);
   };
 
   // ─── Guard: prevent self-echo when we apply remote state ─────────────────
@@ -1377,7 +1354,7 @@ export const App: React.FC = () => {
         isOpen={isSyncOpen}
         onClose={() => setIsSyncOpen(false)}
         user={user}
-        onUpdateUser={handleUpdateUser}
+        onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
         onSyncActivities={handleSyncActivities}
         isDarkMode={isDarkMode}
       />
@@ -1397,7 +1374,7 @@ export const App: React.FC = () => {
         activities={activities}
         history={history}
         logs={logs}
-        onUpdateUser={handleUpdateUser}
+        onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
         onAddActivity={handleAddActivity}
         onDeleteActivity={handleDeleteActivity}
         onToggleActivityStreakInclusion={handleToggleActivityStreakInclusion}
@@ -1418,7 +1395,7 @@ export const App: React.FC = () => {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={user}
-        onSelectUser={handleUpdateUser}
+        onSelectUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
         isDarkMode={isDarkMode}
       />
 

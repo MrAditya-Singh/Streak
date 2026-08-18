@@ -204,19 +204,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [profileBio, setProfileBio] = useState(user.bio || 'Solo Hunter • S-Rank Aspirant • Competitive Programmer');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Synchronize with external user profile updates (e.g., Google OAuth or Cloud Sync)
-  React.useEffect(() => {
-    if (user.name) setProfileName(user.name);
-    if (user.email) setProfileEmail(user.email);
-    if (user.age !== undefined) setProfileAge(user.age);
-    if (user.bloodGroup) setProfileBloodGroup(user.bloodGroup);
-    if (user.height) setProfileHeight(user.height);
-    if (user.weight) setProfileWeight(user.weight);
-    if (user.resident) setProfileResident(user.resident);
-    if (user.phoneNumber) setProfilePhone(user.phoneNumber);
-    if (user.bio) setProfileBio(user.bio);
-  }, [user]);
-
   // Custom platform creation state
   const [showAddCustomPlatform, setShowAddCustomPlatform] = useState(false);
   const [customPlatformName, setCustomPlatformName] = useState('');

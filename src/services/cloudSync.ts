@@ -33,41 +33,26 @@ export const DEVICE_ID = (() => {
  * Priority: Firebase UID > email > phoneNumber > name > canonical fallback
  * Using email as the primary key ensures cross-device identity without Firebase auth on both.
  */
-export function getStableUserId(identity?: Partial<UserProfile> | string, fallbackPhone?: string): string {
+export function getStableUserId(identity?: Partial<UserProfile> | string): string {
   if (!identity) return 'user_aditya_canonical';
 
-  let email = '';
-  let phone = '';
-
+  let raw = '';
   if (typeof identity === 'string') {
-    if (identity.includes('@')) {
-      email = identity;
-    } else if (/^\+?[0-9\s\-]+$/.test(identity.trim())) {
-      phone = identity;
-    } else {
-      email = identity;
-    }
+    raw = identity;
   } else {
-    email = identity.email || '';
-    phone = identity.phoneNumber || fallbackPhone || '';
+    // Prefer email — it's the same on both devices for the same Google account.
+    // Fall back to uid only if email is not available.
+    raw = identity.email || identity.uid || identity.phoneNumber || identity.name || 'user_aditya_canonical';
   }
 
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+  const clean = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .substring(0, 64);
 
-  // 🔑 CANONICAL UNIFIED RULE:
-  // If email exists, it is the master identity key across all devices (Mobile & Laptop)
-  if (cleanEmail) {
-    const emailSanitized = cleanEmail.replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 64);
-    return `user_${emailSanitized}`;
-  }
-
-  // If only phone was provided
-  if (cleanPhone) {
-    return `user_phone_${cleanPhone}`;
-  }
-
-  return 'user_aditya_canonical';
+  return `user_${clean || 'canonical'}`;
 }
 
 // BroadcastChannel for instant sub-millisecond sync across tabs/Electron on the same device
