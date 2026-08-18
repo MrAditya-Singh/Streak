@@ -134,115 +134,81 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
  * Queries user.status endpoint for submissions made today.
  */
 export async function syncCodeforces(handle: string): Promise<SyncResult> {
-  if (!handle || handle.trim() === '') {
+  try {
+    if (!handle || handle.trim() === '') {
+      return {
+        platform: 'Codeforces',
+        hasActivityToday: false,
+        eventCount: 0,
+        details: 'No Codeforces handle configured',
+        timestamp: new Date().toLocaleTimeString(),
+        autoCompleted: false,
+      };
+    }
+
+    const cleanHandle = handle.trim();
+    const response = await fetch(`https://codeforces.com/api/user.status?handle=${encodeURIComponent(cleanHandle)}&from=1&count=25`, {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!response.ok) {
+      throw new Error(`Codeforces API status ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.status !== 'OK') {
+      throw new Error(data.comment || 'Codeforces API error');
+    }
+
+    const now = Date.now() / 1000;
+    const startOfToday = now - 86400 * 1.5; // Within last 36 hours for timezone leeway
+
+    interface CFSubmission {
+      creationTimeSeconds: number;
+      verdict?: string;
+      problem?: { name: string };
+    }
+
+    const submissions: CFSubmission[] = data.result || [];
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
+
+    const todaySubmissions = submissions.filter((s) => {
+      const subDate = new Date(s.creationTimeSeconds * 1000).toLocaleDateString('en-CA');
+      return subDate === todayStr;
+    });
+
+    const hasActivity = todaySubmissions.length > 0;
+    const acceptedCount = todaySubmissions.filter((s) => s.verdict === 'OK').length;
+    const latestProblem = todaySubmissions[0]?.problem?.name || (submissions[0]?.problem?.name ?? 'Problem');
+    
+    const details = hasActivity
+      ? `${todaySubmissions.length} submissions today (${acceptedCount} AC) • ${latestProblem}`
+      : `No submissions today (checked recent ${submissions.length} for @${cleanHandle})`;
+
+    const recentDates = submissions.map((s) =>
+      new Date(s.creationTimeSeconds * 1000).toLocaleDateString('en-CA')
+    );
+
+    return {
+      platform: 'Codeforces',
+      hasActivityToday: hasActivity,
+      eventCount: todaySubmissions.length,
+      details,
+      timestamp: new Date().toLocaleTimeString(),
+      autoCompleted: hasActivity,
+      recentDates,
+    };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Network error';
     return {
       platform: 'Codeforces',
       hasActivityToday: false,
       eventCount: 0,
-      details: 'No Codeforces handle configured',
+      details: `Codeforces sync warning: ${errorMsg}`,
       timestamp: new Date().toLocaleTimeString(),
       autoCompleted: false,
       recentDates: [],
     };
   }
-
-  const cleanHandle = handle.trim();
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-  const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-
-  // 1. Direct Codeforces API fetch
-  try {
-    const response = await fetch(`https://codeforces.com/api/user.status?handle=${encodeURIComponent(cleanHandle)}&from=1&count=50`, {
-      signal: AbortSignal.timeout(4000),
-    });
-    if (response.ok) {
-      const data = await response.json();
-      if (data.status === 'OK' && Array.isArray(data.result)) {
-        const submissions = data.result;
-        const recentDates: string[] = [];
-        let acceptedToday = 0;
-        let latestProblem = '';
-
-        submissions.forEach((s: any) => {
-          if (s.verdict === 'OK' && s.creationTimeSeconds) {
-            const subDate = new Date(s.creationTimeSeconds * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-            recentDates.push(subDate);
-            if (subDate === todayStr || subDate === yesterdayStr) {
-              acceptedToday++;
-              if (!latestProblem && s.problem?.name) {
-                latestProblem = s.problem.name;
-              }
-            }
-          }
-        });
-
-        const hasActivity = acceptedToday > 0 || recentDates.includes(todayStr);
-        return {
-          platform: 'Codeforces',
-          hasActivityToday: hasActivity,
-          eventCount: acceptedToday || submissions.length,
-          details: hasActivity
-            ? `Codeforces @${cleanHandle}: ${acceptedToday} AC submissions today (${latestProblem || 'Evanescent'})`
-            : `Codeforces @${cleanHandle}: ${recentDates.length} recent AC submissions logged`,
-          timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: hasActivity,
-          recentDates,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Direct Codeforces fetch fallback to Codolio:', err);
-  }
-
-  // 2. Fast Codolio Profile Aggregator Fallback (Instant <300ms, non-blocked)
-  try {
-    const codolioRes = await fetch(`https://api.codolio.com/profile?userKey=Mr.Aditya`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (codolioRes.ok) {
-      const cJson = await codolioRes.json();
-      const cards = cJson.data?.platformProfiles?.platformProfiles || [];
-      const cfCard = cards.find(
-        (c: any) => (c.platform || '').toLowerCase().includes('codeforces') || (c.platform || '').toLowerCase() === 'cf'
-      );
-      if (cfCard) {
-        const solved = cfCard.totalQuestionStats?.totalQuestionCounts || cfCard.userStats?.totalQuestionCounts || 69;
-        const calendar = cfCard.dailyActivityStatsResponse?.submissionCalendar || {};
-        const recentDates: string[] = [];
-        let hasToday = false;
-
-        Object.keys(calendar).forEach((ts) => {
-          const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-          recentDates.push(dStr);
-          if ((dStr === todayStr || dStr === yesterdayStr) && Number(calendar[ts]) > 0) {
-            hasToday = true;
-          }
-        });
-
-        return {
-          platform: 'Codeforces',
-          hasActivityToday: hasToday,
-          eventCount: hasToday ? 1 : solved,
-          details: `Codeforces @${cleanHandle}: ${solved} problems solved (${hasToday ? 'Activity logged' : 'Verified history synced'})`,
-          timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: hasToday,
-          recentDates,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Codolio Codeforces fast sync fallback notice:', err);
-  }
-
-  return {
-    platform: 'Codeforces',
-    hasActivityToday: false,
-    eventCount: 69,
-    details: `Codeforces @${cleanHandle} synced (69 Solved)`,
-    timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: false,
-    recentDates: [],
-  };
 }
 
 /**
