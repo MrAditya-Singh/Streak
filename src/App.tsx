@@ -111,22 +111,24 @@ export const App: React.FC = () => {
 
   // ─── Sync Identity (Gmail & Phone Number deterministic account mapping) ────
   const [syncEmail, setSyncEmail] = useState<string>(() => {
+    const saved = localStorage.getItem('effstreak_sync_email');
+    if (saved) return saved;
     const oldKey = localStorage.getItem('effstreak_sync_key') || '';
     if (oldKey && oldKey.includes('@')) {
       localStorage.setItem('effstreak_sync_email', oldKey);
-      localStorage.removeItem('effstreak_sync_key');
       return oldKey;
     }
-    return localStorage.getItem('effstreak_sync_email') || '';
+    return 'mradityasinghofficial1@gmail.com';
   });
   const [syncPhone, setSyncPhone] = useState<string>(() => {
+    const saved = localStorage.getItem('effstreak_sync_phone');
+    if (saved) return saved;
     const oldKey = localStorage.getItem('effstreak_sync_key') || '';
     if (oldKey && !oldKey.includes('@') && /^\+?[0-9]/.test(oldKey)) {
       localStorage.setItem('effstreak_sync_phone', oldKey);
-      localStorage.removeItem('effstreak_sync_key');
       return oldKey;
     }
-    return localStorage.getItem('effstreak_sync_phone') || '';
+    return '+91 9876543210';
   });
 
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
@@ -147,10 +149,33 @@ export const App: React.FC = () => {
   }, [syncEmail, syncPhone, user]);
 
   const handleConfirmSyncIdentity = (email: string, phone: string) => {
-    localStorage.setItem('effstreak_sync_email', email);
-    localStorage.setItem('effstreak_sync_phone', phone);
-    setSyncEmail(email);
-    setSyncPhone(phone);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
+    localStorage.setItem('effstreak_sync_email', cleanEmail);
+    localStorage.setItem('effstreak_sync_phone', cleanPhone);
+    setSyncEmail(cleanEmail);
+    setSyncPhone(cleanPhone);
+    setUser((prev) => ({
+      ...prev,
+      email: cleanEmail || prev.email,
+      phoneNumber: cleanPhone || prev.phoneNumber,
+    }));
+  };
+
+  const handleUpdateUser = (updated: Partial<UserProfile>) => {
+    setUser((prev) => ({ ...prev, ...updated }));
+    if (updated.email !== undefined || updated.phoneNumber !== undefined) {
+      const nextEmail = (updated.email !== undefined ? updated.email : syncEmail).trim().toLowerCase();
+      const nextPhone = (updated.phoneNumber !== undefined ? updated.phoneNumber : syncPhone).trim();
+      if (nextEmail && nextEmail !== syncEmail) {
+        localStorage.setItem('effstreak_sync_email', nextEmail);
+        setSyncEmail(nextEmail);
+      }
+      if (nextPhone && nextPhone !== syncPhone) {
+        localStorage.setItem('effstreak_sync_phone', nextPhone);
+        setSyncPhone(nextPhone);
+      }
+    }
   };
 
   // ─── Guard: prevent self-echo when we apply remote state ─────────────────
@@ -159,6 +184,7 @@ export const App: React.FC = () => {
   const isApplyingRemote = React.useRef(false);
   const remoteEchoTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncTimestamp = React.useRef<number>(0);
+  const initialRemoteLoaded = React.useRef<boolean>(false);
 
   // Modals state
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
@@ -231,7 +257,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     // ⚠️ CRITICAL: Prevent local state from overwriting Firestore during startup load
     if (!activeSyncKey || !hasLoadedFromCloud) {
-      console.log('📡 [Cloud Push Blocked] Waiting for initial remote state load or account resolution...');
       return;
     }
     // Skip push if we're currently applying a remote state update to prevent echo loops
@@ -259,7 +284,7 @@ export const App: React.FC = () => {
     let resolved = false;
 
     const applyRemoteState = (remoteState: any, exists: boolean = true) => {
-      console.log('⚡ [Cloud Sync] Received remote state. Exists:', exists);
+      console.log('⚡ [Cloud Sync] Received remote state from Firestore. Exists:', exists);
       
       resolved = true;
       setHasLoadedFromCloud(true);
@@ -268,15 +293,21 @@ export const App: React.FC = () => {
         return;
       }
 
-      // ⚠️ Loop Preventer Guard: Only apply changes if the remote update is strictly newer
       const remoteTime = Number(remoteState.updatedAt || 0);
-      if (remoteTime <= lastSyncTimestamp.current) {
-        console.log('📡 [Cloud Sync] Ignoring echoed or older snapshot (time:', remoteTime, '<= last:', lastSyncTimestamp.current, ')');
-        return;
+
+      // On initial load, always unconditionally accept the database state
+      if (initialRemoteLoaded.current) {
+        // ⚠️ Loop Preventer Guard for subsequent real-time updates:
+        if (remoteTime <= lastSyncTimestamp.current) {
+          console.log('📡 [Cloud Sync] Ignoring echoed snapshot (time:', remoteTime, '<= last:', lastSyncTimestamp.current, ')');
+          return;
+        }
+      } else {
+        initialRemoteLoaded.current = true;
       }
 
       // Update local timestamp to keep in sync
-      lastSyncTimestamp.current = remoteTime;
+      lastSyncTimestamp.current = remoteTime || Date.now();
 
       // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO CLEAN STATE
       if (remoteState.isReset) {
@@ -327,10 +358,10 @@ export const App: React.FC = () => {
     const unsubscribeFirestore = subscribeToFirestoreFullState(syncKey, applyRemoteState);
 
     // Safeguard: If no response from Firestore/Cloud after 1.5 seconds,
-    // assume starting fresh or offline, and allow local state updates.
+    // allow local writes.
     const safeguardTimer = setTimeout(() => {
       if (!resolved) {
-        console.log('⏰ [Cloud Sync Safeguard] No remote response within 1.5s. Enabling local writes.');
+        console.log('⏰ [Cloud Sync Safeguard] Firestore connected or starting fresh.');
         setHasLoadedFromCloud(true);
       }
     }, 1500);
@@ -1354,7 +1385,7 @@ export const App: React.FC = () => {
         isOpen={isSyncOpen}
         onClose={() => setIsSyncOpen(false)}
         user={user}
-        onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+        onUpdateUser={handleUpdateUser}
         onSyncActivities={handleSyncActivities}
         isDarkMode={isDarkMode}
       />
@@ -1374,7 +1405,7 @@ export const App: React.FC = () => {
         activities={activities}
         history={history}
         logs={logs}
-        onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+        onUpdateUser={handleUpdateUser}
         onAddActivity={handleAddActivity}
         onDeleteActivity={handleDeleteActivity}
         onToggleActivityStreakInclusion={handleToggleActivityStreakInclusion}
@@ -1395,7 +1426,7 @@ export const App: React.FC = () => {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={user}
-        onSelectUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+        onSelectUser={handleUpdateUser}
         isDarkMode={isDarkMode}
       />
 
