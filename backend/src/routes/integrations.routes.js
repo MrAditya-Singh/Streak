@@ -185,51 +185,26 @@ router.post('/sync', async (req, res) => {
     const githubUsername = userCanonicalIntegrations?.github?.username || user?.githubUsername || user?.platformUrls?.github || 'MrAditya-Singh';
     const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
-    // 1. Fetch Codolio profile (includes sub-profiles like GitHub), LeetCode direct, & Codeforces direct
-    let rawCodolio = null;
-    try {
-      rawCodolio = await fetchWithCache(`codolio_${codolioUsername}`, () =>
-        fetchPlatformData('codolio', codolioUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch Codolio profile:', err.message);
-    }
+    // 1. Fetch Codolio profile, LeetCode, Codeforces, GFG & GitHub concurrently in parallel
+    const [
+      codolioResult,
+      leetCodeResult,
+      codeforcesResult,
+      gfgResult,
+      gitHubResult
+    ] = await Promise.allSettled([
+      fetchWithCache(`codolio_${codolioUsername}`, () => fetchPlatformData('codolio', codolioUsername)),
+      fetchWithCache(`leetcode_${leetcodeUsername}`, () => fetchPlatformData('leetcode', leetcodeUsername)),
+      fetchWithCache(`codeforces_${codeforcesHandle}`, () => fetchPlatformData('codeforces', codeforcesHandle)),
+      fetchWithCache(`gfg_${gfgUsername}`, () => fetchPlatformData('gfg', gfgUsername)),
+      fetchWithCache(`github_${githubUsername}`, () => fetchPlatformData('github', githubUsername)),
+    ]);
 
-    let rawLeetCode = null;
-    try {
-      rawLeetCode = await fetchWithCache(`leetcode_${leetcodeUsername}`, () =>
-        fetchPlatformData('leetcode', leetcodeUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch LeetCode data directly:', err.message);
-    }
-
-    let rawCodeforces = null;
-    try {
-      rawCodeforces = await fetchWithCache(`codeforces_${codeforcesHandle}`, () =>
-        fetchPlatformData('codeforces', codeforcesHandle)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch Codeforces data directly:', err.message);
-    }
-
-    let rawGFG = null;
-    try {
-      rawGFG = await fetchWithCache(`gfg_${gfgUsername}`, () =>
-        fetchPlatformData('gfg', gfgUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch GFG data directly:', err.message);
-    }
-
-    let rawGitHub = null;
-    try {
-      rawGitHub = await fetchWithCache(`github_${githubUsername}`, () =>
-        fetchPlatformData('github', githubUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch GitHub data directly:', err.message);
-    }
+    const rawCodolio = codolioResult.status === 'fulfilled' ? codolioResult.value : null;
+    const rawLeetCode = leetCodeResult.status === 'fulfilled' ? leetCodeResult.value : null;
+    const rawCodeforces = codeforcesResult.status === 'fulfilled' ? codeforcesResult.value : null;
+    const rawGFG = gfgResult.status === 'fulfilled' ? gfgResult.value : null;
+    const rawGitHub = gitHubResult.status === 'fulfilled' ? gitHubResult.value : null;
 
     // Fetch existing GitHub & GFG activity from Firestore to prevent data wiping
     let existingGitHubActivity = {};
