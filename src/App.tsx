@@ -340,6 +340,10 @@ export const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
+  useEffect(() => {
+    document.title = 'Streak';
+  }, []);
+
   const handleToggleTheme = () => {
     setIsDarkMode((prev) => {
       const next = !prev;

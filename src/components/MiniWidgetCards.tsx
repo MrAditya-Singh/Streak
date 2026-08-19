@@ -44,7 +44,7 @@ export const MiniWidgetCards: React.FC<MiniWidgetCardsProps> = ({
         <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-white/10">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-lg overflow-hidden bg-black p-0.5 border border-purple-400">
-              <img src="/app-icon.png" alt="EffStreak" className="w-full h-full object-contain" />
+              <img src="/app-icon.png" alt="Streak" className="w-full h-full object-contain" />
             </div>
             <span className="text-xs font-black text-slate-900 dark:text-white tracking-wide flex items-center gap-1">
               STREAK WIDGET

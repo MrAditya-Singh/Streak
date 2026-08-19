@@ -1,6 +1,6 @@
 {
-  "name": "EffStreak - Solo Leveling Tracker",
-  "short_name": "EffStreak",
+  "name": "Streak",
+  "short_name": "Streak",
   "description": "Cross-Platform Gamified Streak & Productivity System",
   "start_url": "/",
   "display": "standalone",

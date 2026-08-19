@@ -29,7 +29,7 @@ export const DesktopFloatingWidget: React.FC<DesktopFloatingWidgetProps> = ({
       <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-lg overflow-hidden bg-black p-0.5 border border-blue-500/40">
-            <img src="/app-icon.png" alt="EffStreak" className="w-full h-full object-contain" />
+            <img src="/app-icon.png" alt="Streak" className="w-full h-full object-contain" />
           </div>
           <span className="text-[11px] font-black tracking-tight flex items-center gap-1">
             Eff<span className="text-duoGreen">Streak</span>

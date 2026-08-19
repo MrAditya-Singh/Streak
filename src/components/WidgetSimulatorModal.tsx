@@ -166,13 +166,13 @@ export const WidgetSimulatorModal: React.FC<WidgetSimulatorModalProps> = ({
                       soundFx.playCheck();
                       onClose();
                     }}
-                    title="Double-click to open EffStreak"
+                    title="Double-click to open Streak"
                     className="w-full max-w-md bg-black/95 backdrop-blur-2xl border-2 border-purple-500/50 rounded-2xl p-4 shadow-[0_0_30px_rgba(139,92,246,0.3)] text-white cursor-pointer hover:border-cyan-400 transition-all group"
                   >
                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-lg bg-black border border-purple-400 p-0.5 shadow-sm">
-                          <img src="/app-icon.png" alt="EffStreak" className="w-full h-full object-contain" />
+                          <img src="/app-icon.png" alt="Streak" className="w-full h-full object-contain" />
                         </div>
                         <div>
                           <div className="flex items-center gap-1">
@@ -220,12 +220,12 @@ export const WidgetSimulatorModal: React.FC<WidgetSimulatorModalProps> = ({
                       soundFx.playCheck();
                       onClose();
                     }}
-                    title="Double-click to open EffStreak"
+                    title="Double-click to open Streak"
                     className="w-48 h-48 bg-black/95 backdrop-blur-2xl border-2 border-purple-500/50 rounded-2xl p-3.5 shadow-[0_0_30px_rgba(139,92,246,0.3)] flex flex-col justify-between text-white text-center cursor-pointer hover:border-cyan-400 transition-all"
                   >
                     <div className="flex items-center justify-between">
                       <div className="w-5 h-5 rounded-md bg-black border border-purple-400 p-0.5">
-                        <img src="/app-icon.png" alt="EffStreak" className="w-full h-full object-contain" />
+                        <img src="/app-icon.png" alt="Streak" className="w-full h-full object-contain" />
                       </div>
                       <span className="text-[9px] font-bold text-emerald-400">API LIVE</span>
                     </div>
@@ -251,13 +251,13 @@ export const WidgetSimulatorModal: React.FC<WidgetSimulatorModalProps> = ({
                       soundFx.playCheck();
                       onClose();
                     }}
-                    title="Double-click to open EffStreak"
+                    title="Double-click to open Streak"
                     className="w-full max-w-md bg-black/95 backdrop-blur-2xl border-2 border-purple-500/50 rounded-2xl p-5 shadow-[0_0_30px_rgba(139,92,246,0.3)] text-white space-y-3 cursor-pointer hover:border-cyan-400 transition-all"
                   >
                     <div className="flex items-center justify-between pb-2 border-b border-white/10">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-black border border-purple-400 p-0.5 shadow-md">
-                          <img src="/app-icon.png" alt="EffStreak" className="w-full h-full object-contain" />
+                          <img src="/app-icon.png" alt="Streak" className="w-full h-full object-contain" />
                         </div>
                         <div>
                           <div className="text-xl font-black flex items-center gap-1">
@@ -291,7 +291,7 @@ export const WidgetSimulatorModal: React.FC<WidgetSimulatorModalProps> = ({
                     </div>
 
                     <div className="text-center text-[10px] text-slate-400 pt-1">
-                      💡 Double-tap anywhere to open full EffStreak dashboard
+                      💡 Double-tap anywhere to open full Streak dashboard
                     </div>
                   </div>
                 )}

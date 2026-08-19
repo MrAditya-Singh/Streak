@@ -50,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-3.5">
         <div className="relative group cursor-pointer" onClick={onOpenSoloLeveling}>
           <div className="w-11 h-11 rounded-2xl bg-black/80 border border-blue-500/40 p-0.5 overflow-hidden shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            <img src="/app-icon.png" alt="EffStreak" className="w-full h-full object-contain" />
+            <img src="/app-icon.png" alt="Streak" className="w-full h-full object-contain" />
           </div>
           <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-black" title="Live Synced" />
         </div>
