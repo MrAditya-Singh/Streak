@@ -22,8 +22,7 @@ const memoryStore = {
   activity_logs: [],
 };
 
-async function resolveTargetUserId(req, fallbackId = DEFAULT_USER_ID) {
-  let targetId = req.query.userId || req.body?.userId || fallbackId;
+async function resolveTargetUserId(req, fallbackId = 'local_authenticated_dev_user') {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
@@ -31,14 +30,16 @@ async function resolveTargetUserId(req, fallbackId = DEFAULT_USER_ID) {
       if (token && isFirebaseInitialized && authAdmin) {
         const decoded = await authAdmin.verifyIdToken(token);
         if (decoded.uid) {
-          targetId = decoded.uid;
+          return decoded.uid;
         }
+      } else if (token) {
+        return token.length > 10 ? token : fallbackId;
       }
     } catch (err) {
-      console.warn('Optional token verification warning in integrations routes:', err.message);
+      console.warn('Token verification warning in integrations routes:', err.message);
     }
   }
-  return targetId;
+  return req.query.userId || req.body?.userId || fallbackId;
 }
 
 /**

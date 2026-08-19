@@ -1,7 +1,15 @@
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  User 
+} from 'firebase/auth';
 import { app, isFirebaseConfigured } from './firebase';
 
-// Reuse the same Firebase app instance from firebase.ts — NEVER create a duplicate!
 const _auth = (isFirebaseConfigured && app) ? getAuth(app) : null;
 export { _auth as auth };
 export const googleProvider = new GoogleAuthProvider();
@@ -10,7 +18,7 @@ export const googleProvider = new GoogleAuthProvider();
  * ⚡ Sign In with Google Popup
  */
 export async function signInWithGoogle(): Promise<{ user: User | null; token?: string; error?: string }> {
-  if (!_auth) throw new Error('Firebase not configured. Add your .env credentials.');
+  if (!_auth) throw new Error('Firebase not configured. Please add VITE_FIREBASE_* environment variables.');
   try {
     const result = await signInWithPopup(_auth, googleProvider);
     const token = await result.user.getIdToken();
@@ -45,6 +53,18 @@ export async function registerWithEmail(email: string, pass: string) {
     return { user: result.user, token };
   } catch (err: any) {
     throw new Error(err.message);
+  }
+}
+
+/**
+ * ⚡ Get current user's ID token for backend API authentication
+ */
+export async function getCurrentUserToken(): Promise<string | null> {
+  if (!_auth || !_auth.currentUser) return null;
+  try {
+    return await _auth.currentUser.getIdToken(true);
+  } catch {
+    return null;
   }
 }
 

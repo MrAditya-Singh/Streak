@@ -1,11 +1,12 @@
-// Universal Real-Time Multi-Device Cloud Sync Engine (Mobile ⇄ Laptop)
-// Guarantees single source of truth and bi-directional real-time updates across Mobile and Laptop.
+// Universal Real-Time Multi-Device Cloud Sync Engine (Firebase Auth UID Isolated)
+// Guarantees Cloud Firestore as single source of truth across Mobile, Laptop, and Web.
 
 import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry } from '../types';
+import { syncFullStateToFirestore, subscribeToFirestoreFullState, UserCloudState } from './firebase';
 
 export interface CloudSyncState {
   version: number;
-  syncId: string; // Deterministic user identifier
+  syncId: string; // Authenticated Firebase UID
   updatedAt: number;
   deviceId: string;
   user: UserProfile;
@@ -15,7 +16,6 @@ export interface CloudSyncState {
   logs?: ActivityLogEntry[];
 }
 
-// Generate or retrieve persistent unique device ID
 export const DEVICE_ID = (() => {
   let id = localStorage.getItem('effstreak_device_id');
   if (!id) {
@@ -25,37 +25,6 @@ export const DEVICE_ID = (() => {
   return id;
 })();
 
-/**
- * 🔑 Deterministic Stable User ID Generator
- * Ensures that logging in with the same Gmail account on Mobile and Laptop
- * ALWAYS resolves to the exact same cloud document and user record.
- *
- * Priority: Firebase UID > email > phoneNumber > name > canonical fallback
- * Using email as the primary key ensures cross-device identity without Firebase auth on both.
- */
-export function getStableUserId(identity?: Partial<UserProfile> | string): string {
-  if (!identity) return 'user_aditya_canonical';
-
-  let raw = '';
-  if (typeof identity === 'string') {
-    raw = identity;
-  } else {
-    // Prefer email — it's the same on both devices for the same Google account.
-    // Fall back to uid only if email is not available.
-    raw = identity.email || identity.uid || identity.phoneNumber || identity.name || 'user_aditya_canonical';
-  }
-
-  const clean = raw
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '_')
-    .replace(/_+/g, '_')
-    .substring(0, 64);
-
-  return `user_${clean || 'canonical'}`;
-}
-
-// BroadcastChannel for instant sub-millisecond sync across tabs/Electron on the same device
 let broadcastChannel: BroadcastChannel | null = null;
 try {
   if (typeof BroadcastChannel !== 'undefined') {
@@ -65,15 +34,14 @@ try {
   // Ignore if not supported
 }
 
-// In-memory timestamps to avoid echo loops
 let lastLocalPushTimestamp = 0;
 let lastRemoteReceivedTimestamp = 0;
 
 /**
- * 📡 Push full state to Cloud Relay & Local Broadcast
+ * 📡 Push full state to Cloud Firestore (users/{uid}/data/state) & Local Broadcast
  */
 export async function pushStateToCloud(
-  identity: Partial<UserProfile> | string,
+  uid: string,
   state: {
     user: UserProfile;
     activities: ActivityItem[];
@@ -82,86 +50,52 @@ export async function pushStateToCloud(
     logs?: ActivityLogEntry[];
   }
 ): Promise<boolean> {
-  const syncKey = getStableUserId(identity);
+  if (!uid) return false;
+
   const now = Date.now();
   lastLocalPushTimestamp = now;
 
   const payload: CloudSyncState = {
     version: 2,
-    syncId: syncKey,
+    syncId: uid,
     updatedAt: now,
     deviceId: DEVICE_ID,
-    user: { ...state.user, uid: syncKey },
+    user: { ...state.user, uid },
     activities: state.activities,
     matrixState: state.matrixState,
     emergencyTasks: state.emergencyTasks,
     logs: state.logs || [],
   };
 
-  // 1. Instant local broadcast for same-device instances
+  // 1. Instant local broadcast for cross-tab instances on the same device
   if (broadcastChannel) {
     try {
       broadcastChannel.postMessage({ type: 'STATE_PUSH', payload });
     } catch (e) {
-      console.warn('BroadcastChannel error:', e);
+      console.warn('BroadcastChannel notice:', e);
     }
   }
 
-  // 2. Persist locally in indexed cache
+  // 2. Push directly to Cloud Firestore under users/{uid}/data/state
   try {
-    localStorage.setItem(`effstreak_cloud_${syncKey}`, JSON.stringify(payload));
-  } catch {
-    // Ignore storage quota
-  }
-
-  // 3. Push to Global Cloud Relay (Network resilient)
-  try {
-    const res = await fetch(`https://kvdb.io/bucket_effstreak_2026/${syncKey}`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return res.ok;
+    await syncFullStateToFirestore(uid, payload as UserCloudState);
+    return true;
   } catch (err) {
-    console.warn('Cloud sync push warning (operating in local-first mode):', err);
+    console.warn('Cloud sync push warning (operating in local offline mode):', err);
     return false;
   }
 }
 
 /**
- * 📥 Pull latest state from Cloud Relay
- */
-export async function pullStateFromCloud(identity: Partial<UserProfile> | string): Promise<CloudSyncState | null> {
-  const syncKey = getStableUserId(identity);
-
-  try {
-    const res = await fetch(`https://kvdb.io/bucket_effstreak_2026/${syncKey}?_t=${Date.now()}`, {
-      signal: AbortSignal.timeout(3500),
-    });
-
-    if (res.ok) {
-      const data: CloudSyncState = await res.json();
-      if (data && data.updatedAt && data.updatedAt > lastRemoteReceivedTimestamp) {
-        lastRemoteReceivedTimestamp = data.updatedAt;
-        return data;
-      }
-    }
-  } catch {
-    // Silently continue
-  }
-
-  return null;
-}
-
-/**
- * ⚡ Real-Time Cloud Subscription Hook / Listener
- * Automatically synchronizes Mobile and Laptop whenever any data is modified.
+ * ⚡ Real-Time Cloud Firestore Listener + Local Broadcast Hook
+ * Automatically synchronizes Mobile and Laptop whenever data is modified in Firestore under users/{uid}.
  */
 export function subscribeToCloudSync(
-  identity: Partial<UserProfile> | string,
+  uid: string,
   onRemoteStateReceived: (remoteState: CloudSyncState) => void
 ): () => void {
-  const syncKey = getStableUserId(identity);
+  if (!uid) return () => {};
+
   let isActive = true;
 
   // 1. Listen for local BroadcastChannel messages
@@ -169,7 +103,7 @@ export function subscribeToCloudSync(
     if (!isActive) return;
     if (event.data?.type === 'STATE_PUSH' && event.data.payload) {
       const payload: CloudSyncState = event.data.payload;
-      if (payload.syncId === syncKey && payload.deviceId !== DEVICE_ID && payload.updatedAt > lastRemoteReceivedTimestamp) {
+      if (payload.syncId === uid && payload.deviceId !== DEVICE_ID && payload.updatedAt > lastRemoteReceivedTimestamp) {
         lastRemoteReceivedTimestamp = payload.updatedAt;
         onRemoteStateReceived(payload);
       }
@@ -180,38 +114,22 @@ export function subscribeToCloudSync(
     broadcastChannel.addEventListener('message', handleBroadcast);
   }
 
-  // 2. High-frequency Real-Time Polling (every 2 seconds) + Window Focus + Online Event
-  const checkCloud = async () => {
-    if (!isActive) return;
-    try {
-      const remote = await pullStateFromCloud(syncKey);
-      if (remote && remote.updatedAt > lastRemoteReceivedTimestamp && remote.deviceId !== DEVICE_ID) {
-        lastRemoteReceivedTimestamp = remote.updatedAt;
-        onRemoteStateReceived(remote);
-      }
-    } catch {
-      // Retry on next cycle
+  // 2. Real-Time Firestore Listener for users/{uid}/data/state
+  const unsubFirestore = subscribeToFirestoreFullState(uid, (data, exists) => {
+    if (!isActive || !exists || !data) return;
+
+    const remoteState = data as unknown as CloudSyncState;
+    if (remoteState.updatedAt > lastRemoteReceivedTimestamp && remoteState.deviceId !== DEVICE_ID) {
+      lastRemoteReceivedTimestamp = remoteState.updatedAt;
+      onRemoteStateReceived(remoteState);
     }
-  };
-
-  const intervalId = setInterval(checkCloud, 2000);
-
-  const handleFocus = () => {
-    checkCloud();
-  };
-  window.addEventListener('focus', handleFocus);
-  window.addEventListener('online', handleFocus);
-
-  // Initial immediate fetch
-  checkCloud();
+  });
 
   return () => {
     isActive = false;
-    clearInterval(intervalId);
+    unsubFirestore();
     if (broadcastChannel) {
       broadcastChannel.removeEventListener('message', handleBroadcast);
     }
-    window.removeEventListener('focus', handleFocus);
-    window.removeEventListener('online', handleFocus);
   };
 }

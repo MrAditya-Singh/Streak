@@ -13,9 +13,10 @@ import {
   getRankByLevel,
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
-import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState, resolveAccountId, deleteUserProfileDoc } from './services/firebase';
+import { syncFullStateToFirestore, subscribeToFirestoreFullState, deleteUserProfileDoc } from './services/firebase';
 import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, syncAtCoder } from './services/apiSync';
-import { pushStateToCloud, subscribeToCloudSync, getStableUserId } from './services/cloudSync';
+import { pushStateToCloud, subscribeToCloudSync } from './services/cloudSync';
+import { onAuthStateChange, logOutUser } from './services/firebaseAuth';
 import { SyncSetupCard } from './components/SyncSetupCard';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
@@ -133,20 +134,39 @@ export const App: React.FC = () => {
 
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
 
-  // Synchronous and instant stable user key generation. Prioritizes email, falls back to phone, then guest fallback.
-  // This resolves INSTANTLY without network requests, avoiding start-up loading screens or hangs!
+  // Authenticated Firebase UID identity as single source of truth for cloud storage
   const activeSyncKey = useMemo(() => {
-    const cleanEmail = syncEmail.trim().toLowerCase();
-    const cleanPhone = syncPhone.trim().replace(/[^0-9]/g, '');
+    return user.uid || 'guest_user_aditya';
+  }, [user.uid]);
 
-    if (cleanEmail) {
-      return `user_${cleanEmail.replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').substring(0, 64)}`;
-    }
-    if (cleanPhone) {
-      return `user_phone_${cleanPhone}`;
-    }
-    return getStableUserId(user);
-  }, [syncEmail, syncPhone, user]);
+  // Real-time Firebase Authentication State Listener
+  useEffect(() => {
+    const unsubAuth = onAuthStateChange((firebaseUser) => {
+      if (firebaseUser && firebaseUser.uid) {
+        setUser((prev) => ({
+          ...prev,
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || prev.email,
+          name: firebaseUser.displayName || prev.name || 'Aditya (Firebase User)',
+          avatarUrl: firebaseUser.photoURL || prev.avatarUrl,
+        }));
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logOutUser();
+    } catch { /* ignore */ }
+    setUser(INITIAL_USER);
+    setActivities(INITIAL_ACTIVITIES);
+    setEmergencyTasks(INITIAL_EMERGENCY_TASKS);
+    setLogs(INITIAL_LOGS);
+    setHasLoadedFromCloud(false);
+    localStorage.removeItem('effstreak_user');
+    localStorage.removeItem('effstreak_activities');
+  };
 
   const handleConfirmSyncIdentity = (email: string, phone: string) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -225,18 +245,14 @@ export const App: React.FC = () => {
     });
   };
 
-  // Sync to local storage
+  // Sync to local storage for offline fast load
   useEffect(() => {
-    syncUserProfile(user);
     localStorage.setItem('effstreak_user', JSON.stringify(user));
   }, [user]);
 
   useEffect(() => {
-    if (user.uid) {
-      syncActivities(user.uid, activities);
-    }
     localStorage.setItem('effstreak_activities', JSON.stringify(activities));
-  }, [activities, user.uid]);
+  }, [activities]);
 
   useEffect(() => {
     localStorage.setItem('effstreak_logs', JSON.stringify(logs));
@@ -1458,6 +1474,7 @@ export const App: React.FC = () => {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={user}
         onSelectUser={handleUpdateUser}
+        onLogout={handleLogout}
         isDarkMode={isDarkMode}
       />
 

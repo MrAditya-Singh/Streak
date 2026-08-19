@@ -3,9 +3,8 @@ import { db, authAdmin, isFirebaseInitialized } from '../config/firebase.js';
 
 export const syncRouter = Router();
 
-// In-memory real-time state cache for instantaneous sub-10ms syncing
 const memoryState = new Map();
-const sseClients = new Map(); // userId -> Set of res objects
+const sseClients = new Map(); // userId (uid) -> Set of res objects
 
 function getOrCreateUserState(userId) {
   if (!memoryState.has(userId)) {
@@ -27,35 +26,50 @@ function getOrCreateUserState(userId) {
   return memoryState.get(userId);
 }
 
-async function resolveTargetUserId(req, fallbackId = 'local_user_1') {
-  let targetId = req.query.userId || req.body?.userId || fallbackId;
+/**
+ * 🛡️ Strict Firebase ID Token Verification Middleware
+ * Extracts and verifies Bearer token, deriving UID from Firebase Auth.
+ */
+async function verifyFirebaseToken(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.split('Bearer ')[1]?.trim();
-      if (token && isFirebaseInitialized && authAdmin) {
-        const decoded = await authAdmin.verifyIdToken(token);
-        if (decoded.uid) {
-          targetId = decoded.uid;
-        }
-      }
-    } catch (err) {
-      console.warn('Optional token verification warning in sync routes:', err.message);
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // In local development without token, allow a default authenticated test user ID
+    if (!isFirebaseInitialized) {
+      req.uid = 'local_authenticated_dev_user';
+      return next();
     }
+    return res.status(401).json({ success: false, error: 'Unauthorized: Missing or malformed Bearer token' });
   }
-  return targetId;
+
+  const token = authHeader.split('Bearer ')[1]?.trim();
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Empty token provided' });
+  }
+
+  if (isFirebaseInitialized && authAdmin) {
+    try {
+      const decoded = await authAdmin.verifyIdToken(token);
+      req.uid = decoded.uid;
+      return next();
+    } catch (err) {
+      return res.status(401).json({ success: false, error: `Unauthorized: Invalid Firebase ID token (${err.message})` });
+    }
+  } else {
+    req.uid = token.length > 10 ? token : 'local_authenticated_dev_user';
+    return next();
+  }
 }
 
 // -------------------------------------------------------------
-// 1. Real-Time SSE Stream for Instant Laptop Live Push
+// 1. Real-Time SSE Stream for Instant Push
 // -------------------------------------------------------------
-syncRouter.get('/events', async (req, res) => {
-  const userId = await resolveTargetUserId(req, 'local_user_1');
+syncRouter.get('/events', verifyFirebaseToken, async (req, res) => {
+  const userId = req.uid;
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering for SSE
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
   if (!sseClients.has(userId)) {
@@ -64,11 +78,10 @@ syncRouter.get('/events', async (req, res) => {
   const clientSet = sseClients.get(userId);
   clientSet.add(res);
 
-  // Load latest persisted state from Firestore and send as INIT_STATE
   let currentState = getOrCreateUserState(userId);
   if (db) {
     try {
-      const userDoc = await db.collection('unified_sync').doc(userId).get();
+      const userDoc = await db.collection('users').doc(userId).collection('data').doc('state').get();
       if (userDoc.exists) {
         const persisted = userDoc.data();
         if (persisted.activities) currentState.activities = persisted.activities;
@@ -80,7 +93,6 @@ syncRouter.get('/events', async (req, res) => {
   }
   res.write(`data: ${JSON.stringify({ type: 'INIT_STATE', state: currentState })}\n\n`);
 
-  // ⚡ Heartbeat every 25s to keep SSE connection alive through proxies/CDNs
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
@@ -94,7 +106,6 @@ syncRouter.get('/events', async (req, res) => {
     clearInterval(heartbeat);
   });
 });
-
 
 function broadcastToClients(userId, payload) {
   if (sseClients.has(userId)) {
@@ -112,27 +123,19 @@ function broadcastToClients(userId, payload) {
 // -------------------------------------------------------------
 // 2. Fetch Latest State (GET /api/sync/state)
 // -------------------------------------------------------------
-syncRouter.get('/state', async (req, res) => {
-  const userId = await resolveTargetUserId(req, 'local_user_1');
+syncRouter.get('/state', verifyFirebaseToken, async (req, res) => {
+  const userId = req.uid;
   const state = getOrCreateUserState(userId);
 
   try {
     if (db) {
-      const userDoc = await db.collection('users').doc(userId).get();
+      const userDoc = await db.collection('users').doc(userId).collection('data').doc('state').get();
       if (userDoc.exists) {
         const uData = userDoc.data();
-        state.user.currentXP = uData.currentXP ?? uData.xp ?? state.user.currentXP;
-        state.user.overallStreak = uData.overallStreak ?? uData.currentStreak ?? state.user.overallStreak;
-        state.user.longestStreak = uData.longestStreak ?? state.user.longestStreak;
-        state.user.level = uData.level ?? state.user.level;
-        state.user.efficiencyPct = uData.efficiencyPct ?? state.user.efficiencyPct;
+        if (uData.user) Object.assign(state.user, uData.user);
         if (uData.activities) state.activities = uData.activities;
+        if (uData.matrixState) state.matrix = uData.matrixState;
         if (uData.emergencyTasks) state.emergencyTasks = uData.emergencyTasks;
-      }
-
-      const matrixDoc = await db.collection('matrix').doc(`${userId}_matrix`).get();
-      if (matrixDoc.exists) {
-        state.matrix = { ...state.matrix, ...matrixDoc.data() };
       }
     }
   } catch (err) {
@@ -145,19 +148,17 @@ syncRouter.get('/state', async (req, res) => {
 // -------------------------------------------------------------
 // 3. Mobile / Laptop Toggle Action (POST /api/sync/toggle)
 // -------------------------------------------------------------
-syncRouter.post('/toggle', async (req, res) => {
-  const userId = await resolveTargetUserId(req, req.body.userId || 'local_user_1');
+syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
+  const userId = req.uid;
   const { habitId, completed, date } = req.body;
   const targetDate = date || new Date().toISOString().split('T')[0];
   const state = getOrCreateUserState(userId);
 
-  // Update in-memory state
   if (!state.matrix[habitId]) {
     state.matrix[habitId] = {};
   }
   state.matrix[habitId][targetDate] = completed;
 
-  // Update activity status
   state.activities = (state.activities || []).map((act) => {
     if (act.id === habitId) {
       const nextCompleted = completed ?? !act.completed;
@@ -175,7 +176,6 @@ syncRouter.post('/toggle', async (req, res) => {
   }
   state.lastUpdated = new Date().toISOString();
 
-  // Instant real-time broadcast to laptop web browser
   broadcastToClients(userId, {
     type: 'HABIT_TOGGLED',
     habitId,
@@ -185,10 +185,9 @@ syncRouter.post('/toggle', async (req, res) => {
     timestamp: Date.now(),
   });
 
-  // Async Firestore persistence to unified_sync (unifying storage format)
   if (db) {
     try {
-      const docRef = db.collection('unified_sync').doc(userId);
+      const docRef = db.collection('users').doc(userId).collection('data').doc('state');
       const docSnap = await docRef.get();
       let unifiedData = docSnap.exists ? docSnap.data() : null;
 
@@ -207,7 +206,6 @@ syncRouter.post('/toggle', async (req, res) => {
         };
       }
 
-      // Update activities status inside unified payload
       unifiedData.activities = (unifiedData.activities || []).map((act) => {
         if (act.id === habitId) {
           const nextCompleted = completed ?? !act.completed;
@@ -220,7 +218,6 @@ syncRouter.post('/toggle', async (req, res) => {
         return act;
       });
 
-      // Update 31-day Matrix Checkbox Array inside unified payload
       const dateParts = targetDate.split('-');
       const dayNum = parseInt(dateParts[2], 10);
       if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) {
@@ -234,48 +231,20 @@ syncRouter.post('/toggle', async (req, res) => {
         unifiedData.matrixState[habitId][dayIndex] = completed;
       }
 
-      // Update user details inside unified payload
       if (!unifiedData.user) {
         unifiedData.user = {};
       }
       unifiedData.user.currentXP = state.user.currentXP;
       unifiedData.user.overallStreak = state.user.overallStreak;
       unifiedData.user.level = state.user.level;
-      unifiedData.user.longestStreak = Math.max(unifiedData.user.longestStreak || 0, state.user.overallStreak || 0);
 
-      // Set write timestamp to let clients bypass loops
       unifiedData.updatedAt = Date.now();
 
-      // Save unified document
       await docRef.set(unifiedData, { merge: true });
-
-      // Keep legacy collections in sync as backup
-      await db.collection('matrix').doc(`${userId}_matrix`).set(
-        {
-          [`${habitId}_${targetDate}`]: completed,
-          lastUpdated: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-      await db.collection('users').doc(userId).set(
-        {
-          xp: state.user.currentXP,
-          currentXP: state.user.currentXP,
-          overallStreak: state.user.overallStreak,
-          longestStreak: state.user.longestStreak || state.user.overallStreak,
-          level: state.user.level,
-          lastActiveDate: targetDate,
-          activities: state.activities,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
     } catch (err) {
-      console.warn('Firestore unified toggle persistence warning:', err.message);
+      console.warn('Firestore toggle persistence warning:', err.message);
     }
   }
-
-  console.log(`⚡ [Real-Time Sync] Mobile/Client toggled [${habitId}] -> ${completed ? 'COMPLETED' : 'UNCHECKED'}. Broadcasted to Laptop!`);
 
   res.json({
     success: true,
@@ -287,8 +256,8 @@ syncRouter.post('/toggle', async (req, res) => {
 // -------------------------------------------------------------
 // 4. Save Full State (POST /api/sync/state)
 // -------------------------------------------------------------
-syncRouter.post('/state', async (req, res) => {
-  const userId = await resolveTargetUserId(req, req.body.userId || 'local_user_1');
+syncRouter.post('/state', verifyFirebaseToken, async (req, res) => {
+  const userId = req.uid;
   const { state: incomingState } = req.body;
   if (!incomingState) {
     return res.status(400).json({ success: false, error: 'Missing state object' });
@@ -297,8 +266,6 @@ syncRouter.post('/state', async (req, res) => {
   const state = getOrCreateUserState(userId);
   Object.assign(state, incomingState, { lastUpdated: new Date().toISOString() });
 
-  // ⚡ Broadcast FULL incoming state to ALL peer devices via SSE
-  // This ensures habit add / delete / toggle on one device instantly reflects on all others
   broadcastToClients(userId, {
     type: 'STATE_UPDATED',
     state: {
@@ -311,35 +278,10 @@ syncRouter.post('/state', async (req, res) => {
     timestamp: Date.now(),
   });
 
-  // Persist full state to Cloud Firestore under Firebase UID
   if (db) {
     try {
-      const userPayload = {
-        userId,
-        uid: userId,
-        ...(incomingState.user || {}),
-        currentXP: incomingState.user?.currentXP ?? state.user.currentXP,
-        overallStreak: incomingState.user?.overallStreak ?? state.user.overallStreak,
-        level: incomingState.user?.level ?? state.user.level,
-        activities: incomingState.activities || state.activities,
-        emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
-        updatedAt: new Date().toISOString(),
-      };
-
-      await db.collection('users').doc(userId).set(userPayload, { merge: true });
-
-      if (incomingState.matrixState || incomingState.matrix) {
-        await db.collection('matrix').doc(`${userId}_matrix`).set(
-          {
-            ...(incomingState.matrixState || incomingState.matrix),
-            lastUpdated: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      }
-
-      // Also persist to unified_sync so Firestore real-time listeners on peer devices receive it
-      await db.collection('unified_sync').doc(userId).set(
+      const docRef = db.collection('users').doc(userId).collection('data').doc('state');
+      await docRef.set(
         {
           activities: incomingState.activities || state.activities,
           matrixState: incomingState.matrixState || state.matrix,
@@ -360,8 +302,8 @@ syncRouter.post('/state', async (req, res) => {
 // -------------------------------------------------------------
 // 5. Force Reset Endpoint (POST /api/sync/reset)
 // -------------------------------------------------------------
-syncRouter.post('/reset', async (req, res) => {
-  const userId = await resolveTargetUserId(req, req.body.userId || 'local_user_1');
+syncRouter.post('/reset', verifyFirebaseToken, async (req, res) => {
+  const userId = req.uid;
 
   const cleanState = {
     userId,
@@ -383,26 +325,20 @@ syncRouter.post('/reset', async (req, res) => {
 
   memoryState.set(userId, cleanState);
 
-  // Broadcast FORCE_RESET to all connected clients
   broadcastToClients(userId, {
     type: 'FORCE_RESET',
     state: cleanState,
     timestamp: Date.now(),
   });
 
-  // Wipe Firestore documents cleanly WITHOUT merge: true!
   if (db) {
     try {
-      await db.collection('matrix').doc(`${userId}_matrix`).set({ isReset: true, lastUpdated: new Date().toISOString() }, { merge: false });
-      await db.collection('unified_sync').doc(userId).set({ ...cleanState, updatedAt: Date.now() }, { merge: false });
-      await db.collection('users').doc(userId).set(cleanState.user, { merge: false });
+      const docRef = db.collection('users').doc(userId).collection('data').doc('state');
+      await docRef.set({ ...cleanState, updatedAt: Date.now() }, { merge: false });
     } catch (err) {
       console.warn('Firestore force reset error:', err.message);
     }
   }
 
-  console.log(`⚡ [Force Reset] Wiped all streak, matrix, and user data to clean 0 for ${userId}`);
-
-  res.json({ success: true, message: 'All streak, matrix, and user data force-wiped to 0!', state: cleanState });
+  res.json({ success: true, message: 'Data reset cleanly', state: cleanState });
 });
-
