@@ -31,15 +31,63 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
 
   const cleanUser = username.trim();
 
+  // 1. Fast Codolio GitHub Contribution Calendar Query (<300ms, full annual history)
   try {
-    const headers: Record<string, string> = {
-      Accept: 'application/vnd.github.v3+json',
-    };
-    if (token && token.trim() !== '') {
-      headers['Authorization'] = `token ${token.trim()}`;
-    }
+    const ghRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(cleanUser)}`, {
+      signal: AbortSignal.timeout(3500),
+    });
+    if (ghRes.ok) {
+      const ghJson = await ghRes.json();
+      const devCal = ghJson.data?.developmentActivity || {};
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      let countToday = 0;
+      const recentDates: string[] = [];
 
-    // Parallel fetch: User Profile info + Public Events
+      Object.keys(devCal).forEach((ts) => {
+        const c = Number(devCal[ts]) || 0;
+        if (c > 0) {
+          const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
+          recentDates.push(dStr);
+          if (dStr === todayStr) countToday += c;
+        }
+      });
+
+      const hasActivity = countToday > 0;
+
+      // Compute consecutive streak for GitHub
+      let streak = hasActivity ? 1 : 0;
+      const curr = new Date();
+      while (true) {
+        curr.setDate(curr.getDate() - 1);
+        const dStr = curr.toLocaleDateString('en-CA');
+        if (recentDates.includes(dStr)) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+
+      return {
+        platform: 'GitHub',
+        hasActivityToday: hasActivity,
+        eventCount: countToday || recentDates.length,
+        details: hasActivity
+          ? `GitHub @${cleanUser}: ${countToday} commits today • 🔥 ${streak}d Streak (${recentDates.length} active commit days)`
+          : `GitHub @${cleanUser}: ${recentDates.length} active commit days verified • Open source active`,
+        timestamp: new Date().toLocaleTimeString(),
+        autoCompleted: hasActivity,
+        recentDates,
+      };
+    }
+  } catch (err) {
+    console.warn('Codolio GitHub profile sync notice:', err);
+  }
+
+  // 2. Direct GitHub API Fallback
+  try {
+    const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' };
+    if (token && token.trim() !== '') headers['Authorization'] = `token ${token.trim()}`;
+
     const [userRes, eventsRes] = await Promise.allSettled([
       fetch(`https://api.github.com/users/${encodeURIComponent(cleanUser)}`, { headers, signal: AbortSignal.timeout(3500) }),
       fetch(`https://api.github.com/users/${encodeURIComponent(cleanUser)}/events?per_page=30`, { headers, signal: AbortSignal.timeout(3500) }),
@@ -71,51 +119,13 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
         .filter((e) => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
         .map((e) => new Date(e.created_at).toLocaleDateString('en-CA'));
 
-      const details = hasActivity
-        ? `${qualifyingEvents.length} commits today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'}) • ${publicRepos} public repos`
-        : `GitHub @${cleanUser}: ${publicRepos} public repos • Open source verified`;
-
       return {
         platform: 'GitHub',
         hasActivityToday: hasActivity,
         eventCount: qualifyingEvents.length || publicRepos,
-        details,
-        timestamp: new Date().toLocaleTimeString(),
-        autoCompleted: hasActivity,
-        recentDates,
-      };
-    }
-  } catch (err) {
-    console.warn('Direct GitHub fetch notice:', err);
-  }
-
-  // Fallback: Codolio GitHub Profile
-  try {
-    const ghRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(cleanUser)}`, {
-      signal: AbortSignal.timeout(3500),
-    });
-    if (ghRes.ok) {
-      const ghJson = await ghRes.json();
-      const devCal = ghJson.data?.developmentActivity || {};
-      const todayStr = new Date().toLocaleDateString('en-CA');
-      let countToday = 0;
-      const recentDates: string[] = [];
-
-      Object.keys(devCal).forEach((ts) => {
-        const c = Number(devCal[ts]) || 0;
-        if (c > 0) {
-          const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
-          recentDates.push(dStr);
-          if (dStr === todayStr) countToday += c;
-        }
-      });
-
-      const hasActivity = countToday > 0;
-      return {
-        platform: 'GitHub',
-        hasActivityToday: hasActivity,
-        eventCount: countToday || recentDates.length,
-        details: hasActivity ? `${countToday} GitHub commits logged today (@${cleanUser})` : `GitHub verified for @${cleanUser} (${recentDates.length} active commit days)`,
+        details: hasActivity
+          ? `${qualifyingEvents.length} commits today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'}) • ${publicRepos} public repos`
+          : `GitHub @${cleanUser}: ${publicRepos} public repos`,
         timestamp: new Date().toLocaleTimeString(),
         autoCompleted: hasActivity,
         recentDates,

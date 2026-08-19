@@ -999,12 +999,13 @@ export const App: React.FC = () => {
     } catch (err) {
       console.warn('Backend sync fallback to direct client fetch:', err);
     }
-    // 2. Direct fetch from Codolio, LeetCode, & Codeforces APIs (client fallback)
+    // 2. Direct fetch from Codolio, LeetCode, Codeforces & GitHub APIs (client fallback)
     try {
-      const [codolioRes, lcRes, cfRes] = await Promise.all([
+      const [codolioRes, lcRes, cfRes, ghRes] = await Promise.all([
         syncCodolio(user.codolioUsername || 'Mr.Aditya'),
         syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
         syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
+        syncGitHub(user.githubUsername || 'MrAditya-Singh'),
       ]);
 
       const codolioActive = codolioRes.activePlatforms || {};
@@ -1017,8 +1018,8 @@ export const App: React.FC = () => {
         { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
         { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
         { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
-        { id: 'github', completed: !!codolioActive.github },
-        { id: 'gh', completed: !!codolioActive.github },
+        { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
+        { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'atcoder', completed: !!codolioActive.atcoder },
       ];
 
@@ -1031,6 +1032,9 @@ export const App: React.FC = () => {
       }
       if (cfRes.eventCount > 0) {
         newPlatformStats['codeforces'] = { solved: cfRes.eventCount, rating: null, rank: null, lastFetched: new Date().toISOString() };
+      }
+      if (ghRes.eventCount > 0) {
+        newPlatformStats['github'] = { solved: ghRes.eventCount, rating: null, rank: null, lastFetched: new Date().toISOString() };
       }
       const codolioPlatforms = codolioRes.stats?.platforms;
       if (codolioPlatforms) {
@@ -1060,9 +1064,10 @@ export const App: React.FC = () => {
       // 5. Fill monthly matrix using per-platform maps — each habit row gets ONLY its own platform's exact dates
       const platformDailyMaps = codolioRes.platformDailyMaps || {};
 
-      // Merge direct LeetCode & Codeforces recent dates into platformDailyMaps to ensure they show up in history
+      // Merge direct platform recent dates into platformDailyMaps to ensure they show up in monthly history
       const directRecentDates: Record<string, string[]> = {
         leetcode: lcRes.recentDates || [],
+        github: ghRes.recentDates || [],
         codeforces: cfRes.recentDates || [],
       };
 
