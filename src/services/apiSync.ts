@@ -31,7 +31,6 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
 
   const cleanUser = username.trim();
 
-  // 1. Fast Direct GitHub API (<300ms)
   try {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github.v3+json',
@@ -40,13 +39,20 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       headers['Authorization'] = `token ${token.trim()}`;
     }
 
-    const response = await fetch(`https://api.github.com/users/${cleanUser}/events?per_page=30`, {
-      headers,
-      signal: AbortSignal.timeout(3500),
-    });
+    // Parallel fetch: User Profile info + Public Events
+    const [userRes, eventsRes] = await Promise.allSettled([
+      fetch(`https://api.github.com/users/${encodeURIComponent(cleanUser)}`, { headers, signal: AbortSignal.timeout(3500) }),
+      fetch(`https://api.github.com/users/${encodeURIComponent(cleanUser)}/events?per_page=30`, { headers, signal: AbortSignal.timeout(3500) }),
+    ]);
 
-    if (response.ok) {
-      const events: Array<{ type: string; created_at: string; repo: { name: string } }> = await response.json();
+    let publicRepos = 0;
+    if (userRes.status === 'fulfilled' && userRes.value.ok) {
+      const uJson = await userRes.value.json();
+      publicRepos = uJson.public_repos || 0;
+    }
+
+    if (eventsRes.status === 'fulfilled' && eventsRes.value.ok) {
+      const events: Array<{ type: string; created_at: string; repo: { name: string } }> = await eventsRes.value.json();
       const now = Date.now();
       const oneDayAgo = now - 24 * 60 * 60 * 1000;
       const todayStr = new Date().toLocaleDateString('en-CA');
@@ -61,18 +67,18 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       });
 
       const hasActivity = qualifyingEvents.length > 0;
-      const details = hasActivity
-        ? `${qualifyingEvents.length} commits/actions today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'})`
-        : `No commits pushed today (checked @${cleanUser})`;
-
       const recentDates = events
         .filter((e) => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
         .map((e) => new Date(e.created_at).toLocaleDateString('en-CA'));
 
+      const details = hasActivity
+        ? `${qualifyingEvents.length} commits today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'}) • ${publicRepos} public repos`
+        : `GitHub @${cleanUser}: ${publicRepos} public repos • Open source verified`;
+
       return {
         platform: 'GitHub',
         hasActivityToday: hasActivity,
-        eventCount: qualifyingEvents.length,
+        eventCount: qualifyingEvents.length || publicRepos,
         details,
         timestamp: new Date().toLocaleTimeString(),
         autoCompleted: hasActivity,
@@ -83,7 +89,7 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
     console.warn('Direct GitHub fetch notice:', err);
   }
 
-  // 2. Codolio GitHub Profile fallback
+  // Fallback: Codolio GitHub Profile
   try {
     const ghRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(cleanUser)}`, {
       signal: AbortSignal.timeout(3500),
@@ -108,8 +114,8 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
       return {
         platform: 'GitHub',
         hasActivityToday: hasActivity,
-        eventCount: countToday,
-        details: hasActivity ? `${countToday} GitHub commits logged today (@${cleanUser})` : `GitHub verified for @${cleanUser}`,
+        eventCount: countToday || recentDates.length,
+        details: hasActivity ? `${countToday} GitHub commits logged today (@${cleanUser})` : `GitHub verified for @${cleanUser} (${recentDates.length} active commit days)`,
         timestamp: new Date().toLocaleTimeString(),
         autoCompleted: hasActivity,
         recentDates,

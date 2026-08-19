@@ -53,3 +53,5 @@ local.properties
 scratch/
 scratch_matches.json
 scratch_view_chunks.json
+
+.vercel
