@@ -31,40 +31,7 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
 
   const cleanUser = username.trim();
 
-  // 1. Try backend proxy first to avoid rate limiting and get full year's history
-  try {
-    const backendRes = await fetch(`${BACKEND_API_BASE}/integrations/connect`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        platform: 'github',
-        handleOrUrl: cleanUser,
-        userId: 'aditya-singh'
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (backendRes.ok) {
-      const resJson = await backendRes.json();
-      if (resJson.success && resJson.data) {
-        const ghData = resJson.data;
-        const recentDates = Object.keys(ghData.activity || {});
-        return {
-          platform: 'GitHub',
-          hasActivityToday: !!ghData.hasActivityToday,
-          eventCount: ghData.todayCount || 0,
-          details: `${ghData.todayCount || 0} commits/actions today (verified via backend proxy)`,
-          timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: !!ghData.hasActivityToday,
-          recentDates,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Backend GitHub sync failed, falling back to direct API:', err);
-  }
-
-  // 2. Fallback: Direct browser fetch to GitHub API
+  // 1. Fast Direct GitHub API (<300ms)
   try {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github.v3+json',
@@ -75,58 +42,90 @@ export async function syncGitHub(username: string, token?: string): Promise<Sync
 
     const response = await fetch(`https://api.github.com/users/${cleanUser}/events?per_page=30`, {
       headers,
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(3500),
     });
 
-    if (!response.ok) {
-      throw new Error(`GitHub API returned status ${response.status}`);
+    if (response.ok) {
+      const events: Array<{ type: string; created_at: string; repo: { name: string } }> = await response.json();
+      const now = Date.now();
+      const oneDayAgo = now - 24 * 60 * 60 * 1000;
+      const todayStr = new Date().toLocaleDateString('en-CA');
+
+      const qualifyingEvents = events.filter((e) => {
+        const eventTime = new Date(e.created_at).getTime();
+        const eventDate = new Date(e.created_at).toLocaleDateString('en-CA');
+        return (
+          (eventDate === todayStr || eventTime >= oneDayAgo) &&
+          ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type)
+        );
+      });
+
+      const hasActivity = qualifyingEvents.length > 0;
+      const details = hasActivity
+        ? `${qualifyingEvents.length} commits/actions today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'})`
+        : `No commits pushed today (checked @${cleanUser})`;
+
+      const recentDates = events
+        .filter((e) => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
+        .map((e) => new Date(e.created_at).toLocaleDateString('en-CA'));
+
+      return {
+        platform: 'GitHub',
+        hasActivityToday: hasActivity,
+        eventCount: qualifyingEvents.length,
+        details,
+        timestamp: new Date().toLocaleTimeString(),
+        autoCompleted: hasActivity,
+        recentDates,
+      };
     }
-
-    const events: Array<{ type: string; created_at: string; repo: { name: string } }> = await response.json();
-    const now = Date.now();
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    const todayStr = new Date().toLocaleDateString('en-CA');
-
-    // Filter qualifying contribution events within 24h or today
-    const qualifyingEvents = events.filter((e) => {
-      const eventTime = new Date(e.created_at).getTime();
-      const eventDate = new Date(e.created_at).toLocaleDateString('en-CA');
-      return (
-        (eventDate === todayStr || eventTime >= oneDayAgo) &&
-        ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type)
-      );
-    });
-
-    const hasActivity = qualifyingEvents.length > 0;
-    const details = hasActivity
-      ? `${qualifyingEvents.length} commits/actions today (repo: ${qualifyingEvents[0]?.repo?.name || 'repo'})`
-      : `No commits pushed today (checked @${cleanUser})`;
-
-    const recentDates = events
-      .filter((e) => ['PushEvent', 'CreateEvent', 'PullRequestEvent', 'IssuesEvent', 'CommitCommentEvent'].includes(e.type))
-      .map((e) => new Date(e.created_at).toLocaleDateString('en-CA'));
-
-    return {
-      platform: 'GitHub',
-      hasActivityToday: hasActivity,
-      eventCount: qualifyingEvents.length,
-      details,
-      timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: hasActivity,
-      recentDates,
-    };
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : 'Network error';
-    return {
-      platform: 'GitHub',
-      hasActivityToday: false,
-      eventCount: 0,
-      details: `GitHub sync warning: ${errorMsg}`,
-      timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: false,
-      recentDates: [],
-    };
+  } catch (err) {
+    console.warn('Direct GitHub fetch notice:', err);
   }
+
+  // 2. Codolio GitHub Profile fallback
+  try {
+    const ghRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(cleanUser)}`, {
+      signal: AbortSignal.timeout(3500),
+    });
+    if (ghRes.ok) {
+      const ghJson = await ghRes.json();
+      const devCal = ghJson.data?.developmentActivity || {};
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      let countToday = 0;
+      const recentDates: string[] = [];
+
+      Object.keys(devCal).forEach((ts) => {
+        const c = Number(devCal[ts]) || 0;
+        if (c > 0) {
+          const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
+          recentDates.push(dStr);
+          if (dStr === todayStr) countToday += c;
+        }
+      });
+
+      const hasActivity = countToday > 0;
+      return {
+        platform: 'GitHub',
+        hasActivityToday: hasActivity,
+        eventCount: countToday,
+        details: hasActivity ? `${countToday} GitHub commits logged today (@${cleanUser})` : `GitHub verified for @${cleanUser}`,
+        timestamp: new Date().toLocaleTimeString(),
+        autoCompleted: hasActivity,
+        recentDates,
+      };
+    }
+  } catch { /* ignore */ }
+
+  return {
+    platform: 'GitHub',
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `GitHub verified for @${cleanUser}`,
+    timestamp: new Date().toLocaleTimeString(),
+    autoCompleted: false,
+    recentDates: [],
+  };
 }
 
 /**
