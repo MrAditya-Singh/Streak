@@ -13,7 +13,7 @@ import {
   getRankByLevel,
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
-import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState, resolveAccountId } from './services/firebase';
+import { syncUserProfile, syncActivities, syncHistoryRecord, syncFullStateToFirestore, subscribeToFirestoreFullState, resolveAccountId, deleteUserProfileDoc } from './services/firebase';
 import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, syncAtCoder } from './services/apiSync';
 import { pushStateToCloud, subscribeToCloudSync, getStableUserId } from './services/cloudSync';
 import { SyncSetupCard } from './components/SyncSetupCard';
@@ -1114,6 +1114,10 @@ export const App: React.FC = () => {
     setActivities(nextActs);
     setMatrixState(nextMatrix);
 
+    // Save to LocalStorage
+    localStorage.setItem('effstreak_activities', JSON.stringify(nextActs));
+    localStorage.setItem('streak_monthly_matrix', JSON.stringify(nextMatrix));
+
     // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT ADDITION
     const syncKey = activeSyncKey;
     const payload = {
@@ -1258,6 +1262,9 @@ export const App: React.FC = () => {
         isReset: true,
         updatedAt: Date.now() + 10000,
       };
+
+      // Delete old document completely from Firestore
+      deleteUserProfileDoc(activeSyncKey);
 
       pushStateToCloud(activeSyncKey, resetPayload);
       syncFullStateToFirestore(activeSyncKey, resetPayload);

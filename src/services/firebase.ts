@@ -8,6 +8,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  deleteDoc, 
   collection, 
   onSnapshot,
   enableIndexedDbPersistence
@@ -141,7 +142,6 @@ export async function resolveAccountId(email: string, phoneNumber: string): Prom
     const emailSnap = await getDoc(emailMappingRef);
     if (emailSnap.exists()) {
       const accountId = emailSnap.data().accountId;
-      // Link Phone to this same accountId if provided
       if (phoneKey) {
         const phoneMappingRef = doc(db, 'account_mappings', phoneKey);
         await setDoc(phoneMappingRef, { accountId, email: cleanEmail, phone: cleanPhone }, { merge: true });
@@ -156,7 +156,6 @@ export async function resolveAccountId(email: string, phoneNumber: string): Prom
     const phoneSnap = await getDoc(phoneMappingRef);
     if (phoneSnap.exists()) {
       const accountId = phoneSnap.data().accountId;
-      // Link Email to this same accountId if provided
       if (emailKey) {
         const emailMappingRef = doc(db, 'account_mappings', emailKey);
         await setDoc(emailMappingRef, { accountId, email: cleanEmail, phone: cleanPhone }, { merge: true });
@@ -188,10 +187,40 @@ export async function syncFullStateToFirestore(userId: string, state: any): Prom
   if (!db || !userId) return;
   try {
     const docRef = doc(db, 'unified_sync', userId);
+    const userRef = doc(db, 'users', userId);
     const isReset = Boolean(state?.isReset);
-    await setDoc(docRef, { ...state, updatedAt: Date.now() }, { merge: !isReset });
+
+    if (isReset) {
+      try {
+        await deleteDoc(docRef);
+        await deleteDoc(userRef);
+      } catch {
+        // Silently continue to overwrite
+      }
+    }
+
+    const payload = { ...state, updatedAt: Date.now() };
+
+    // Overwrite documents completely (merge: false) so old/deleted habits and pre-reset state are purged
+    await setDoc(docRef, payload, { merge: false });
+    await setDoc(userRef, payload, { merge: false });
   } catch (err) {
     console.warn('Firestore unified sync warning:', err);
+  }
+}
+
+/**
+ * 🗑️ Delete User Document completely from Firestore
+ */
+export async function deleteUserProfileDoc(userId: string): Promise<void> {
+  if (!db || !userId) return;
+  try {
+    const docRef = doc(db, 'unified_sync', userId);
+    const userRef = doc(db, 'users', userId);
+    await deleteDoc(docRef);
+    await deleteDoc(userRef);
+  } catch (err) {
+    console.warn('Firestore delete warning:', err);
   }
 }
 
@@ -209,4 +238,3 @@ export function subscribeToFirestoreFullState(userId: string, onUpdate: (state: 
     return () => {};
   }
 }
-
