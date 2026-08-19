@@ -12,7 +12,7 @@ import {
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
 import { syncFullStateToFirestore, subscribeToFirestoreFullState, deleteUserProfileDoc, isFirebaseConfigured } from './services/firebase';
-import { BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, fetchFullStateFromBackend } from './services/apiSync';
+import { BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, fetchFullStateFromBackend, pushFullStateToBackend } from './services/apiSync';
 import { pushStateToCloud, subscribeToCloudSync, DEVICE_ID } from './services/cloudSync';
 import { onAuthStateChange, logOutUser, getCurrentUserToken } from './services/firebaseAuth';
 import { SyncSetupCard } from './components/SyncSetupCard';
@@ -186,16 +186,10 @@ export const App: React.FC = () => {
             pendingCloudPush.current = null;
           }
 
-          // Lock writes until new user's document is loaded from Firestore
+          // Lock writes until new user's document is loaded from Firestore / Backend
           isApplyingRemote.current = true;
           setHasLoadedFromCloud(false);
           initialRemoteLoaded.current = false;
-
-          // Never render the previous account while the new UID is loading.
-          setActivities([]);
-          setMatrixState({});
-          setEmergencyTasks([]);
-          setLogs([]);
         }
 
         setUser((prev) => {
@@ -425,17 +419,27 @@ export const App: React.FC = () => {
 
     let resolved = false;
 
+    // ⚡ Parallel Instant Sync: Query Backend Express API immediately on key attach
+    fetchFullStateFromBackend(syncKey, userRef.current.email).then((bState) => {
+      if (bState && (bState.activities?.length > 0 || Object.keys(bState.matrixState || bState.matrix || {}).length > 0)) {
+        console.log('⚡ [Backend Instant Sync] State preloaded from backend API for:', syncKey);
+        applyRemoteState(bState, true);
+      }
+    }).catch(() => {});
+
     const applyRemoteState = (remoteState: any, exists: boolean = true) => {
       console.log('⚡ [Cloud Sync] Received remote state from Firestore. Exists:', exists);
       
       resolved = true;
       setHasLoadedFromCloud(true);
 
-      if (!exists || !remoteState) {
-        console.log(`✨ [Cloud Sync] New or empty account detected for UID: ${syncKey}.`);
-        isApplyingRemote.current = true;
-        initialRemoteLoaded.current = true;
+      const hasRemoteHabits = remoteState && (
+        (Array.isArray(remoteState.activities) && remoteState.activities.length > 0) ||
+        (remoteState.matrixState && Object.keys(remoteState.matrixState).length > 0) ||
+        (remoteState.matrix && Object.keys(remoteState.matrix).length > 0)
+      );
 
+      if (!exists || !remoteState || !hasRemoteHabits) {
         // If this device already has local activities created, preserve and push them to the cloud account!
         const localActs = activitiesRef.current;
         if (localActs.length > 0) {
@@ -449,48 +453,56 @@ export const App: React.FC = () => {
             updatedAt: Date.now(),
           };
           syncFullStateToFirestore(syncKey, existingPayload);
+          pushFullStateToBackend(syncKey, existingPayload, userRef.current.email).catch(() => {});
           if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
           remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
           return;
         }
 
-        const freshUser: UserProfile = {
-          ...INITIAL_USER,
-          uid: syncKey,
-          email: userRef.current.email || '',
-          name: userRef.current.name || 'New Hunter',
-          avatarUrl: userRef.current.avatarUrl,
-          overallStreak: 0,
-          longestStreak: 0,
-          currentXP: 0,
-          level: 0,
-          hunterRank: 'E',
-          attributes: { strength: 0, intelligence: 0, discipline: 0, skill: 0, knowledge: 0, professional: 0 },
-        };
+        if (!exists || !remoteState) {
+          console.log(`✨ [Cloud Sync] New or empty account detected for UID: ${syncKey}.`);
+          isApplyingRemote.current = true;
+          initialRemoteLoaded.current = true;
 
-        const freshActivities: ActivityItem[] = [];
-        const freshMatrix: Record<string, boolean[]> = {};
+          const freshUser: UserProfile = {
+            ...INITIAL_USER,
+            uid: syncKey,
+            email: userRef.current.email || '',
+            name: userRef.current.name || 'New Hunter',
+            avatarUrl: userRef.current.avatarUrl,
+            overallStreak: 0,
+            longestStreak: 0,
+            currentXP: 0,
+            level: 0,
+            hunterRank: 'E',
+            attributes: { strength: 0, intelligence: 0, discipline: 0, skill: 0, knowledge: 0, professional: 0 },
+          };
 
-        setUser(freshUser);
-        setActivities(freshActivities);
-        setEmergencyTasks([]);
-        setLogs([]);
-        setMatrixState(freshMatrix);
+          const freshActivities: ActivityItem[] = [];
+          const freshMatrix: Record<string, boolean[]> = {};
 
-        // Save fresh 0-streak initial state for this new user to Firestore
-        const initPayload = {
-          user: freshUser,
-          activities: freshActivities,
-          matrixState: freshMatrix,
-          emergencyTasks: [],
-          logs: [],
-          updatedAt: Date.now(),
-        };
-        syncFullStateToFirestore(syncKey, initPayload);
+          setUser(freshUser);
+          setActivities(freshActivities);
+          setEmergencyTasks([]);
+          setLogs([]);
+          setMatrixState(freshMatrix);
 
-        if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
-        return;
+          // Save fresh 0-streak initial state for this new user to Firestore & Backend
+          const initPayload = {
+            user: freshUser,
+            activities: freshActivities,
+            matrixState: freshMatrix,
+            emergencyTasks: [],
+            logs: [],
+            updatedAt: Date.now(),
+          };
+          syncFullStateToFirestore(syncKey, initPayload);
+          pushFullStateToBackend(syncKey, initPayload, userRef.current.email).catch(() => {});
+
+          if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+          remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
+          return;
+        }
       }
 
       const remoteTime = Number(remoteState.updatedAt || 0);
@@ -535,6 +547,8 @@ export const App: React.FC = () => {
 
       if (remoteState.matrixState && typeof remoteState.matrixState === 'object') {
         setMatrixState(remoteState.matrixState);
+      } else if (remoteState.matrix && typeof remoteState.matrix === 'object') {
+        setMatrixState(remoteState.matrix);
       }
 
       if (remoteState.user) {
@@ -563,7 +577,7 @@ export const App: React.FC = () => {
       if (!resolved) {
         console.log('⏰ [Cloud Sync Safeguard] Permitting local writes & querying backend fallback for:', syncKey);
         setHasLoadedFromCloud(true);
-        fetchFullStateFromBackend(syncKey).then((bState) => {
+        fetchFullStateFromBackend(syncKey, userRef.current.email).then((bState) => {
           if (bState && (bState.activities?.length > 0 || Object.keys(bState.matrix || {}).length > 0)) {
             console.log('⚡ [Backend Sync] Successfully loaded state from backend fallback!');
             applyRemoteState(bState, true);

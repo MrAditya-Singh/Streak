@@ -1004,13 +1004,14 @@ export async function syncAllViaBackend(payload: {
 /**
  * ⚡ Save Full User State via Backend Express API (Firebase Admin SDK bypasses client permissions)
  */
-export async function pushFullStateToBackend(userId: string, state: any): Promise<boolean> {
+export async function pushFullStateToBackend(userId: string, state: any, email?: string): Promise<boolean> {
   if (!userId) return false;
   try {
+    const userEmail = email || state?.user?.email;
     const res = await fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, state }),
+      body: JSON.stringify({ userId, state, email: userEmail }),
     });
     return res.ok;
   } catch (err) {
@@ -1022,10 +1023,12 @@ export async function pushFullStateToBackend(userId: string, state: any): Promis
 /**
  * ⚡ Fetch Full User State via Backend Express API
  */
-export async function fetchFullStateFromBackend(userId: string): Promise<any | null> {
+export async function fetchFullStateFromBackend(userId: string, email?: string): Promise<any | null> {
   if (!userId) return null;
   try {
-    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/state?userId=${encodeURIComponent(userId)}`, {
+    const qParams = new URLSearchParams({ userId });
+    if (email) qParams.set('email', email);
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/state?${qParams.toString()}`, {
       method: 'GET',
     });
     if (res.ok) {

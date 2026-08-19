@@ -78,7 +78,7 @@ export async function pushStateToCloud(
   }
 
   // 2. Dual-Channel Push: Cloud Firestore Client SDK + Backend Express Admin SDK
-  pushFullStateToBackend(uid, payload).catch(() => {});
+  pushFullStateToBackend(uid, payload, state.user?.email).catch(() => {});
 
   try {
     await syncFullStateToFirestore(uid, payload as UserCloudState);

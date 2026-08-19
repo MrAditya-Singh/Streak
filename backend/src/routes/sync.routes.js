@@ -124,18 +124,34 @@ function broadcastToClients(userId, payload) {
 // 2. Fetch Latest State (GET /api/sync/state)
 // -------------------------------------------------------------
 syncRouter.get('/state', verifyFirebaseToken, async (req, res) => {
-  const userId = req.uid;
+  const userId = req.query?.userId || req.user?.uid || req.uid || 'dev_local_uid';
+  const email = (req.query?.email || req.user?.email || '').trim().toLowerCase();
+  const cleanEmailKey = email && email.includes('@') && email !== 'user@example.com'
+    ? `user_email_${email.replace(/[^a-z0-9]/g, '_')}`
+    : '';
+
   const state = getOrCreateUserState(userId);
 
   try {
     if (db) {
-      const userDoc = await db.collection('users').doc(userId).collection('data').doc('state').get();
+      let userDoc = await db.collection('users').doc(userId).collection('data').doc('state').get();
+
+      // If userDoc is empty or has no activities, attempt email-based document bridge
+      if ((!userDoc.exists || !userDoc.data()?.activities?.length) && cleanEmailKey && cleanEmailKey !== userId) {
+        const emailDoc = await db.collection('users').doc(cleanEmailKey).collection('data').doc('state').get();
+        if (emailDoc.exists && emailDoc.data()?.activities?.length) {
+          userDoc = emailDoc;
+          console.log(`✨ [Backend Sync Bridge] Successfully bridged state from ${cleanEmailKey} to ${userId}`);
+        }
+      }
+
       if (userDoc.exists) {
         const uData = userDoc.data();
         if (uData.user) Object.assign(state.user, uData.user);
         if (uData.activities) state.activities = uData.activities;
         if (uData.matrixState) state.matrix = uData.matrixState;
         if (uData.emergencyTasks) state.emergencyTasks = uData.emergencyTasks;
+        if (uData.logs) state.logs = uData.logs;
       }
     }
   } catch (err) {
@@ -149,7 +165,12 @@ syncRouter.get('/state', verifyFirebaseToken, async (req, res) => {
 // 3. Mobile / Laptop Toggle Action (POST /api/sync/toggle)
 // -------------------------------------------------------------
 syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
-  const userId = req.uid;
+  const userId = req.body?.userId || req.user?.uid || req.uid || 'dev_local_uid';
+  const email = (req.body?.email || req.user?.email || '').trim().toLowerCase();
+  const cleanEmailKey = email && email.includes('@') && email !== 'user@example.com'
+    ? `user_email_${email.replace(/[^a-z0-9]/g, '_')}`
+    : '';
+
   const { habitId, completed, date } = req.body;
   const targetDate = date || new Date().toISOString().split('T')[0];
   const state = getOrCreateUserState(userId);
@@ -184,6 +205,17 @@ syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
     state,
     timestamp: Date.now(),
   });
+
+  if (cleanEmailKey && cleanEmailKey !== userId) {
+    broadcastToClients(cleanEmailKey, {
+      type: 'HABIT_TOGGLED',
+      habitId,
+      completed,
+      date: targetDate,
+      state,
+      timestamp: Date.now(),
+    });
+  }
 
   if (db) {
     try {
@@ -241,6 +273,10 @@ syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
       unifiedData.updatedAt = Date.now();
 
       await docRef.set(unifiedData, { merge: true });
+
+      if (cleanEmailKey && cleanEmailKey !== userId) {
+        await db.collection('users').doc(cleanEmailKey).collection('data').doc('state').set(unifiedData, { merge: true });
+      }
     } catch (err) {
       console.warn('Firestore toggle persistence warning:', err.message);
     }
@@ -257,11 +293,16 @@ syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
 // 4. Save Full State (POST /api/sync/state)
 // -------------------------------------------------------------
 syncRouter.post('/state', verifyFirebaseToken, async (req, res) => {
-  const userId = req.uid;
-  const { state: incomingState } = req.body;
+  const userId = req.body?.userId || req.user?.uid || req.uid || 'dev_local_uid';
+  const { state: incomingState, email } = req.body;
   if (!incomingState) {
     return res.status(400).json({ success: false, error: 'Missing state object' });
   }
+
+  const userEmail = (email || incomingState.user?.email || req.user?.email || '').trim().toLowerCase();
+  const cleanEmailKey = userEmail && userEmail.includes('@') && userEmail !== 'user@example.com'
+    ? `user_email_${userEmail.replace(/[^a-z0-9]/g, '_')}`
+    : '';
 
   const state = getOrCreateUserState(userId);
   Object.assign(state, incomingState, { lastUpdated: new Date().toISOString() });
@@ -274,23 +315,36 @@ syncRouter.post('/state', verifyFirebaseToken, async (req, res) => {
       matrixState: incomingState.matrixState || incomingState.matrix || state.matrix,
       user: incomingState.user || state.user,
       emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
+      logs: incomingState.logs || state.logs,
     },
     timestamp: Date.now(),
   });
 
+  if (cleanEmailKey && cleanEmailKey !== userId) {
+    broadcastToClients(cleanEmailKey, {
+      type: 'STATE_UPDATED',
+      state: incomingState,
+      timestamp: Date.now(),
+    });
+  }
+
   if (db) {
     try {
+      const payloadToSave = {
+        activities: incomingState.activities || state.activities || [],
+        matrixState: incomingState.matrixState || state.matrix || {},
+        user: incomingState.user || state.user || {},
+        emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks || [],
+        logs: incomingState.logs || state.logs || [],
+        updatedAt: Date.now(),
+      };
+
       const docRef = db.collection('users').doc(userId).collection('data').doc('state');
-      await docRef.set(
-        {
-          activities: incomingState.activities || state.activities,
-          matrixState: incomingState.matrixState || state.matrix,
-          user: incomingState.user || state.user,
-          emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
-          updatedAt: Date.now(),
-        },
-        { merge: true }
-      );
+      await docRef.set(payloadToSave, { merge: true });
+
+      if (cleanEmailKey && cleanEmailKey !== userId) {
+        await db.collection('users').doc(cleanEmailKey).collection('data').doc('state').set(payloadToSave, { merge: true });
+      }
     } catch (err) {
       console.warn('Firestore full state save warning:', err.message);
     }
@@ -303,7 +357,7 @@ syncRouter.post('/state', verifyFirebaseToken, async (req, res) => {
 // 5. Force Reset Endpoint (POST /api/sync/reset)
 // -------------------------------------------------------------
 syncRouter.post('/reset', verifyFirebaseToken, async (req, res) => {
-  const userId = req.uid;
+  const userId = req.body?.userId || req.user?.uid || req.uid || 'dev_local_uid';
 
   const cleanState = {
     userId,
