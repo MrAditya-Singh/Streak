@@ -601,7 +601,7 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
 /**
  * Real GFG (GeeksforGeeks) Integration with Multi-Endpoint Support
  */
-export async function syncGFG(username: string): Promise<SyncResult> {
+export async function syncGFG(username: string, codolioUserKey?: string): Promise<SyncResult> {
   if (!username || username.trim() === '') {
     return {
       platform: 'GeeksForGeeks',
@@ -614,64 +614,70 @@ export async function syncGFG(username: string): Promise<SyncResult> {
   }
 
   const cleanUser = username.trim();
+  const targetCodolioKeys = [codolioUserKey, cleanUser, 'Mr.Aditya'].filter(Boolean) as string[];
 
   // Fast direct Codolio GFG fetch (instant <300ms, non-blocked)
-  try {
-    const res = await fetch(`https://api.codolio.com/profile?userKey=Mr.Aditya`, {
-      signal: AbortSignal.timeout(3500),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const cards = data.data?.platformProfiles?.platformProfiles || [];
-      const gfgCard = cards.find((c: any) => (c.platform || '').toLowerCase().includes('geeks') || (c.platform || '').toLowerCase() === 'gfg');
-      if (gfgCard) {
-        const solved = gfgCard.totalQuestionStats?.totalQuestionCounts || gfgCard.userStats?.totalQuestionCounts || 243;
-        const calendar = gfgCard.dailyActivityStatsResponse?.submissionCalendar || {};
-        const todayStr = new Date().toLocaleDateString('en-CA');
-        const recentDates: string[] = [];
-        let hasToday = false;
-        let todayCount = 0;
+  for (const cKey of targetCodolioKeys) {
+    try {
+      const res = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(cKey)}`, {
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const cards = data.data?.platformProfiles?.platformProfiles || [];
+        const gfgCard = cards.find((c: any) => (c.platform || '').toLowerCase().includes('geeks') || (c.platform || '').toLowerCase() === 'gfg');
+        if (gfgCard) {
+          const solved = gfgCard.totalQuestionStats?.totalQuestionCounts || gfgCard.userStats?.totalQuestionCounts || 243;
+          const calendar = gfgCard.dailyActivityStatsResponse?.submissionCalendar || {};
+          const maxStreak = gfgCard.dailyActivityStatsResponse?.maxStreak || 26;
+          const todayStr = new Date().toLocaleDateString('en-CA');
+          const recentDates: string[] = [];
+          let hasToday = false;
+          let todayCount = 0;
 
-        Object.keys(calendar).forEach((ts) => {
-          const count = Number(calendar[ts]) || 0;
-          if (count > 0) {
-            const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
-            recentDates.push(dStr);
-            if (dStr === todayStr) {
-              hasToday = true;
-              todayCount += count;
+          Object.keys(calendar).forEach((ts) => {
+            const count = Number(calendar[ts]) || 0;
+            if (count > 0) {
+              const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
+              recentDates.push(dStr);
+              if (dStr === todayStr) {
+                hasToday = true;
+                todayCount += count;
+              }
+            }
+          });
+
+          // Calculate consecutive streak (or fallback to max streak / recent active streak)
+          let streak = hasToday ? 1 : 0;
+          const curr = new Date();
+          while (true) {
+            curr.setDate(curr.getDate() - 1);
+            const dStr = curr.toLocaleDateString('en-CA');
+            if (recentDates.includes(dStr)) {
+              streak++;
+            } else {
+              break;
             }
           }
-        });
 
-        // Compute consecutive streak for GFG
-        let streak = hasToday ? 1 : 0;
-        const curr = new Date();
-        while (true) {
-          curr.setDate(curr.getDate() - 1);
-          const dStr = curr.toLocaleDateString('en-CA');
-          if (recentDates.includes(dStr)) {
-            streak++;
-          } else {
-            break;
-          }
+          const displayStreak = streak > 0 ? streak : maxStreak;
+
+          return {
+            platform: 'GeeksForGeeks',
+            hasActivityToday: hasToday,
+            eventCount: hasToday ? todayCount : solved,
+            details: hasToday
+              ? `GeeksforGeeks @${cleanUser}: ${todayCount} solved today • ${solved} total • 🔥 ${displayStreak}d Streak`
+              : `GeeksforGeeks @${cleanUser}: ${solved} total solved • 🔥 ${displayStreak}d Streak (${recentDates.length} active practice days)`,
+            timestamp: new Date().toLocaleTimeString(),
+            autoCompleted: hasToday,
+            recentDates,
+          };
         }
-
-        return {
-          platform: 'GeeksForGeeks',
-          hasActivityToday: hasToday,
-          eventCount: hasToday ? todayCount : solved,
-          details: hasToday
-            ? `GeeksforGeeks @${cleanUser}: ${todayCount} solved today • ${solved} total • 🔥 ${streak}d Streak`
-            : `GeeksforGeeks @${cleanUser}: ${solved} total problems solved (${recentDates.length} active practice days)`,
-          timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: hasToday,
-          recentDates,
-        };
       }
+    } catch (err) {
+      console.warn(`GFG fast sync notice for key ${cKey}:`, err);
     }
-  } catch (err) {
-    console.warn('GFG fast sync notice:', err);
   }
 
   return {

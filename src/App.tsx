@@ -1091,7 +1091,7 @@ export const App: React.FC = () => {
         syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
         syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
         syncGitHub(user.githubUsername || 'MrAditya-Singh', undefined, user.codolioUsername || 'Mr.Aditya'),
-        syncGFG(user.gfgUsername || 'mraditya'),
+        syncGFG(user.gfgUsername || 'mraditya', user.codolioUsername || 'Mr.Aditya'),
       ]);
 
       const codolioActive = codolioRes.activePlatforms || {};
