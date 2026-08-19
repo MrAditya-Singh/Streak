@@ -567,7 +567,7 @@ export const App: React.FC = () => {
   const totalMonthHabits = activities.length * daysInMonth;
   const completedMonthHabits = useMemo(() => {
     return activities.reduce((acc, act) => {
-      const days = matrixState[act.id] || [];
+      const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
       return acc + days.slice(0, daysInMonth).filter(Boolean).length;
     }, 0);
   }, [activities, matrixState, daysInMonth]);
@@ -584,7 +584,7 @@ export const App: React.FC = () => {
       const dayNum = idx + 1;
       let completedInDay = 0;
       activities.forEach((act) => {
-        const days = matrixState[act.id] || [];
+        const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
         if (days[idx]) completedInDay++;
       });
       const total = activities.length;
@@ -619,7 +619,7 @@ export const App: React.FC = () => {
 
       let completedInWeek = 0;
       activities.forEach((act) => {
-        const days = matrixState[act.id] || [];
+        const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
         for (let i = startDay - 1; i < endDay; i++) {
           if (days[i]) completedInWeek++;
         }
@@ -637,7 +637,7 @@ export const App: React.FC = () => {
   // Top 10 Habits Rank
   const topHabits = useMemo(() => {
     const list = activities.map((act) => {
-      const days = matrixState[act.id] || [];
+      const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
       const done = days.slice(0, daysInMonth).filter(Boolean).length;
       const progressPct = (done / daysInMonth) * 100;
       return {

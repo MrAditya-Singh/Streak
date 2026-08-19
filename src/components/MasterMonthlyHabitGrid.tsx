@@ -114,7 +114,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
   };
 
   const totalCompletedCells = activities.reduce((acc, act) => {
-    const days = matrixState[act.id] || [];
+    const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
     return acc + days.filter(Boolean).length;
   }, 0);
 
@@ -349,7 +349,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
           {/* Small Box Checkbox Rows */}
           <div className="space-y-1.5">
             {activities.map((act) => {
-              const days = matrixState[act.id] || Array.from({ length: daysInMonth }, () => false);
+              const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : Array.from({ length: daysInMonth }, () => false);
 
               return (
                 <div 
@@ -423,7 +423,7 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
           {/* Row per habit - EXACT Height h-8 */}
           <div className="space-y-1.5">
             {activities.map((act) => {
-              const days = matrixState[act.id] || [];
+              const days = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
               const doneCount = days.filter(Boolean).length;
               const goal = daysInMonth;
               const pct = Math.round((doneCount / goal) * 100);

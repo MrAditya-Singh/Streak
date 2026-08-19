@@ -229,13 +229,19 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
   const dayTotal = activities.length || 1;
   const dayEff   = Math.round((dayDone / dayTotal) * 100);
 
-  const monthDone = activities.reduce((s, act) => s + (matrixState[act.id] || []).slice(0, todayIdx + 1).filter(Boolean).length, 0);
+  const monthDone = activities.reduce((s, act) => {
+    const arr = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
+    return s + arr.slice(0, todayIdx + 1).filter(Boolean).length;
+  }, 0);
   const monthPoss = dayTotal * (todayIdx + 1) || 1;
   const monthEff  = Math.round((monthDone / monthPoss) * 100);
   const yearEff   = Math.min(99, Math.round(monthEff * 0.97 + 2));
 
   const monthBars = useMemo(() => Array.from({ length: 30 }, (_, i) => {
-    const done = activities.reduce((s, act) => s + (matrixState[act.id]?.[i] ? 1 : 0), 0);
+    const done = activities.reduce((s, act) => {
+      const arr = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
+      return s + (arr[i] ? 1 : 0);
+    }, 0);
     return dayTotal > 0 ? Math.round((done / dayTotal) * 100) : 0;
   }), [activities, matrixState, dayTotal]);
 
