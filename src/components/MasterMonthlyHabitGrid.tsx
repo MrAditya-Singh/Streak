@@ -245,37 +245,54 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
 
           {/* List of Habit Rows - EXACT Height h-8 */}
           <div className="space-y-1.5">
-            {activities.map((act, idx) => (
-              <div
-                key={act.id}
-                className={`h-8 flex items-center justify-between px-3 rounded-lg border transition-all group ${
-                  isDarkMode 
-                    ? 'bg-[#121826] border-slate-800 text-white hover:border-slate-700 hover:bg-[#1a2234]' 
-                    : 'bg-white border-slate-300 text-[#0f172a] hover:border-slate-400 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate pr-1">
-                  <span className={`font-cold-mono text-[10px] font-black w-4 shrink-0 ${
-                    isDarkMode ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
-                    {String(idx + 1).padStart(2, '0')}
-                  </span>
-                  <span className={`truncate font-cold font-bold text-xs tracking-tight ${
-                    isDarkMode ? 'text-slate-100' : 'text-[#0f172a]'
-                  }`}>
-                    {act.name}
-                  </span>
-                </div>
-                {onDeleteHabit && activities.length > 5 && (
+            {activities.length === 0 ? (
+              <div className={`p-3 rounded-lg border text-center my-1 ${
+                isDarkMode ? 'bg-[#121826] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
+              }`}>
+                <p className="text-[11px] font-medium">No habits added</p>
+                {onAddHabit && (
                   <button
-                    onClick={() => onDeleteHabit(act.id)}
-                    className="opacity-0 group-hover:opacity-100 hover:text-red-500 text-slate-400 p-0.5 transition-opacity cursor-pointer shrink-0"
+                    onClick={onAddHabit}
+                    className="mt-1.5 text-[11px] font-bold text-emerald-500 hover:underline flex items-center justify-center gap-1 mx-auto"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3" /> Add Habit
                   </button>
                 )}
               </div>
-            ))}
+            ) : (
+              activities.map((act, idx) => (
+                <div
+                  key={act.id}
+                  className={`h-8 flex items-center justify-between px-3 rounded-lg border transition-all group ${
+                    isDarkMode 
+                      ? 'bg-[#121826] border-slate-800 text-white hover:border-slate-700 hover:bg-[#1a2234]' 
+                      : 'bg-white border-slate-300 text-[#0f172a] hover:border-slate-400 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate pr-1">
+                    <span className={`font-cold-mono text-[10px] font-black w-4 shrink-0 ${
+                      isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                    }`}>
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                    <span className={`truncate font-cold font-bold text-xs tracking-tight ${
+                      isDarkMode ? 'text-slate-100' : 'text-[#0f172a]'
+                    }`}>
+                      {act.name}
+                    </span>
+                  </div>
+                  {onDeleteHabit && (
+                    <button
+                      onClick={() => onDeleteHabit(act.id)}
+                      title="Delete habit"
+                      className={`opacity-0 group-hover:opacity-100 p-1 rounded-md transition-all hover:bg-red-500/20 text-red-400 shrink-0`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
 

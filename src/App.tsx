@@ -86,7 +86,7 @@ export const App: React.FC = () => {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (e) { /* ignore */ }
-    return INITIAL_ACTIVITIES;
+    return [];
   });
 
   // Emergency Work Tasks (24h-48h, +5 XP, no streaks)
@@ -227,11 +227,8 @@ export const App: React.FC = () => {
       ...INITIAL_USER,
       uid: 'guest_user_aditya',
     };
-    const freshActivities = INITIAL_ACTIVITIES.map((a) => ({ ...a, completed: false, streak: 0 }));
+    const freshActivities: ActivityItem[] = [];
     const freshMatrix: Record<string, boolean[]> = {};
-    INITIAL_ACTIVITIES.forEach((a) => {
-      freshMatrix[a.id] = Array.from({ length: 31 }, () => false);
-    });
 
     setUser(freshUser);
     setActivities(freshActivities);
@@ -404,16 +401,8 @@ export const App: React.FC = () => {
           attributes: { strength: 0, intelligence: 0, discipline: 0, skill: 0, knowledge: 0, professional: 0 },
         };
 
-        const freshActivities = INITIAL_ACTIVITIES.map((a) => ({
-          ...a,
-          completed: false,
-          streak: 0,
-        }));
-
+        const freshActivities: ActivityItem[] = [];
         const freshMatrix: Record<string, boolean[]> = {};
-        INITIAL_ACTIVITIES.forEach((a) => {
-          freshMatrix[a.id] = Array.from({ length: 31 }, () => false);
-        });
 
         setUser(freshUser);
         setActivities(freshActivities);
