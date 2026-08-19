@@ -1090,7 +1090,7 @@ export const App: React.FC = () => {
         syncCodolio(user.codolioUsername || 'Mr.Aditya'),
         syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
         syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
-        syncGitHub(user.githubUsername || 'MrAditya-Singh'),
+        syncGitHub(user.githubUsername || 'MrAditya-Singh', undefined, user.codolioUsername || 'Mr.Aditya'),
         syncGFG(user.gfgUsername || 'mraditya'),
       ]);
 
