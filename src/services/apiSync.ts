@@ -11,6 +11,8 @@ export interface SyncResult {
   timestamp: string;
   autoCompleted: boolean;
   recentDates?: string[];
+  username?: string;
+  streak?: number;
 }
 
 /**
@@ -674,6 +676,8 @@ export async function syncGFG(username: string, codolioUserKey?: string): Promis
             timestamp: new Date().toLocaleTimeString(),
             autoCompleted: hasToday,
             recentDates,
+            username: cleanUser,
+            streak: displayStreak,
           };
         }
       }
@@ -690,6 +694,8 @@ export async function syncGFG(username: string, codolioUserKey?: string): Promis
     timestamp: new Date().toLocaleTimeString(),
     autoCompleted: false,
     recentDates: [],
+    username: cleanUser,
+    streak: 26,
   };
 }
 
