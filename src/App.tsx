@@ -1196,7 +1196,19 @@ export const App: React.FC = () => {
         setMatrixState((prevMatrix) => {
           const nextMatrix = { ...prevMatrix };
           activities.forEach((act) => {
-            const pKey = habitPlatformKey[act.id.toLowerCase()] || null;
+            const actIdLower = act.id.toLowerCase();
+            const actNameLower = act.name.toLowerCase();
+
+            let pKey = habitPlatformKey[actIdLower] || null;
+            if (!pKey) {
+              if (actNameLower.includes('geeks') || actNameLower.includes('gfg')) pKey = 'gfg';
+              else if (actNameLower.includes('leetcode') || actNameLower.includes('lc')) pKey = 'leetcode';
+              else if (actNameLower.includes('github') || actNameLower.includes('gh')) pKey = 'github';
+              else if (actNameLower.includes('codeforces') || actNameLower.includes('cf')) pKey = 'codeforces';
+              else if (actNameLower.includes('atcoder')) pKey = 'atcoder';
+              else if (actNameLower.includes('hackerrank')) pKey = 'hackerrank';
+              else if (actNameLower.includes('codolio')) pKey = 'codolio';
+            }
             if (!pKey) return; // non-coding habit → don't touch
 
             // For 'codolio' aggregator row, use unified map; for each specific platform, use its own map
