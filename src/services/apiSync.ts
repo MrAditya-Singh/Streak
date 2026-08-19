@@ -625,20 +625,40 @@ export async function syncGFG(username: string): Promise<SyncResult> {
         const todayStr = new Date().toLocaleDateString('en-CA');
         const recentDates: string[] = [];
         let hasToday = false;
+        let todayCount = 0;
 
         Object.keys(calendar).forEach((ts) => {
-          const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
-          recentDates.push(dStr);
-          if (dStr === todayStr && Number(calendar[ts]) > 0) {
-            hasToday = true;
+          const count = Number(calendar[ts]) || 0;
+          if (count > 0) {
+            const dStr = new Date(Number(ts) * 1000).toLocaleDateString('en-CA');
+            recentDates.push(dStr);
+            if (dStr === todayStr) {
+              hasToday = true;
+              todayCount += count;
+            }
           }
         });
+
+        // Compute consecutive streak for GFG
+        let streak = hasToday ? 1 : 0;
+        const curr = new Date();
+        while (true) {
+          curr.setDate(curr.getDate() - 1);
+          const dStr = curr.toLocaleDateString('en-CA');
+          if (recentDates.includes(dStr)) {
+            streak++;
+          } else {
+            break;
+          }
+        }
 
         return {
           platform: 'GeeksForGeeks',
           hasActivityToday: hasToday,
-          eventCount: hasToday ? 1 : solved,
-          details: `GeeksforGeeks @${cleanUser}: ${solved} problems solved (${hasToday ? 'Activity logged today' : 'Synced verified history'})`,
+          eventCount: hasToday ? todayCount : solved,
+          details: hasToday
+            ? `GeeksforGeeks @${cleanUser}: ${todayCount} solved today • ${solved} total • 🔥 ${streak}d Streak`
+            : `GeeksforGeeks @${cleanUser}: ${solved} total problems solved (${recentDates.length} active practice days)`,
           timestamp: new Date().toLocaleTimeString(),
           autoCompleted: hasToday,
           recentDates,
@@ -656,6 +676,7 @@ export async function syncGFG(username: string): Promise<SyncResult> {
     details: `GFG practice verified for @${cleanUser} (243 Solved)`,
     timestamp: new Date().toLocaleTimeString(),
     autoCompleted: false,
+    recentDates: [],
   };
 }
 

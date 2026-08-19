@@ -999,13 +999,14 @@ export const App: React.FC = () => {
     } catch (err) {
       console.warn('Backend sync fallback to direct client fetch:', err);
     }
-    // 2. Direct fetch from Codolio, LeetCode, Codeforces & GitHub APIs (client fallback)
+    // 2. Direct fetch from Codolio, LeetCode, Codeforces, GitHub & GFG APIs (client fallback)
     try {
-      const [codolioRes, lcRes, cfRes, ghRes] = await Promise.all([
+      const [codolioRes, lcRes, cfRes, ghRes, gfgRes] = await Promise.all([
         syncCodolio(user.codolioUsername || 'Mr.Aditya'),
         syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
         syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
         syncGitHub(user.githubUsername || 'MrAditya-Singh'),
+        syncGFG(user.gfgUsername || 'mraditya'),
       ]);
 
       const codolioActive = codolioRes.activePlatforms || {};
@@ -1017,7 +1018,7 @@ export const App: React.FC = () => {
         { id: 'lc', completed: lcRes.hasActivityToday || !!codolioActive.leetcode },
         { id: 'codeforces', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
         { id: 'cf', completed: cfRes.hasActivityToday || !!codolioActive.codeforces },
-        { id: 'gfg', completed: !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
+        { id: 'gfg', completed: gfgRes.hasActivityToday || !!codolioActive.gfg || !!codolioActive.geeksforgeeks },
         { id: 'github', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'gh', completed: ghRes.hasActivityToday || !!codolioActive.github },
         { id: 'atcoder', completed: !!codolioActive.atcoder },
@@ -1035,6 +1036,9 @@ export const App: React.FC = () => {
       }
       if (ghRes.eventCount > 0) {
         newPlatformStats['github'] = { solved: ghRes.eventCount, rating: null, rank: null, lastFetched: new Date().toISOString() };
+      }
+      if (gfgRes.eventCount > 0) {
+        newPlatformStats['gfg'] = { solved: gfgRes.eventCount, rating: null, rank: null, lastFetched: new Date().toISOString() };
       }
       const codolioPlatforms = codolioRes.stats?.platforms;
       if (codolioPlatforms) {
@@ -1069,6 +1073,8 @@ export const App: React.FC = () => {
         leetcode: lcRes.recentDates || [],
         github: ghRes.recentDates || [],
         codeforces: cfRes.recentDates || [],
+        gfg: gfgRes.recentDates || [],
+        geeksforgeeks: gfgRes.recentDates || [],
       };
 
       Object.keys(directRecentDates).forEach((pKey) => {
