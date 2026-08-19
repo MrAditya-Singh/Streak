@@ -58,26 +58,58 @@ export const App: React.FC = () => {
   const todayDayNumber = realNow.getDate();
   const currentDayIndex = todayDayNumber - 1;
 
-  // Main persistent state
+  // Main persistent state with safe JSON parsing & fallback defaults
   const [user, setUser] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('effstreak_user');
-    return saved ? JSON.parse(saved) : INITIAL_USER;
+    try {
+      const saved = localStorage.getItem('effstreak_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...INITIAL_USER,
+            ...parsed,
+            attributes: { ...INITIAL_USER.attributes, ...(parsed.attributes || {}) },
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('User cache parse error, resetting to initial user:', e);
+    }
+    return INITIAL_USER;
   });
 
   const [activities, setActivities] = useState<ActivityItem[]>(() => {
-    const saved = localStorage.getItem('effstreak_activities');
-    return saved ? JSON.parse(saved) : INITIAL_ACTIVITIES;
+    try {
+      const saved = localStorage.getItem('effstreak_activities');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) { /* ignore */ }
+    return INITIAL_ACTIVITIES;
   });
 
   // Emergency Work Tasks (24h-48h, +5 XP, no streaks)
   const [emergencyTasks, setEmergencyTasks] = useState<EmergencyTask[]>(() => {
-    const saved = localStorage.getItem('effstreak_emergency_tasks');
-    return saved ? JSON.parse(saved) : INITIAL_EMERGENCY_TASKS;
+    try {
+      const saved = localStorage.getItem('effstreak_emergency_tasks');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch { /* ignore */ }
+    return INITIAL_EMERGENCY_TASKS;
   });
 
   const [logs, setLogs] = useState<ActivityLogEntry[]>(() => {
-    const saved = localStorage.getItem('effstreak_logs');
-    return saved ? JSON.parse(saved) : INITIAL_LOGS;
+    try {
+      const saved = localStorage.getItem('effstreak_logs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch { /* ignore */ }
+    return INITIAL_LOGS;
   });
 
   const [history, setHistory] = useState<HistoricalDayRecord[]>(() => generateHistoricalRecords(30));
