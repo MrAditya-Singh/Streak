@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { db, authAdmin, isFirebaseInitialized } from '../config/firebase.js';
 import {
-  SUPPORTED_PLATFORMS,
   CANONICAL_MAPPING,
   fetchPlatformData,
 } from '../integrations/index.js';
@@ -10,10 +9,13 @@ import {
   buildFirestoreIntegrationDoc,
 } from '../services/activityNormalizer.js';
 import { evaluateHabitsAndStreaks } from '../services/streakEngine.js';
-import { encryptSecret, decryptSecret } from '../utils/crypto.js';
+import { encryptSecret } from '../utils/crypto.js';
+import { verifyFirebaseToken } from '../middleware/firebaseAuth.middleware.js';
 
 const router = Router();
-const DEFAULT_USER_ID = 'aditya-singh';
+const DEFAULT_USER_ID = 'local_authenticated_dev_user';
+
+router.use(verifyFirebaseToken);
 
 const memoryStore = {
   integrations: {},
@@ -23,6 +25,7 @@ const memoryStore = {
 };
 
 async function resolveTargetUserId(req, fallbackId = 'local_authenticated_dev_user') {
+  if (req.user?.uid) return req.user.uid;
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
@@ -109,17 +112,17 @@ router.post('/connect', async (req, res) => {
     memoryStore.integrations[userId][normalized.platform] = docData;
 
     if (isFirebaseInitialized && db) {
-      try {
-        const docId = `${userId}_${normalized.platform}`;
-        await db.collection('integrations').doc(docId).set(docData, { merge: true });
-        await db.collection('users').doc(userId).set({
-          [`platform_${normalized.platform}_username`]: handleOrUrl,
-          [`platform_${normalized.platform}_streak`]: normalized.streak?.currentStreak || 0,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
-      } catch (firestoreErr) {
-        console.warn(`Firestore saving warning: ${firestoreErr.message}`);
-      }
+      const docId = `${userId}_${normalized.platform}`;
+      db.collection('integrations').doc(docId).set(docData, { merge: true }).catch((err) => {
+        console.warn(`Firestore saving warning: ${err.message}`);
+      });
+      db.collection('users').doc(userId).set({
+        [`platform_${normalized.platform}_username`]: handleOrUrl,
+        [`platform_${normalized.platform}_streak`]: normalized.streak?.currentStreak || 0,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true }).catch((err) => {
+        console.warn(`Firestore user saving warning: ${err.message}`);
+      });
     }
 
     const safeResponse = { ...docData };
@@ -163,7 +166,7 @@ function getLocalDateString(dateInput, timezone = 'Asia/Kolkata') {
   const d = dateInput ? new Date(dateInput) : new Date();
   try {
     return d.toLocaleDateString('en-CA', { timeZone: timezone });
-  } catch (err) {
+  } catch {
     return d.toLocaleDateString('en-CA');
   }
 }
@@ -178,71 +181,89 @@ router.post('/sync', async (req, res) => {
   } = req.body;
 
   try {
-    const userCanonicalIntegrations = CANONICAL_MAPPING.integrations;
-    const codolioUsername = userCanonicalIntegrations?.codolio?.username || user?.codolioUsername || user?.platformUrls?.codolio || 'Mr.Aditya';
-    const leetcodeUsername = userCanonicalIntegrations?.leetcode?.username || user?.leetcodeUsername || user?.platformUrls?.leetcode || 'mradityasingh';
-    const codeforcesHandle = userCanonicalIntegrations?.codeforces?.username || user?.codeforcesHandle || user?.platformUrls?.codeforces || 'Aditya__YUPP';
-    const gfgUsername = userCanonicalIntegrations?.gfg?.username || user?.gfgUsername || user?.platformUrls?.gfg || 'mraditya';
-    const githubUsername = userCanonicalIntegrations?.github?.username || user?.githubUsername || user?.platformUrls?.github || 'MrAditya-Singh';
+    const userIntegrations = memoryStore.integrations[userId] || {};
+    const codolioUsername = user?.codolioUsername || user?.platformUrls?.codolio || userIntegrations?.codolio?.username || '';
+    const leetcodeUsername = user?.leetcodeUsername || user?.platformUrls?.leetcode || userIntegrations?.leetcode?.username || '';
+    const codeforcesHandle = user?.codeforcesHandle || user?.platformUrls?.codeforces || userIntegrations?.codeforces?.username || '';
+    const gfgUsername = user?.gfgUsername || user?.platformUrls?.gfg || userIntegrations?.gfg?.username || '';
+    const githubUsername = user?.githubUsername || user?.platformUrls?.github || userIntegrations?.github?.username || userIntegrations?.github?.identity?.username || '';
     const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
-    // 1. Fetch Codolio profile (includes sub-profiles like GitHub), LeetCode direct, & Codeforces direct
+    // 1. Fetch platform profiles in parallel (Codolio, LeetCode, Codeforces, GFG, GitHub)
     let rawCodolio = null;
-    try {
-      rawCodolio = await fetchWithCache(`codolio_${codolioUsername}`, () =>
-        fetchPlatformData('codolio', codolioUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch Codolio profile:', err.message);
-    }
-
     let rawLeetCode = null;
-    try {
-      rawLeetCode = await fetchWithCache(`leetcode_${leetcodeUsername}`, () =>
-        fetchPlatformData('leetcode', leetcodeUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch LeetCode data directly:', err.message);
-    }
-
     let rawCodeforces = null;
-    try {
-      rawCodeforces = await fetchWithCache(`codeforces_${codeforcesHandle}`, () =>
-        fetchPlatformData('codeforces', codeforcesHandle)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch Codeforces data directly:', err.message);
-    }
-
     let rawGFG = null;
-    try {
-      rawGFG = await fetchWithCache(`gfg_${gfgUsername}`, () =>
-        fetchPlatformData('gfg', gfgUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch GFG data directly:', err.message);
-    }
-
     let rawGitHub = null;
-    try {
-      rawGitHub = await fetchWithCache(`github_${githubUsername}`, () =>
-        fetchPlatformData('github', githubUsername)
-      );
-    } catch (err) {
-      console.warn('Failed to fetch GitHub data directly:', err.message);
-    }
+
+    await Promise.allSettled([
+      (async () => {
+        if (!codolioUsername) return;
+        try {
+          rawCodolio = await fetchWithCache(`codolio_${codolioUsername}`, () =>
+            fetchPlatformData('codolio', codolioUsername)
+          );
+        } catch (err) {
+          console.warn('Failed to fetch Codolio profile:', err.message);
+        }
+      })(),
+      (async () => {
+        if (!leetcodeUsername) return;
+        try {
+          rawLeetCode = await fetchWithCache(`leetcode_${leetcodeUsername}`, () =>
+            fetchPlatformData('leetcode', leetcodeUsername)
+          );
+        } catch (err) {
+          console.warn('Failed to fetch LeetCode data directly:', err.message);
+        }
+      })(),
+      (async () => {
+        if (!codeforcesHandle) return;
+        try {
+          rawCodeforces = await fetchWithCache(`codeforces_${codeforcesHandle}`, () =>
+            fetchPlatformData('codeforces', codeforcesHandle)
+          );
+        } catch (err) {
+          console.warn('Failed to fetch Codeforces data directly:', err.message);
+        }
+      })(),
+      (async () => {
+        if (!gfgUsername) return;
+        try {
+          rawGFG = await fetchWithCache(`gfg_${gfgUsername}`, () =>
+            fetchPlatformData('gfg', gfgUsername)
+          );
+        } catch (err) {
+          console.warn('Failed to fetch GFG data directly:', err.message);
+        }
+      })(),
+      (async () => {
+        if (!githubUsername) return;
+        try {
+          rawGitHub = await fetchWithCache(`github_${githubUsername}`, () =>
+            fetchPlatformData('github', githubUsername)
+          );
+        } catch (err) {
+          console.warn('Failed to fetch GitHub data directly:', err.message);
+        }
+      })(),
+    ]);
 
     // Fetch existing GitHub & GFG activity from Firestore to prevent data wiping
     let existingGitHubActivity = {};
     let existingGFGActivity = {};
     if (isFirebaseInitialized && db) {
       try {
-        const ghDoc = await db.collection('integrations').doc(`${userId}_github`).get();
-        if (ghDoc.exists) {
+        const fetchExistingDoc = (docId) => Promise.race([
+          db.collection('integrations').doc(docId).get(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 1200))
+        ]);
+        const ghDoc = await fetchExistingDoc(`${userId}_github`);
+        if (ghDoc && ghDoc.exists) {
           existingGitHubActivity = ghDoc.data().activity || ghDoc.data().dailyActivity || {};
         }
-        const gfgDoc = await db.collection('integrations').doc(`${userId}_gfg`).get();
-        if (gfgDoc.exists) {
+        const gfgDoc = await fetchExistingDoc(`${userId}_gfg`);
+        if (gfgDoc && gfgDoc.exists) {
           existingGFGActivity = gfgDoc.data().activity || gfgDoc.data().dailyActivity || {};
         }
       } catch (err) {
@@ -428,27 +449,8 @@ router.post('/sync', async (req, res) => {
       ? normalizedPlatforms.filter(p => p.platform === specificPlatform)
       : normalizedPlatforms;
 
-    // Guarantee no historical activity is ever lost from Firestore for any platform
-    if (isFirebaseInitialized && db) {
-      for (const normDoc of finalNormalized) {
-        try {
-          const docRef = await db.collection('integrations').doc(`${userId}_${normDoc.platform}`).get();
-          if (docRef.exists) {
-            const storedActivity = docRef.data().activity || docRef.data().dailyActivity || {};
-            const mergedMap = { ...storedActivity };
-            for (const [dStr, cnt] of Object.entries(normDoc.dailyActivity || {})) {
-              mergedMap[dStr] = Math.max(Number(mergedMap[dStr]) || 0, Number(cnt) || 0);
-            }
-            normDoc.dailyActivity = mergedMap;
-          }
-        } catch (fsErr) {
-          console.warn(`Firestore read warning for ${normDoc.platform}:`, fsErr.message);
-        }
-      }
-    }
-
-    // 3. Persist all dynamically synced platforms to Firestore integrations collection
-    const savePromises = finalNormalized.map(async (normalized) => {
+    // 3. Persist all dynamically synced platforms to memory store and fire-and-forget Firestore
+    finalNormalized.forEach((normalized) => {
       const platform = normalized.platform;
       const firestoreDoc = buildFirestoreIntegrationDoc(userId, normalized);
       
@@ -456,15 +458,12 @@ router.post('/sync', async (req, res) => {
       memoryStore.integrations[userId][platform] = firestoreDoc;
 
       if (isFirebaseInitialized && db) {
-        try {
-          const docId = `${userId}_${platform}`;
-          await db.collection('integrations').doc(docId).set(firestoreDoc, { merge: true });
-        } catch (fsErr) {
+        const docId = `${userId}_${platform}`;
+        db.collection('integrations').doc(docId).set(firestoreDoc, { merge: true }).catch((fsErr) => {
           console.warn(`Firestore write warning for ${platform}:`, fsErr.message);
-        }
+        });
       }
     });
-    await Promise.all(savePromises);
 
     // ⚡ Execute central Unified Streak Engine on normalized dataset
     const streakResult = evaluateHabitsAndStreaks({
@@ -477,32 +476,27 @@ router.post('/sync', async (req, res) => {
 
     // Save to Firestore collections: users, matrix, activity_logs
     if (isFirebaseInitialized && db) {
-      try {
-        await db.collection('users').doc(userId).set({
-          user: streakResult.user,
-          summary: streakResult.summary,
-          platformStreaks: streakResult.platformStreaks,
-          unifiedCodingStreak: streakResult.unifiedCodingStreak,
-          lastSyncedAt: new Date().toISOString(),
-        }, { merge: true });
+      db.collection('users').doc(userId).set({
+        user: streakResult.user,
+        summary: streakResult.summary,
+        platformStreaks: streakResult.platformStreaks,
+        unifiedCodingStreak: streakResult.unifiedCodingStreak,
+        lastSyncedAt: new Date().toISOString(),
+      }, { merge: true }).catch((err) => console.warn('Firestore user sync write error:', err.message));
 
-        await db.collection('matrix').doc(userId).set({
-          matrixState: streakResult.matrixState,
-          habits: streakResult.habits,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
+      db.collection('matrix').doc(userId).set({
+        matrixState: streakResult.matrixState,
+        habits: streakResult.habits,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true }).catch((err) => console.warn('Firestore matrix sync write error:', err.message));
 
-        // Save activity audit logs
-        if (streakResult.auditLogs && streakResult.auditLogs.length > 0) {
-          const batch = db.batch();
-          streakResult.auditLogs.forEach((log) => {
-            const logRef = db.collection('activity_logs').doc(log.logId);
-            batch.set(logRef, log);
-          });
-          await batch.commit();
-        }
-      } catch (fsErr) {
-        console.warn('Firestore sync write error:', fsErr.message);
+      if (streakResult.auditLogs && streakResult.auditLogs.length > 0) {
+        const batch = db.batch();
+        streakResult.auditLogs.forEach((log) => {
+          const logRef = db.collection('activity_logs').doc(log.logId);
+          batch.set(logRef, log);
+        });
+        batch.commit().catch((err) => console.warn('Firestore batch commit error:', err.message));
       }
     }
 

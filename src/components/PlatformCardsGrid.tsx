@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ActivityItem } from '../types';
 import { soundFx } from '../utils/audio';
-import { ExternalLink, Flame, CheckCircle2, Sparkles, Zap, ArrowUpRight, RefreshCw, Calendar } from 'lucide-react';
+import { Flame, CheckCircle2, ArrowUpRight, RefreshCw, Calendar } from 'lucide-react';
 
 interface PlatformCardsGridProps {
   activities: ActivityItem[];

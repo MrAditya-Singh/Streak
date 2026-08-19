@@ -34,7 +34,18 @@ function getHeaders(customToken) {
 }
 
 export async function fetchGitHubData(rawInput, customToken) {
-  const username = parseGitHubUsername(rawInput) || 'MrAditya-Singh';
+  const username = parseGitHubUsername(rawInput);
+  if (!username) {
+    return {
+      platform: 'github',
+      username: '',
+      profileUrl: '',
+      isVerified: false,
+      hasActivityToday: false,
+      dailyActivity: {},
+      sync: { status: 'not_configured' },
+    };
+  }
   const profileUrl = `https://github.com/${username}`;
 
   let verified = true;
@@ -45,83 +56,100 @@ export async function fetchGitHubData(rawInput, customToken) {
   let syncStatus = 'success';
   let hasFetchedAnyData = false;
 
-  // 1. Fetch user profile stats
-  try {
-    const userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
-      headers: getHeaders(customToken),
-      signal: AbortSignal.timeout(6000),
-    });
-
-    if (userRes.ok) {
-      const uData = await userRes.json();
-      repositories = uData.public_repos ?? 32;
-      avatarUrl = uData.avatar_url || avatarUrl;
-    } else {
-      console.warn(`[GitHub Adapter] Profile fetch failed with status: ${userRes.status}`);
-    }
-  } catch (err) {
-    console.warn(`[GitHub Adapter] Profile fetch notice: ${err.message}`);
-  }
-
-  // 2. Fetch full GitHub contribution calendar (365 days of true daily commits)
-  try {
-    const calRes = await fetch(`https://github-contributions-api.jogruber.de/v4/${encodeURIComponent(username)}?y=last`, {
-      signal: AbortSignal.timeout(6000),
-    });
-    if (calRes.ok) {
-      const calData = await calRes.json();
-      if (Array.isArray(calData.contributions)) {
-        calData.contributions.forEach((dayItem) => {
-          if (dayItem.date && dayItem.count > 0) {
-            dailyActivity[dayItem.date] = dayItem.count;
-          }
+  // Execute profile fetch, contribution calendar, and public events in parallel
+  await Promise.allSettled([
+    // 1. Fetch user profile stats
+    (async () => {
+      try {
+        let userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
+          headers: getHeaders(customToken),
+          signal: AbortSignal.timeout(2000),
         });
-        hasFetchedAnyData = true;
+
+        if (userRes.status === 401 && customToken) {
+          userRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
+            headers: getHeaders(null),
+            signal: AbortSignal.timeout(2000),
+          });
+        }
+
+        if (userRes.ok) {
+          const uData = await userRes.json();
+          repositories = uData.public_repos ?? 32;
+          avatarUrl = uData.avatar_url || avatarUrl;
+        }
+      } catch (err) {
+        console.warn(`[GitHub Adapter] Profile fetch notice: ${err.message}`);
       }
-    } else {
-      console.warn(`[GitHub Adapter] Contribution calendar failed with status: ${calRes.status}`);
-    }
-  } catch (calErr) {
-    console.warn(`[GitHub Adapter] Contribution calendar notice: ${calErr.message}`);
-  }
+    })(),
 
-  // 3. Fetch public events timeline for real-time push & PR timestamps
-  try {
-    const eventsRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`, {
-      headers: getHeaders(customToken),
-      signal: AbortSignal.timeout(6000),
-    });
-
-    if (eventsRes.ok) {
-      const events = await eventsRes.json();
-      if (Array.isArray(events)) {
-        const qualifyingTypes = new Set([
-          'PushEvent',
-          'CreateEvent',
-          'PullRequestEvent',
-          'IssuesEvent',
-          'CommitCommentEvent',
-          'ReleaseEvent',
-        ]);
-
-        events.forEach((ev) => {
-          if (ev.created_at && qualifyingTypes.has(ev.type)) {
-            const dateStr = ev.created_at.split('T')[0];
-            let weight = 1;
-            if (ev.type === 'PushEvent') {
-              weight = ev.payload?.commits?.length || 1;
-            }
-            dailyActivity[dateStr] = (dailyActivity[dateStr] || 0) + weight;
-          }
+    // 2. Fetch full GitHub contribution calendar (365 days of true daily commits)
+    (async () => {
+      try {
+        const calRes = await fetch(`https://github-contributions-api.jogruber.de/v4/${encodeURIComponent(username)}?y=last`, {
+          signal: AbortSignal.timeout(2000),
         });
-        hasFetchedAnyData = true;
+        if (calRes.ok) {
+          const calData = await calRes.json();
+          if (Array.isArray(calData.contributions)) {
+            calData.contributions.forEach((dayItem) => {
+              if (dayItem.date && dayItem.count > 0) {
+                dailyActivity[dayItem.date] = dayItem.count;
+              }
+            });
+            hasFetchedAnyData = true;
+          }
+        }
+      } catch (calErr) {
+        console.warn(`[GitHub Adapter] Contribution calendar notice: ${calErr.message}`);
       }
-    } else {
-      console.warn(`[GitHub Adapter] Public events failed with status: ${eventsRes.status}`);
-    }
-  } catch (err) {
-    console.warn(`[GitHub Adapter] Public events notice: ${err.message}`);
-  }
+    })(),
+
+    // 3. Fetch public events timeline for real-time push & PR timestamps
+    (async () => {
+      try {
+        let eventsRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`, {
+          headers: getHeaders(customToken),
+          signal: AbortSignal.timeout(2000),
+        });
+
+        if (eventsRes.status === 401 && customToken) {
+          eventsRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/events/public?per_page=100`, {
+            headers: getHeaders(null),
+            signal: AbortSignal.timeout(2000),
+          });
+        }
+
+        if (eventsRes.ok) {
+          const events = await eventsRes.json();
+          if (Array.isArray(events)) {
+            const qualifyingTypes = new Set([
+              'PushEvent',
+              'CreateEvent',
+              'PullRequestEvent',
+              'IssuesEvent',
+              'CommitCommentEvent',
+              'ReleaseEvent',
+            ]);
+
+            events.forEach((ev) => {
+              if (ev.created_at && qualifyingTypes.has(ev.type)) {
+                const dateStr = ev.created_at.split('T')[0];
+                let weight = 1;
+                if (ev.type === 'PushEvent') {
+                  weight = ev.payload?.commits?.length || 1;
+                }
+                dailyActivity[dateStr] = (dailyActivity[dateStr] || 0) + weight;
+              }
+            });
+            hasFetchedAnyData = true;
+          }
+        }
+      } catch (err) {
+        console.warn(`[GitHub Adapter] Public events notice: ${err.message}`);
+      }
+    })(),
+  ]);
 
   if (!hasFetchedAnyData) {
     syncStatus = 'error';

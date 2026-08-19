@@ -6,11 +6,9 @@ import {
   Plus, 
   X, 
   CheckCircle2, 
-  Sparkles, 
   ShieldAlert, 
   Trash2, 
   Zap,
-  Flame,
   Check
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
@@ -31,7 +29,7 @@ export const EmergencyWorkCard: React.FC<EmergencyWorkCardProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
   const [deadlineHours, setDeadlineHours] = useState<number>(24);
-  const [priority, setPriority] = useState<number>(5);
+  const [priority, _setPriority] = useState<number>(5);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
 

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { X, RefreshCw, BarChart2, Code2, CheckCircle2, AlertCircle, Sparkles, Video, Terminal, Binary, Award } from 'lucide-react';
+import { X, RefreshCw, BarChart2, Code2, CheckCircle2, Sparkles, Video, Terminal, Binary, Award } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { 
-  syncAllViaBackend, 
   syncGitHub, 
   syncLeetCode, 
   syncCodeforces, 
@@ -32,14 +31,14 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
   onSyncActivities,
   isDarkMode = false,
 }) => {
-  const [codolioUser, setCodolioUser] = useState(user.codolioUsername || 'Mr.Aditya');
-  const [ghUser, setGhUser] = useState(user.githubUsername || 'MrAditya-Singh');
-  const [lcUser, setLcUser] = useState(user.leetcodeUsername || 'mradityasingh');
-  const [cfHandle, setCfHandle] = useState(user.codeforcesHandle || 'Aditya__YUPP');
-  const [atcoderUser, setAtcoderUser] = useState(user.atcoderUsername || 'MrAditya');
-  const [gfgUser, setGfgUser] = useState(user.gfgUsername || 'mraditya');
-  const [hrUser, setHrUser] = useState(user.hackerrankUsername || 'mradityasingh');
-  const [ytChannel, setYtChannel] = useState(user.youtubeChannelId || 'Viralhit-1');
+  const [codolioUser, setCodolioUser] = useState(user.codolioUsername || '');
+  const [ghUser, setGhUser] = useState(user.githubUsername || '');
+  const [lcUser, setLcUser] = useState(user.leetcodeUsername || '');
+  const [cfHandle, setCfHandle] = useState(user.codeforcesHandle || '');
+  const [atcoderUser, setAtcoderUser] = useState(user.atcoderUsername || '');
+  const [gfgUser, setGfgUser] = useState(user.gfgUsername || '');
+  const [hrUser, setHrUser] = useState(user.hackerrankUsername || '');
+  const [ytChannel, setYtChannel] = useState(user.youtubeChannelId || '');
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -194,7 +193,7 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
               }`}>
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Codolio Single Aggregation Layer (mraditya)</span>
+                  <span>Codolio Single Aggregation Layer</span>
                 </span>
                 <span className="text-[10px] uppercase tracking-widest font-mono text-amber-600 dark:text-amber-400/80 font-bold">
                   Aggregates LeetCode • GFG • CF • GitHub
@@ -204,11 +203,11 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 type="text"
                 value={codolioUser}
                 onChange={(e) => setCodolioUser(e.target.value)}
-                placeholder="mraditya"
+                placeholder="Enter your Codolio username"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-amber-500 ${
                   isDarkMode 
                     ? 'bg-black/60 border-amber-500/40 text-amber-200' 
-                    : 'bg-white border-amber-300 text-amber-950 placeholder-amber-400'
+                    : 'bg-white border-amber-300 text-amber-950'
                 }`}
               />
             </div>
@@ -221,13 +220,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 <svg viewBox="0 0 24 24" className={`w-3.5 h-3.5 fill-current ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
                 </svg>
-                <span>GitHub (MrAditya-Singh)</span>
+                <span>GitHub</span>
               </label>
               <input
                 type="text"
                 value={ghUser}
                 onChange={(e) => setGhUser(e.target.value)}
-                placeholder="MrAditya-Singh"
+                placeholder="Enter your GitHub username"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 
@@ -242,13 +241,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 isDarkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
                 <Code2 className="w-3.5 h-3.5 text-[#ffa116]" />
-                <span>LeetCode (mradityasingh)</span>
+                <span>LeetCode</span>
               </label>
               <input
                 type="text"
                 value={lcUser}
                 onChange={(e) => setLcUser(e.target.value)}
-                placeholder="mradityasingh"
+                placeholder="Enter your LeetCode username"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-amber-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 
@@ -263,13 +262,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 isDarkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
                 <BarChart2 className="w-3.5 h-3.5 text-blue-500" />
-                <span>Codeforces (Aditya__YUPP)</span>
+                <span>Codeforces</span>
               </label>
               <input
                 type="text"
                 value={cfHandle}
                 onChange={(e) => setCfHandle(e.target.value)}
-                placeholder="Aditya__YUPP"
+                placeholder="Enter your Codeforces handle"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-blue-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 
@@ -284,13 +283,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 isDarkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
                 <Terminal className="w-3.5 h-3.5 text-purple-500" />
-                <span>AtCoder (MrAditya)</span>
+                <span>AtCoder</span>
               </label>
               <input
                 type="text"
                 value={atcoderUser}
                 onChange={(e) => setAtcoderUser(e.target.value)}
-                placeholder="MrAditya"
+                placeholder="Enter your AtCoder username"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-purple-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 
@@ -305,13 +304,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 isDarkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
                 <Binary className="w-3.5 h-3.5 text-emerald-500" />
-                <span>GeeksforGeeks (mraditya)</span>
+                <span>GeeksforGeeks</span>
               </label>
               <input
                 type="text"
                 value={gfgUser}
                 onChange={(e) => setGfgUser(e.target.value)}
-                placeholder="mraditya"
+                placeholder="Enter your GFG username"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 
@@ -326,13 +325,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 isDarkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
                 <Award className="w-3.5 h-3.5 text-emerald-600" />
-                <span>HackerRank (mradityasingh)</span>
+                <span>HackerRank</span>
               </label>
               <input
                 type="text"
                 value={hrUser}
                 onChange={(e) => setHrUser(e.target.value)}
-                placeholder="mradityasingh"
+                placeholder="Enter your HackerRank username"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 
@@ -347,13 +346,13 @@ export const LiveSyncModal: React.FC<LiveSyncModalProps> = ({
                 isDarkMode ? 'text-slate-300' : 'text-slate-700'
               }`}>
                 <Video className="w-3.5 h-3.5 text-red-500" />
-                <span>YouTube Content Handle (Viralhit-1)</span>
+                <span>YouTube Content Handle</span>
               </label>
               <input
                 type="text"
                 value={ytChannel}
                 onChange={(e) => setYtChannel(e.target.value)}
-                placeholder="Viralhit-1"
+                placeholder="Enter your YouTube handle"
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-red-500 ${
                   isDarkMode 
                     ? 'bg-black/40 border-white/10 text-white' 

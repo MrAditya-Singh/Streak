@@ -23,7 +23,10 @@ export function parseYouTubeHandle(input) {
 }
 
 export async function fetchYouTubeData(rawInput) {
-  const channelOrHandle = parseYouTubeHandle(rawInput) || 'Viralhit-1';
+  const channelOrHandle = parseYouTubeHandle(rawInput);
+  if (!channelOrHandle) {
+    return { platform: 'youtube', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://www.youtube.com/@${channelOrHandle}`;
 
   const dailyActivity = {};

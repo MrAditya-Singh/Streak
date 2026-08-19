@@ -3,7 +3,6 @@ import {
   X, 
   ShieldCheck, 
   Sparkles, 
-  Check, 
   Mail, 
   Globe,
   LogOut,

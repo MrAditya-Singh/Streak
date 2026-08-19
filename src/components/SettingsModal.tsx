@@ -27,8 +27,7 @@ import {
 } from 'lucide-react';
 import { ActivityItem, UserProfile, HistoricalDayRecord, ActivityLogEntry } from '../types';
 import { soundFx } from '../utils/audio';
-
-const BACKEND_API_BASE = import.meta.env.VITE_API_URL || 'https://effectivestreak-backend.onrender.com/api';
+import { getCurrentUserToken, signInWithGoogle } from '../services/firebaseAuth';
 import { downloadJSONBackup, downloadCSVBackup } from '../services/exportService';
 import { 
   extractUsernameFromUrl, 
@@ -37,14 +36,20 @@ import {
   syncCodeforces, 
   syncGFG, 
   syncAtCoder, 
-  syncCodeChef, 
   syncHackerRank, 
-  syncCodeStudio, 
-  syncInterviewBit, 
   connectPlatformViaBackend,
   syncAllViaBackend,
+  BACKEND_API_BASE,
   SyncResult 
 } from '../services/apiSync';
+
+async function fetchBackend(url: string, init: RequestInit = {}) {
+  const token = await getCurrentUserToken();
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...init, headers });
+}
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -81,7 +86,7 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
     name: 'GitHub',
     category: 'development',
     urlPrefix: 'https://github.com/',
-    placeholder: 'https://github.com/MrAditya-Singh',
+    placeholder: 'https://github.com/your-username',
     iconBg: 'bg-black text-white',
     iconText: 'GH',
     defaultUsernameKey: 'githubUsername',
@@ -92,7 +97,7 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
     name: 'LeetCode',
     category: 'problem_solving',
     urlPrefix: 'https://leetcode.com/u/',
-    placeholder: 'https://leetcode.com/u/mradityasingh',
+    placeholder: 'https://leetcode.com/u/your-username',
     iconBg: 'bg-amber-500/20 text-amber-500',
     iconText: 'LC',
     defaultUsernameKey: 'leetcodeUsername',
@@ -102,7 +107,7 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
     name: 'Codeforces',
     category: 'problem_solving',
     urlPrefix: 'https://codeforces.com/profile/',
-    placeholder: 'https://codeforces.com/profile/Aditya__YUPP',
+    placeholder: 'https://codeforces.com/profile/your-handle',
     iconBg: 'bg-blue-500/20 text-blue-500',
     iconText: 'CF',
     defaultUsernameKey: 'codeforcesHandle',
@@ -112,7 +117,7 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
     name: 'GeeksforGeeks',
     category: 'problem_solving',
     urlPrefix: 'https://www.geeksforgeeks.org/user/',
-    placeholder: 'https://www.geeksforgeeks.org/user/mraditya',
+    placeholder: 'https://www.geeksforgeeks.org/user/your-username',
     iconBg: 'bg-emerald-500/20 text-emerald-500',
     iconText: 'GFG',
     defaultUsernameKey: 'gfgUsername',
@@ -122,7 +127,7 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
     name: 'AtCoder',
     category: 'problem_solving',
     urlPrefix: 'https://atcoder.jp/users/',
-    placeholder: 'https://atcoder.jp/users/MrAditya',
+    placeholder: 'https://atcoder.jp/users/your-username',
     iconBg: 'bg-slate-700/20 text-slate-400',
     iconText: 'AC',
     defaultUsernameKey: 'atcoderUsername',
@@ -132,7 +137,7 @@ const DEFAULT_PLATFORMS: PlatformConfig[] = [
     name: 'HackerRank',
     category: 'problem_solving',
     urlPrefix: 'https://www.hackerrank.com/profile/',
-    placeholder: 'https://www.hackerrank.com/profile/mradityasingh',
+    placeholder: 'https://www.hackerrank.com/profile/your-username',
     iconBg: 'bg-green-600/20 text-green-500',
     iconText: 'HR',
     defaultUsernameKey: 'hackerrankUsername',
@@ -194,15 +199,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Comprehensive Personal Profile Form State
   // These update whenever the user prop changes (e.g., from Firestore remote load)
-  const [profileName, setProfileName] = useState(user.name || 'Aditya Singh');
-  const [profileEmail, setProfileEmail] = useState(user.email || 'mradityasinghofficial1@gmail.com');
-  const [profileAge, setProfileAge] = useState<number | string>(user.age || 21);
-  const [profileBloodGroup, setProfileBloodGroup] = useState(user.bloodGroup || 'B+');
-  const [profileHeight, setProfileHeight] = useState(user.height || '178 cm');
-  const [profileWeight, setProfileWeight] = useState(user.weight || '68 kg');
-  const [profileResident, setProfileResident] = useState(user.resident || 'Delhi, India');
-  const [profilePhone, setProfilePhone] = useState(user.phoneNumber || '+91 9876543210');
-  const [profileBio, setProfileBio] = useState(user.bio || 'Solo Hunter • S-Rank Aspirant • Competitive Programmer');
+  const [profileName, setProfileName] = useState(user.name || 'Local User');
+  const [profileEmail, setProfileEmail] = useState(user.email || 'user@example.com');
+  const [profileAge, setProfileAge] = useState<number | string>(user.age || '');
+  const [profileBloodGroup, setProfileBloodGroup] = useState(user.bloodGroup || '');
+  const [profileHeight, setProfileHeight] = useState(user.height || '');
+  const [profileWeight, setProfileWeight] = useState(user.weight || '');
+  const [profileResident, setProfileResident] = useState(user.resident || '');
+  const [profilePhone, setProfilePhone] = useState(user.phoneNumber || '');
+  const [profileBio, setProfileBio] = useState(user.bio || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // ✅ FIX: Auto-sync profile form when user prop updates from cloud/Firestore
@@ -236,12 +241,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [platformInputs, setPlatformInputs] = useState<Record<string, string>>(() => {
     const urls = user.platformUrls || {};
     return {
-      github: urls.github || (user.githubUsername ? `https://github.com/${user.githubUsername}` : 'https://github.com/MrAditya-Singh'),
-      leetcode: urls.leetcode || (user.leetcodeUsername ? `https://leetcode.com/u/${user.leetcodeUsername}` : 'https://leetcode.com/u/mradityasingh'),
-      codeforces: urls.codeforces || (user.codeforcesHandle ? `https://codeforces.com/profile/${user.codeforcesHandle}` : 'https://codeforces.com/profile/Aditya__YUPP'),
-      geeksforgeeks: urls.geeksforgeeks || (user.gfgUsername ? `https://www.geeksforgeeks.org/user/${user.gfgUsername}` : 'https://www.geeksforgeeks.org/user/mraditya'),
-      atcoder: urls.atcoder || (user.atcoderUsername ? `https://atcoder.jp/users/${user.atcoderUsername}` : 'https://atcoder.jp/users/MrAditya'),
-      hackerrank: urls.hackerrank || (user.hackerrankUsername ? `https://www.hackerrank.com/profile/${user.hackerrankUsername}` : 'https://www.hackerrank.com/profile/mradityasingh'),
+      github: urls.github || (user.githubUsername ? `https://github.com/${user.githubUsername}` : ''),
+      leetcode: urls.leetcode || (user.leetcodeUsername ? `https://leetcode.com/u/${user.leetcodeUsername}` : ''),
+      codeforces: urls.codeforces || (user.codeforcesHandle ? `https://codeforces.com/profile/${user.codeforcesHandle}` : ''),
+      geeksforgeeks: urls.geeksforgeeks || (user.gfgUsername ? `https://www.geeksforgeeks.org/user/${user.gfgUsername}` : ''),
+      atcoder: urls.atcoder || (user.atcoderUsername ? `https://atcoder.jp/users/${user.atcoderUsername}` : ''),
+      hackerrank: urls.hackerrank || (user.hackerrankUsername ? `https://www.hackerrank.com/profile/${user.hackerrankUsername}` : ''),
       codestudio: urls.codestudio || (user.codestudioUsername ? `https://www.naukri.com/code360/profile/${user.codestudioUsername}` : ''),
       interviewbit: urls.interviewbit || (user.interviewbitUsername ? `https://www.interviewbit.com/profile/${user.interviewbitUsername}` : ''),
       codechef: urls.codechef || (user.codechefUsername ? `https://www.codechef.com/users/${user.codechefUsername}` : ''),
@@ -309,7 +314,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         ? `(${backendRes.data.stats.solved ? `${backendRes.data.stats.solved} solved` : 'Connected'})`
         : '';
       showToast(`✓ ${platform.name} verified & connected! ${statsInfo}`, 'success');
-    } catch (err: any) {
+    } catch {
       // Graceful fallback
       const nextVerified = { ...verifiedState, [platform.id]: true };
       setVerifiedState(nextVerified);
@@ -451,7 +456,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
       soundFx.playLevelUp();
       showToast(`⚡ Multi-platform sync complete! ${activeCount} platforms active today.`, 'success');
-    } catch (err: any) {
+    } catch {
       showToast('✓ Sync finished. Connected accounts verified.', 'success');
     } finally {
       setIsFetchingAll(false);
@@ -529,11 +534,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (cleanPhone) localStorage.setItem('effstreak_sync_phone', cleanPhone);
 
     try {
-      const res = await fetch(`${BACKEND_API_BASE}/auth/profile`, {
+      const res = await fetchBackend(`${BACKEND_API_BASE}/auth/profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.uid || 'aditya-singh',
+          userId: user.uid || 'local_authenticated_dev_user',
           ...profilePayload,
         }),
       });
@@ -543,7 +548,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       } else {
         showToast('✓ Profile & Sync Identity updated locally.', 'success');
       }
-    } catch (err) {
+    } catch {
       showToast('✓ Profile & Sync Identity updated locally.', 'success');
     } finally {
       setIsSavingProfile(false);
@@ -552,9 +557,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleGoogleSignIn = async () => {
     soundFx.playClick();
-    showToast(`Connecting Google Account (${profileEmail})...`, 'info');
+    showToast(`Connecting Google Account...`, 'info');
     try {
-      const res = await fetch(`${BACKEND_API_BASE}/auth/google`, {
+      const { user: gUser } = await signInWithGoogle();
+      if (gUser && gUser.uid) {
+        const googleProfile: Partial<UserProfile> = {
+          uid: gUser.uid,
+          name: gUser.displayName || profileName,
+          email: gUser.email || profileEmail,
+          avatarUrl: gUser.photoURL || user.avatarUrl || '/images/char_hero.jpg',
+        };
+        onUpdateUser(googleProfile);
+        soundFx.playLevelUp();
+        showToast(`✓ Google Account Connected! Multi-Device Cloud Sync active for ${gUser.email}`, 'success');
+        return;
+      }
+    } catch (err: any) {
+      console.warn('Firebase Google Sign-In prompt notice:', err.message);
+    }
+
+    try {
+      const res = await fetchBackend(`${BACKEND_API_BASE}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -570,7 +593,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       } else {
         showToast(`✓ Google Sync linked to ${profileEmail}`, 'success');
       }
-    } catch (err) {
+    } catch {
       showToast(`✓ Google Sync linked to ${profileEmail}`, 'success');
     }
   };
@@ -732,8 +755,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. Aditya Singh"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                       required
                     />
@@ -748,11 +771,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="email"
                       value={profileEmail}
                       onChange={(e) => setProfileEmail(e.target.value)}
-                      placeholder="e.g. mradityasinghofficial1@gmail.com"
+                      placeholder="e.g. you@example.com"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs font-mono transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                       required
                     />
@@ -772,8 +795,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. 21"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs font-mono transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                     />
                   </div>
@@ -788,8 +811,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => setProfileBloodGroup(e.target.value)}
                       className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs focus:border-purple-600'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
                       }`}
                     >
                       <option value="A+">A+</option>
@@ -815,8 +838,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. 178 cm or 5'10"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                     />
                   </div>
@@ -833,8 +856,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. 68 kg"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                     />
                   </div>
@@ -851,8 +874,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       placeholder="e.g. Delhi, India"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                     />
                   </div>
@@ -866,11 +889,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="tel"
                       value={profilePhone}
                       onChange={(e) => setProfilePhone(e.target.value)}
-                      placeholder="e.g. +91 9876543210"
+                      placeholder="e.g. +1 555 010 0000"
                       className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs font-mono transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                       }`}
                     />
                   </div>
@@ -888,8 +911,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     placeholder="e.g. Solo Hunter • S-Rank Aspirant • Competitive Programmer & Developer"
                     className={`w-full mt-1 border rounded-xl px-3.5 py-2 text-xs transition-all focus:outline-none resize-none ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-purple-500' 
-                        : 'bg-white border-[#D5CFBF] text-slate-900 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
+                        ? 'bg-black/60 border-white/10 text-white'
+                        : 'bg-white border-[#D5CFBF] text-slate-900 focus:ring-2 focus:ring-purple-100 shadow-2xs font-semibold'
                     }`}
                   />
                 </div>
@@ -1000,8 +1023,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => setCustomPlatformName(e.target.value)}
                       className={`border rounded-lg px-3 py-2 text-xs transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-purple-600 font-semibold shadow-2xs'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
                       }`}
                       required
                     />
@@ -1013,8 +1036,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => setCustomPlatformUrl(e.target.value)}
                       className={`border rounded-lg px-3 py-2 text-xs font-mono transition-all focus:outline-none ${
                         isDarkMode 
-                          ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-500 focus:border-purple-500' 
-                          : 'bg-white border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-purple-600 font-semibold shadow-2xs'
+                          ? 'bg-black/60 border-white/10 text-white'
+                          : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
                       }`}
                       required
                     />
@@ -1088,8 +1111,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             placeholder={platform.placeholder}
                             className={`w-full border rounded-lg px-3 py-1.5 text-xs font-mono transition-all focus:outline-none ${
                               isDarkMode 
-                                ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500' 
-                                : 'bg-[#F8F6F0] border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-blue-600 font-semibold'
+                                ? 'bg-black/60 border-white/10 text-white'
+                                : 'bg-[#F8F6F0] border-[#D5CFBF] text-slate-900 font-semibold'
                             }`}
                           />
                         </div>
@@ -1179,8 +1202,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             placeholder={platform.placeholder}
                             className={`w-full border rounded-lg px-3 py-1.5 text-xs font-mono transition-all focus:outline-none ${
                               isDarkMode 
-                                ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600 focus:border-blue-500' 
-                                : 'bg-[#F8F6F0] border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-blue-600 font-semibold'
+                                ? 'bg-black/60 border-white/10 text-white'
+                                : 'bg-[#F8F6F0] border-[#D5CFBF] text-slate-900 font-semibold'
                             }`}
                           />
                         </div>
@@ -1250,8 +1273,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => setNewActivityName(e.target.value)}
                     className={`border rounded-lg px-3 py-2 text-xs transition-all focus:outline-none ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-500 focus:border-duoGreen' 
-                        : 'bg-white border-[#D5CFBF] text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 font-semibold shadow-2xs'
+                        ? 'bg-black/60 border-white/10 text-white'
+                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
                     }`}
                     required
                   />
@@ -1389,8 +1412,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => onUpdateUser({ name: e.target.value })}
                     className={`w-full mt-1 border rounded-xl px-3 py-2 text-sm transition-all focus:outline-none ${
                       isDarkMode 
-                        ? 'bg-black/40 border-white/10 text-white focus:border-duoGreen' 
-                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs focus:border-purple-600'
+                        ? 'bg-black/40 border-white/10 text-white'
+                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
                     }`}
                   />
                 </div>
@@ -1413,8 +1436,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => onUpdateUser({ dailyResetTime: e.target.value })}
                     className={`w-full mt-1 border rounded-xl px-3 py-2 text-sm font-mono transition-all focus:outline-none ${
                       isDarkMode 
-                        ? 'bg-black/40 border-white/10 text-white focus:border-duoGreen' 
-                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs focus:border-purple-600'
+                        ? 'bg-black/40 border-white/10 text-white'
+                        : 'bg-white border-[#D5CFBF] text-slate-900 font-semibold shadow-2xs'
                     }`}
                   />
                 </div>

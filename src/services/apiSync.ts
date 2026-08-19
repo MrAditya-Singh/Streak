@@ -2,6 +2,7 @@
 // with Automated + Manual Activity Reconciliation
 
 import { ActivityItem, ActivityLogEntry, UserProfile } from '../types';
+import { getCurrentUserToken } from './firebaseAuth';
 
 export interface SyncResult {
   platform: string;
@@ -32,7 +33,7 @@ export async function syncGitHub(username: string, token?: string, codolioUserKe
   }
 
   const cleanUser = username.trim();
-  const targetCodolioKeys = [codolioUserKey, cleanUser, 'Mr.Aditya'].filter(Boolean) as string[];
+  const targetCodolioKeys = [codolioUserKey, cleanUser].filter(Boolean) as string[];
 
   // 1. Fast Codolio GitHub Contribution Calendar Query (<300ms, full 3653+ day history)
   for (const cKey of targetCodolioKeys) {
@@ -182,7 +183,7 @@ export async function syncCodeforces(handle: string): Promise<SyncResult> {
     }
 
     const now = Date.now() / 1000;
-    const startOfToday = now - 86400 * 1.5; // Within last 36 hours for timezone leeway
+    const _startOfToday = now - 86400 * 1.5; // Within last 36 hours for timezone leeway
 
     interface CFSubmission {
       creationTimeSeconds: number;
@@ -251,7 +252,15 @@ export interface CodolioSyncResult extends SyncResult {
 }
 
 export async function syncCodolio(username?: string): Promise<CodolioSyncResult> {
-  const cleanUsername = username?.trim().replace(/^@/, '') || 'Mr.Aditya';
+  const cleanUsername = username?.trim().replace(/^@/, '') || '';
+  if (!cleanUsername) {
+    return {
+      platform: 'Codolio', hasActivityToday: false, eventCount: 0,
+      details: 'No Codolio username configured', timestamp: new Date().toLocaleTimeString(),
+      autoCompleted: false, activePlatforms: {}, calculatedStreak: 0, totalActiveDays: 0,
+      dailyActivityMap: {}, platformDailyMaps: {},
+    };
+  }
   const todayStr = new Date().toISOString().split('T')[0];
 
   try {
@@ -399,7 +408,7 @@ export async function syncCodolio(username?: string): Promise<CodolioSyncResult>
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Connection fallback';
-    const cleanUsername = username?.trim().replace(/^@/, '') || 'Mr.Aditya';
+    const cleanUsername = username?.trim().replace(/^@/, '') || '';
     return {
       platform: 'Codolio',
       hasActivityToday: false,
@@ -444,30 +453,32 @@ export async function syncYouTube(channelId?: string, apiKey?: string): Promise<
           platform: 'YouTube',
           hasActivityToday: items.length > 0,
           eventCount: items.length,
-          details: `${items.length} YouTube learning videos / uploads tracked`,
+          details: items.length > 0
+            ? `${items.length} YouTube learning videos / uploads tracked`
+            : `YouTube channel configured but no recent uploads were found for @${cleanChannel}`,
           timestamp: new Date().toLocaleTimeString(),
-          autoCompleted: true,
+          autoCompleted: items.length > 0,
         };
       }
     }
 
     return {
       platform: 'YouTube',
-      hasActivityToday: true,
-      eventCount: 1,
-      details: `YouTube video session verified for channel @${cleanChannel}`,
+      hasActivityToday: false,
+      eventCount: 0,
+      details: `YouTube channel configured for @${cleanChannel}, but no verified activity was returned yet.`,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: false,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Offline';
     return {
       platform: 'YouTube',
-      hasActivityToday: true,
-      eventCount: 1,
-      details: `YouTube session tracked (${errorMsg})`,
+      hasActivityToday: false,
+      eventCount: 0,
+      details: `YouTube verification pending (${errorMsg})`,
       timestamp: new Date().toLocaleTimeString(),
-      autoCompleted: true,
+      autoCompleted: false,
     };
   }
 }
@@ -491,7 +502,7 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
 
   // 1. Fast & Direct Codolio Profile Query (<300ms, 100% reliable complete calendar)
   try {
-    const res = await fetch(`https://api.codolio.com/profile?userKey=Mr.Aditya`, {
+    const res = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(cleanUser)}`, {
       signal: AbortSignal.timeout(3500),
     });
     if (res.ok) {
@@ -592,8 +603,8 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
   return {
     platform: 'LeetCode',
     hasActivityToday: false,
-    eventCount: 338,
-    details: `LeetCode profile verified for @${cleanUser}`,
+    eventCount: 0,
+    details: `LeetCode data unavailable for @${cleanUser}`,
     timestamp: new Date().toLocaleTimeString(),
     autoCompleted: false,
     recentDates: [],
@@ -604,9 +615,16 @@ export async function syncLeetCode(username: string): Promise<SyncResult> {
  * Real GFG (GeeksforGeeks) Integration with Multi-Endpoint Support
  */
 export async function syncGFG(username: string, codolioUserKey?: string): Promise<SyncResult> {
-  const cleanUser = username?.trim() || 'mraditya';
+  const cleanUser = username?.trim() || '';
+  if (!cleanUser) {
+    return {
+      platform: 'GFG', hasActivityToday: false, eventCount: 0,
+      details: 'No GeeksforGeeks username configured', timestamp: new Date().toLocaleTimeString(),
+      autoCompleted: false, recentDates: [],
+    };
+  }
   const targetCodolioKeys = Array.from(
-    new Set([codolioUserKey, cleanUser, 'Mr.Aditya', 'MrAditya-Singh', 'mraditya'].filter(Boolean) as string[])
+    new Set([codolioUserKey, cleanUser].filter(Boolean) as string[])
   );
 
   // 1. Primary Query: Codolio Aggregator Profile API (<300ms)
@@ -792,11 +810,11 @@ export async function syncHackerRank(username: string): Promise<SyncResult> {
 
   return {
     platform: 'HackerRank',
-    hasActivityToday: true,
-    eventCount: 1,
-    details: `HackerRank 5★ Badge Verified for @${username}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `HackerRank profile for @${username} is configured but not verified yet.`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
@@ -817,11 +835,11 @@ export async function syncCodeStudio(username: string): Promise<SyncResult> {
 
   return {
     platform: 'CodeStudio',
-    hasActivityToday: true,
-    eventCount: 1,
-    details: `CodeStudio / Naukri 360 verified for @${username}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `CodeStudio profile for @${username} is configured but not verified yet.`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
@@ -842,11 +860,11 @@ export async function syncInterviewBit(username: string): Promise<SyncResult> {
 
   return {
     platform: 'InterviewBit',
-    hasActivityToday: true,
-    eventCount: 1,
-    details: `InterviewBit verified for @${username}`,
+    hasActivityToday: false,
+    eventCount: 0,
+    details: `InterviewBit profile for @${username} is configured but not verified yet.`,
     timestamp: new Date().toLocaleTimeString(),
-    autoCompleted: true,
+    autoCompleted: false,
   };
 }
 
@@ -911,15 +929,39 @@ export function reconcileActivity(
   return { updatedActivity, logEntry };
 }
 
-export const BACKEND_API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? 'https://effectivestreak-backend.onrender.com' : 'http://localhost:5000');
+const DEFAULT_BACKEND_URL = 'http://localhost:5000';
+const PROD_BACKEND_URL = 'https://effectivestreak-backend.onrender.com';
+
+export const BACKEND_API_URL = import.meta.env.VITE_API_URL || (
+  typeof window !== 'undefined'
+    ? (
+        window.location.port === '5000'
+          ? window.location.origin
+          : (window.location.hostname === 'localhost' ||
+             window.location.hostname === '127.0.0.1' ||
+             window.location.hostname.endsWith('.local') ||
+             /^(192\.168|10|172\.(1[6-9]|2\d|3[0-1]))\./.test(window.location.hostname))
+            ? `http://${window.location.hostname}:5000`
+            : PROD_BACKEND_URL
+      )
+    : DEFAULT_BACKEND_URL
+);
 export const BACKEND_API_BASE = `${BACKEND_API_URL}/api`;
+
+async function fetchBackend(url: string, init: RequestInit = {}) {
+  const token = await getCurrentUserToken();
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...init, headers });
+}
 
 /**
  * ⚡ Connects and verifies platform via backend Express + Firestore layer
  */
-export async function connectPlatformViaBackend(platform: string, handleOrUrl: string, userId = 'aditya-singh') {
+export async function connectPlatformViaBackend(platform: string, handleOrUrl: string, userId = 'local_authenticated_dev_user') {
   try {
-    const res = await fetch(`${BACKEND_API_BASE}/integrations/connect`, {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/integrations/connect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platform, handleOrUrl, userId }),
@@ -944,7 +986,7 @@ export async function syncAllViaBackend(payload: {
   specificPlatform?: string;
 }) {
   try {
-    const res = await fetch(`${BACKEND_API_BASE}/integrations/sync`, {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/integrations/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -958,4 +1000,46 @@ export async function syncAllViaBackend(payload: {
   }
   return null;
 }
+
+/**
+ * ⚡ Save Full User State via Backend Express API (Firebase Admin SDK bypasses client permissions)
+ */
+export async function pushFullStateToBackend(userId: string, state: any): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, state }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend sync push notice:', err);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Fetch Full User State via Backend Express API
+ */
+export async function fetchFullStateFromBackend(userId: string): Promise<any | null> {
+  if (!userId) return null;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/state?userId=${encodeURIComponent(userId)}`, {
+      method: 'GET',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.state) {
+        return data.state;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend sync fetch notice:', err);
+  }
+  return null;
+}
+
+export { fetchBackend };
+
 

@@ -69,6 +69,179 @@ html.dark body {
   width: 100%;
 }
 
+/* Keep the reference dashboard composition on narrow phone viewports. */
+@media (max-width: 1024px) {
+  body {
+    font-size: 12px;
+  }
+
+  .dashboard-header-grid,
+  .dashboard-weekly-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .dashboard-header-grid > .dashboard-header-copy,
+  .dashboard-weekly-grid > .dashboard-mantra-card {
+    grid-column: span 3 / span 3;
+  }
+
+  .dashboard-header-grid > .dashboard-header-banner,
+  .dashboard-weekly-grid > .dashboard-weekly-chart {
+    grid-column: span 6 / span 6;
+  }
+
+  .dashboard-header-grid > .dashboard-header-progress,
+  .dashboard-weekly-grid > .dashboard-leaderboard {
+    grid-column: span 3 / span 3;
+  }
+
+  .dashboard-header-copy {
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .dashboard-header-copy h1 {
+    font-size: 2rem;
+    line-height: 0.9;
+  }
+
+  .dashboard-header-copy .flex.items-center {
+    gap: 3px;
+  }
+
+  .dashboard-header-copy select,
+  .dashboard-header-copy span,
+  .dashboard-header-copy .font-mono {
+    font-size: 7px;
+  }
+
+  .dashboard-header-copy > div:last-child {
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 7px;
+  }
+
+  .dashboard-header-banner > div {
+    height: 84px;
+    border-radius: 14px;
+  }
+
+  .dashboard-header-banner .text-\[10px\],
+  .dashboard-header-banner .text-\[11px\] {
+    font-size: 6px;
+  }
+
+  .dashboard-header-progress {
+    min-width: 0;
+    gap: 3px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .dashboard-header-progress .text-3xl {
+    font-size: 1.35rem;
+  }
+
+  .dashboard-header-progress .w-22,
+  .dashboard-header-progress .h-22 {
+    width: 48px;
+    height: 48px;
+  }
+
+  .dashboard-header-progress svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .dashboard-header-progress .text-\[10px\],
+  .dashboard-header-progress .text-xs {
+    font-size: 6px;
+  }
+
+  .dashboard-header-grid + .mt-5 {
+    margin-top: 8px;
+    padding-top: 8px;
+    gap: 4px;
+  }
+
+  .dashboard-header-grid + .mt-5 button,
+  .dashboard-header-grid + .mt-5 > div {
+    font-size: 7px;
+  }
+
+  .dashboard-header-grid + .mt-5 button {
+    padding: 4px 6px;
+    border-radius: 8px;
+  }
+
+  .dashboard-weekly-grid > div {
+    min-width: 0;
+    padding: 7px;
+    border-radius: 12px;
+  }
+
+  .dashboard-mantra-card > div:first-child {
+    height: 100px;
+  }
+
+  .dashboard-mantra-card .text-base,
+  .dashboard-mantra-card .text-sm {
+    font-size: 8px;
+  }
+
+  .dashboard-weekly-chart {
+    gap: 6px;
+  }
+
+  .dashboard-weekly-chart .min-w-\[420px\],
+  .dashboard-weekly-chart .min-w-\[480px\] {
+    min-width: 100%;
+  }
+
+  .dashboard-weekly-chart .h-34 {
+    height: 96px;
+  }
+
+  .dashboard-weekly-chart .h-26 {
+    height: 68px;
+  }
+
+  .dashboard-weekly-chart .w-15,
+  .dashboard-weekly-chart .h-15 {
+    width: 34px;
+    height: 34px;
+  }
+
+  .dashboard-weekly-chart .text-xs,
+  .dashboard-weekly-chart .text-\[9px\] {
+    font-size: 6px;
+  }
+
+  .dashboard-leaderboard {
+    overflow: hidden;
+  }
+
+  .dashboard-leaderboard .text-xs,
+  .dashboard-leaderboard .text-\[11px\],
+  .dashboard-leaderboard .text-\[10px\] {
+    font-size: 7px;
+  }
+
+  .dashboard-leaderboard .w-12 {
+    width: 24px;
+  }
+
+  .dashboard-leaderboard .w-11 {
+    width: 22px;
+  }
+
+  .dashboard-leaderboard .max-h-\[175px\] {
+    max-height: 108px;
+  }
+}
+
 /* Glassmorphism Card Style */
 .glass-card {
   background: #FFFFFF;

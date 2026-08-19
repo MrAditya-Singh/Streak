@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChevronUp, ChevronDown, AlertTriangle, BarChart3, Code2, Lightbulb,
   Zap, Flame, Clock, Calendar, TrendingUp, CheckCircle2, Circle,
-  Timer, X, Target, Rocket, Brain, Activity, Shield, BookOpen,
-  Star, Trophy, GitBranch, Layers
+  Timer, X, Target, Brain, Activity, BookOpen, Layers
 } from 'lucide-react';
 import { ActivityItem, EmergencyTask, UserProfile } from '../types';
 

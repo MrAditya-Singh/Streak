@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, TrendingUp, Calendar, Zap, BarChart3, Layers, Target, CheckCircle2, Sparkles, Trophy, Info } from 'lucide-react';
+import { X, TrendingUp, Calendar, Zap, BarChart3, Layers, Trophy, Info } from 'lucide-react';
 import { ActivityItem } from '../types';
 
 interface EfficiencyAnalyticsModalProps {

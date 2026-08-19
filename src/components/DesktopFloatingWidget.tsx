@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Check, Sparkles, Move } from 'lucide-react';
+
 import { UserProfile, ActivityItem } from '../types';
 import { soundFx } from '../utils/audio';
 

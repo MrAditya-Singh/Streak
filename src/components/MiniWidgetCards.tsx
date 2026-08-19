@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Zap, Flame, Sparkles } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
 interface MiniWidgetCardsProps {
@@ -12,8 +12,8 @@ interface MiniWidgetCardsProps {
 
 export const MiniWidgetCards: React.FC<MiniWidgetCardsProps> = ({
   currentStreak,
-  tasksDone,
-  tasksLeft,
+  tasksDone: _tasksDone,
+  tasksLeft: _tasksLeft,
   efficiencyPct,
   onOpenSimulator,
 }) => {

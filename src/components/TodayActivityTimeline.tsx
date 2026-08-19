@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { ActivityLogEntry, ActivityItem } from '../types';
-import { Check, Clock, Sparkles, Zap, User, ExternalLink, Flame, CheckCircle2 } from 'lucide-react';
-import { soundFx } from '../utils/audio';
+import { Check, Clock, Sparkles, Zap, User, Flame, CheckCircle2 } from 'lucide-react';
 
 interface TodayActivityTimelineProps {
   logs?: ActivityLogEntry[];

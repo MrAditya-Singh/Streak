@@ -22,11 +22,13 @@ export function parseHackerRankUsername(input) {
 }
 
 export async function fetchHackerRankData(rawInput) {
-  const username = parseHackerRankUsername(rawInput) || 'mradityasingh';
+  const username = parseHackerRankUsername(rawInput);
+  if (!username) {
+    return { platform: 'hackerrank', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://www.hackerrank.com/profile/${username}`;
 
   const dailyActivity = {};
-  const todayStr = new Date().toISOString().split('T')[0];
 
   return {
     platform: 'hackerrank',
@@ -35,7 +37,7 @@ export async function fetchHackerRankData(rawInput) {
       username,
       profileUrl,
       verified: true,
-      githubMatched: 'MrAditya-Singh',
+      githubMatched: null,
     },
     stats: {
       profileVerified: true,

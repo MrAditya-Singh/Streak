@@ -23,7 +23,10 @@ export function parseGFGUsername(input) {
 }
 
 export async function fetchGFGData(rawInput) {
-  const username = parseGFGUsername(rawInput) || 'mraditya';
+  const username = parseGFGUsername(rawInput);
+  if (!username) {
+    return { platform: 'gfg', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://www.geeksforgeeks.org/user/${username}/`;
 
   let totalSolved = 243;
@@ -35,7 +38,7 @@ export async function fetchGFGData(rawInput) {
 
   // 1. Ultra-Fast Strategy: Fetch via Codolio API (Never blocked by Cloudflare, instant <300ms)
   try {
-    const codolioRes = await fetch(`https://api.codolio.com/profile?userKey=Mr.Aditya`, {
+    const codolioRes = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(username)}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json',

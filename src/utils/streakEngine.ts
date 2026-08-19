@@ -11,9 +11,9 @@ import {
 } from '../types';
 
 export const INITIAL_USER: UserProfile = {
-  uid: 'aditya-singh',
-  email: 'mradityasinghofficial1@gmail.com',
-  name: 'Aditya',
+  uid: 'guest_user_local',
+  email: 'user@example.com',
+  name: 'Local User',
   overallStreak: 0,
   longestStreak: 0,
   lastActiveDate: '',
@@ -37,31 +37,14 @@ export const INITIAL_USER: UserProfile = {
   soundEnabled: true,
   notificationsEnabled: true,
   reminderTime: '21:30',
-  codolioUsername: 'Mr.Aditya',
-  githubUsername: 'MrAditya-Singh',
-  codeforcesHandle: 'Aditya__YUPP',
-  leetcodeUsername: 'mradityasingh',
-  gfgUsername: 'mraditya',
-  atcoderUsername: 'MrAditya',
-  hackerrankUsername: 'mradityasingh',
-  youtubeChannelId: 'Viralhit-1',
-  platformUrls: {
-    github: 'https://github.com/MrAditya-Singh',
-    leetcode: 'https://leetcode.com/u/mradityasingh',
-    codeforces: 'https://codeforces.com/profile/Aditya__YUPP',
-    hackerrank: 'https://www.hackerrank.com/profile/mradityasingh',
-    atcoder: 'https://atcoder.jp/users/MrAditya',
-    geeksforgeeks: 'https://www.geeksforgeeks.org/user/mraditya',
-    youtube: 'https://www.youtube.com/@Viralhit-1',
-  },
   platformVerified: {
-    github: true,
-    leetcode: true,
-    codeforces: true,
-    hackerrank: true,
-    atcoder: true,
-    geeksforgeeks: true,
-    youtube: true,
+    github: false,
+    leetcode: false,
+    codeforces: false,
+    hackerrank: false,
+    atcoder: false,
+    geeksforgeeks: false,
+    youtube: false,
   },
   platformStats: {},
 };
@@ -70,7 +53,7 @@ export const INITIAL_USER: UserProfile = {
 export const INITIAL_EMERGENCY_TASKS: EmergencyTask[] = [];
 
 // Complete 15-Activity Production Matrix
-export const INITIAL_ACTIVITIES: ActivityItem[] = [
+const _LEGACY_INITIAL_ACTIVITIES: ActivityItem[] = [
   {
     id: 'leetcode',
     name: 'LeetCode',
@@ -80,7 +63,7 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
     completed: false,
     scheduledTime: '09:15',
     streak: 0,
-    url: 'https://leetcode.com/u/mradityasingh',
+    url: '',
     source: 'leetcode',
     xpReward: 25,
     color: '#ff9800',
@@ -96,7 +79,7 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
     completed: false,
     scheduledTime: '10:05',
     streak: 0,
-    url: 'https://github.com/MrAditya-Singh',
+    url: '',
     source: 'github',
     xpReward: 20,
     color: '#ffffff',
@@ -112,7 +95,7 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
     completed: false,
     scheduledTime: '11:30',
     streak: 0,
-    url: 'https://codeforces.com/profile/Aditya__YUPP',
+    url: '',
     source: 'codeforces',
     xpReward: 25,
     color: '#1cb0f6',
@@ -144,7 +127,7 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
     completed: false,
     scheduledTime: '18:30',
     streak: 0,
-    url: 'https://www.youtube.com/@Viralhit-1',
+    url: '',
     source: 'youtube',
     xpReward: 15,
     color: '#ff4b4b',
@@ -160,7 +143,7 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
     completed: false,
     scheduledTime: '12:15',
     streak: 0,
-    url: 'https://www.geeksforgeeks.org/user/mraditya',
+    url: '',
     source: 'gfg',
     xpReward: 20,
     color: '#2e7d32',
@@ -176,7 +159,7 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
     completed: false,
     scheduledTime: '19:00',
     streak: 0,
-    url: 'https://atcoder.jp/users/MrAditya',
+    url: '',
     source: 'atcoder',
     xpReward: 20,
     color: '#8b5cf6',
@@ -313,13 +296,18 @@ export const INITIAL_ACTIVITIES: ActivityItem[] = [
   }
 ];
 
-export const INITIAL_LOGS: ActivityLogEntry[] = [
+// New accounts start without habits or activity history. Habits are created by the user and synced per UID.
+export const INITIAL_ACTIVITIES: ActivityItem[] = [];
+
+const _LEGACY_INITIAL_LOGS: ActivityLogEntry[] = [
   { id: '1', activityId: 'leetcode', activityName: 'LeetCode', category: 'coding', timeStr: '09:15', timestamp: Date.now() - 3600000 * 6, completed: true, source: 'leetcode' },
   { id: '2', activityId: 'github', activityName: 'GitHub', category: 'coding', timeStr: '10:05', timestamp: Date.now() - 3600000 * 5, completed: true, source: 'github' },
   { id: '3', activityId: 'codeforces', activityName: 'Codeforces', category: 'coding', timeStr: '11:30', timestamp: Date.now() - 3600000 * 4, completed: true, source: 'codeforces' },
   { id: '4', activityId: 'gate', activityName: 'Study (Gates)', category: 'education', timeStr: '14:10', timestamp: Date.now() - 3600000 * 1.5, completed: true, source: 'manual' },
   { id: '5', activityId: 'youtube', activityName: 'YouTube', category: 'personal', timeStr: '18:30', timestamp: Date.now() + 3600000 * 2, completed: false, source: 'youtube' },
 ];
+
+export const INITIAL_LOGS: ActivityLogEntry[] = [];
 
 /**
  * Calculates daily efficiency and stats based on active tasks.
@@ -368,7 +356,6 @@ export function evaluateStrictStreaks(
   const summary = calculateSummary(activities);
   const allScheduledCompleted = summary.allScheduledDone;
 
-  const isToday = user.lastActiveDate === currentDateStr;
   let overallStreak = user.overallStreak;
   let freezeCount = user.streakFreezeCount;
 

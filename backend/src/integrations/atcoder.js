@@ -23,7 +23,10 @@ export function parseAtCoderUsername(input) {
 }
 
 export async function fetchAtCoderData(rawInput) {
-  const username = parseAtCoderUsername(rawInput) || 'MrAditya';
+  const username = parseAtCoderUsername(rawInput);
+  if (!username) {
+    return { platform: 'atcoder', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://atcoder.jp/users/${username}`;
 
   const dailyActivity = {};

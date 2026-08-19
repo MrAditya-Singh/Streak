@@ -3,6 +3,7 @@
 
 import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry } from '../types';
 import { syncFullStateToFirestore, subscribeToFirestoreFullState, UserCloudState } from './firebase';
+import { pushFullStateToBackend } from './apiSync';
 
 export interface CloudSyncState {
   version: number;
@@ -34,7 +35,7 @@ try {
   // Ignore if not supported
 }
 
-let lastLocalPushTimestamp = 0;
+let _lastLocalPushTimestamp = 0;
 let lastRemoteReceivedTimestamp = 0;
 
 /**
@@ -53,7 +54,7 @@ export async function pushStateToCloud(
   if (!uid) return false;
 
   const now = Date.now();
-  lastLocalPushTimestamp = now;
+  _lastLocalPushTimestamp = now;
 
   const payload: CloudSyncState = {
     version: 2,
@@ -76,7 +77,9 @@ export async function pushStateToCloud(
     }
   }
 
-  // 2. Push directly to Cloud Firestore under users/{uid}/data/state
+  // 2. Dual-Channel Push: Cloud Firestore Client SDK + Backend Express Admin SDK
+  pushFullStateToBackend(uid, payload).catch(() => {});
+
   try {
     await syncFullStateToFirestore(uid, payload as UserCloudState);
     return true;
@@ -92,7 +95,8 @@ export async function pushStateToCloud(
  */
 export function subscribeToCloudSync(
   uid: string,
-  onRemoteStateReceived: (remoteState: CloudSyncState) => void
+  onRemoteStateReceived: (remoteState: CloudSyncState) => void,
+  userEmail?: string
 ): () => void {
   if (!uid) return () => {};
 
@@ -123,7 +127,7 @@ export function subscribeToCloudSync(
       lastRemoteReceivedTimestamp = remoteState.updatedAt;
       onRemoteStateReceived(remoteState);
     }
-  });
+  }, userEmail);
 
   return () => {
     isActive = false;

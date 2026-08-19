@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Calendar, CheckCircle2, Circle, Clock, Filter, Flame } from 'lucide-react';
-import { HistoricalDayRecord, ActivityCategory } from '../types';
+import { X, Calendar, CheckCircle2, Circle, Filter } from 'lucide-react';
+import { HistoricalDayRecord } from '../types';
 
 interface HistoryViewModalProps {
   isOpen: boolean;

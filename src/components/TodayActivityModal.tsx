@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Clock, CheckCircle2, Circle, Sparkles, Calendar, Search, Filter, Check, Flame } from 'lucide-react';
+import { X, Clock, CheckCircle2, Circle, Sparkles, Calendar, Search, Flame } from 'lucide-react';
 import { ActivityLogEntry, ActivityItem } from '../types';
 import { soundFx } from '../utils/audio';
 

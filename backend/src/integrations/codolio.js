@@ -3,13 +3,13 @@
  * Fetches real profile, connected platform cards, and submission/commit calendars for Codolio users.
  */
 
-import fetch from 'node-fetch';
+
 
 /**
  * Parses raw input username or URL to extract clean Codolio userKey (e.g. "Mr.Aditya")
  */
 export function parseCodolioUsername(input) {
-  if (!input) return 'Mr.Aditya';
+  if (!input) return '';
   let str = input.trim();
   if (str.startsWith('http://') || str.startsWith('https://')) {
     const parts = str.split('/profile/').filter(Boolean);
@@ -20,7 +20,7 @@ export function parseCodolioUsername(input) {
       str = urlParts[urlParts.length - 1];
     }
   }
-  return decodeURIComponent(str) || 'Mr.Aditya';
+  return decodeURIComponent(str);
 }
 
 /**
@@ -28,6 +28,9 @@ export function parseCodolioUsername(input) {
  */
 export async function fetchCodolioData(usernameOrUrl, token) {
   const username = parseCodolioUsername(usernameOrUrl);
+  if (!username) {
+    return { platform: 'codolio', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, activePlatforms: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://codolio.com/profile/${encodeURIComponent(username)}`;
 
   const headers = {
@@ -43,29 +46,34 @@ export async function fetchCodolioData(usernameOrUrl, token) {
   let profileJson = null;
   let githubJson = null;
 
-  try {
-    const pRes = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(username)}`, {
-      headers,
-      timeout: 8000,
-    });
-    if (pRes.ok) {
-      profileJson = await pRes.json();
-    }
-  } catch (err) {
-    console.warn(`[Codolio Adapter] Profile fetch warning for ${username}:`, err.message);
-  }
-
-  try {
-    const gRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(username)}`, {
-      headers,
-      timeout: 8000,
-    });
-    if (gRes.ok) {
-      githubJson = await gRes.json();
-    }
-  } catch (err) {
-    console.warn(`[Codolio Adapter] GitHub profile fetch warning for ${username}:`, err.message);
-  }
+  await Promise.allSettled([
+    (async () => {
+      try {
+        const pRes = await fetch(`https://api.codolio.com/profile?userKey=${encodeURIComponent(username)}`, {
+          headers,
+          signal: AbortSignal.timeout(2500),
+        });
+        if (pRes.ok) {
+          profileJson = await pRes.json();
+        }
+      } catch (err) {
+        console.warn(`[Codolio Adapter] Profile fetch warning for ${username}:`, err.message);
+      }
+    })(),
+    (async () => {
+      try {
+        const gRes = await fetch(`https://api.codolio.com/github/profile?userKey=${encodeURIComponent(username)}`, {
+          headers,
+          signal: AbortSignal.timeout(2500),
+        });
+        if (gRes.ok) {
+          githubJson = await gRes.json();
+        }
+      } catch (err) {
+        console.warn(`[Codolio Adapter] GitHub profile fetch warning for ${username}:`, err.message);
+      }
+    })(),
+  ]);
 
   const dailyActivityMap = {};
   const platformsMap = {};

@@ -26,7 +26,7 @@ export const SyncSetupCard: React.FC<SyncSetupCardProps> = ({
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return 'Please enter a valid Gmail / email address.';
     }
-    if (phone.trim() && !/^\+?[0-9\s\-]{8,15}$/.test(phone.trim())) {
+    if (phone.trim() && !/^\+?[0-9\s-]{8,15}$/.test(phone.trim())) {
       return 'Please enter a valid Contact number.';
     }
     return '';

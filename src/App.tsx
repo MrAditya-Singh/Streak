@@ -1,39 +1,25 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { UserProfile, ActivityItem, ActivityLogEntry, HeatmapDay, HistoricalDayRecord, EmergencyTask } from './types';
 import {
   INITIAL_USER,
-  INITIAL_ACTIVITIES,
   INITIAL_LOGS,
   INITIAL_EMERGENCY_TASKS,
   calculateSummary,
   evaluateStrictStreaks,
-  calculateAnalytics,
   generateHeatmapData,
   generateHistoricalRecords,
   getRankByLevel,
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
-import { syncFullStateToFirestore, subscribeToFirestoreFullState, deleteUserProfileDoc } from './services/firebase';
-import { BACKEND_API_URL, BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, syncAtCoder } from './services/apiSync';
-import { pushStateToCloud, subscribeToCloudSync } from './services/cloudSync';
-import { onAuthStateChange, logOutUser } from './services/firebaseAuth';
+import { syncFullStateToFirestore, subscribeToFirestoreFullState, deleteUserProfileDoc, isFirebaseConfigured } from './services/firebase';
+import { BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, fetchFullStateFromBackend } from './services/apiSync';
+import { pushStateToCloud, subscribeToCloudSync, DEVICE_ID } from './services/cloudSync';
+import { onAuthStateChange, logOutUser, getCurrentUserToken } from './services/firebaseAuth';
 import { SyncSetupCard } from './components/SyncSetupCard';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
 import { WeeklyConsistencyOverview } from './components/WeeklyConsistencyOverview';
 import { MasterMonthlyHabitGrid } from './components/MasterMonthlyHabitGrid';
-
-import { StreakHeaderCard } from './components/StreakHeaderCard';
-import { StreakBannerCurve } from './components/StreakBannerCurve';
-import { EmergencyWorkCard } from './components/EmergencyWorkCard';
-import { PlatformCardsGrid } from './components/PlatformCardsGrid';
-import { TodayPlanCard } from './components/TodayPlanCard';
-import { PlanStreakStatsRibbon } from './components/PlanStreakStatsRibbon';
-import { TodayActivityTimeline } from './components/TodayActivityTimeline';
-import { EfficiencyGauge } from './components/EfficiencyGauge';
-import { ActivityHeatmap } from './components/ActivityHeatmap';
-import { QuickStatsBar } from './components/QuickStatsBar';
-import { MiniWidgetCards } from './components/MiniWidgetCards';
 
 import { WidgetSimulatorModal } from './components/WidgetSimulatorModal';
 import { LiveSyncModal } from './components/LiveSyncModal';
@@ -44,12 +30,20 @@ import { EfficiencyAnalyticsModal } from './components/EfficiencyAnalyticsModal'
 import { AddHabitModal } from './components/AddHabitModal';
 import { AuthModal } from './components/AuthModal';
 import { LivePerformanceDeck } from './components/LivePerformanceDeck';
-import { ChevronDown, ChevronUp, Sparkles, LayoutGrid, Layers } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
+
+async function fetchBackend(url: string, init: RequestInit = {}) {
+  const token = await getCurrentUserToken();
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...init, headers });
+}
 
 export const App: React.FC = () => {
   const realNow = new Date();
@@ -85,7 +79,7 @@ export const App: React.FC = () => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* fallback */ }
     return [];
   });
 
@@ -113,11 +107,11 @@ export const App: React.FC = () => {
   });
 
   const [history, setHistory] = useState<HistoricalDayRecord[]>(() => generateHistoricalRecords(30));
-  const [heatmapData, setHeatmapData] = useState<HeatmapDay[]>(() => generateHeatmapData(90));
+  const [_heatmapData, setHeatmapData] = useState<HeatmapDay[]>(() => generateHeatmapData(90));
 
   // Dynamic Month & Year state synced to real-time date
   const [selectedMonth, setSelectedMonth] = useState<string>(currentRealMonth);
-  const [selectedYear, setSelectedYear] = useState<number>(currentRealYear);
+  const [selectedYear, _setSelectedYear] = useState<number>(currentRealYear);
 
   // Dynamic days in selected month
   const daysInMonth = useMemo(() => {
@@ -129,17 +123,9 @@ export const App: React.FC = () => {
   const [matrixState, setMatrixState] = useState<Record<string, boolean[]>>(() => {
     const saved = localStorage.getItem('streak_monthly_matrix');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+      try { return JSON.parse(saved); } catch { /* fallback */ }
     }
-    const initial: Record<string, boolean[]> = {};
-    INITIAL_ACTIVITIES.forEach((act) => {
-      initial[act.id] = Array.from({ length: 31 }, (_, dayIdx) => {
-        const dayNum = dayIdx + 1;
-        if (dayNum === todayDayNumber) return act.completed;
-        return false;
-      });
-    });
-    return initial;
+    return {};
   });
 
   // ─── Sync Identity (Gmail & Phone Number deterministic account mapping) ────
@@ -151,7 +137,7 @@ export const App: React.FC = () => {
       localStorage.setItem('effstreak_sync_email', oldKey);
       return oldKey;
     }
-    return 'mradityasinghofficial1@gmail.com';
+    return 'user@example.com';
   });
   const [syncPhone, setSyncPhone] = useState<string>(() => {
     const saved = localStorage.getItem('effstreak_sync_phone');
@@ -161,15 +147,26 @@ export const App: React.FC = () => {
       localStorage.setItem('effstreak_sync_phone', oldKey);
       return oldKey;
     }
-    return '+91 9876543210';
+    return '+1 555 010 0000';
   });
 
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
 
-  // Authenticated Firebase UID identity as single source of truth for cloud storage
+  // Single source of truth for cross-device cloud storage identity
   const activeSyncKey = useMemo(() => {
-    return user.uid || 'guest_user_aditya';
-  }, [user.uid]);
+    if (user.uid && user.uid !== 'guest_user_local' && !user.uid.startsWith('guest_')) {
+      return user.uid;
+    }
+    const cleanEmail = (user.email || syncEmail || '').trim().toLowerCase();
+    if (cleanEmail && cleanEmail !== 'user@example.com' && cleanEmail.includes('@')) {
+      return 'user_email_' + cleanEmail.replace(/[^a-z0-9]/g, '_');
+    }
+    const cleanPhone = (user.phoneNumber || syncPhone || '').trim();
+    if (cleanPhone && cleanPhone !== '+1 555 010 0000' && cleanPhone.length > 5) {
+      return 'user_phone_' + cleanPhone.replace(/[^0-9]/g, '');
+    }
+    return user.uid || 'guest_user_local';
+  }, [user.uid, user.email, user.phoneNumber, syncEmail, syncPhone]);
 
   // Ref tracking current active user ID to catch account switches
   const currentAuthUid = React.useRef<string>(user.uid);
@@ -193,21 +190,41 @@ export const App: React.FC = () => {
           isApplyingRemote.current = true;
           setHasLoadedFromCloud(false);
           initialRemoteLoaded.current = false;
+
+          // Never render the previous account while the new UID is loading.
+          setActivities([]);
+          setMatrixState({});
+          setEmergencyTasks([]);
+          setLogs([]);
         }
 
-        setUser((prev) => ({
-          ...prev,
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || prev.email,
-          name: firebaseUser.displayName || prev.name || 'Hunter',
-          avatarUrl: firebaseUser.photoURL || prev.avatarUrl,
-        }));
+        setUser((prev) => {
+          const nextUser = {
+            ...prev,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || prev.email,
+            name: firebaseUser.displayName || prev.name || 'Hunter',
+            avatarUrl: firebaseUser.photoURL || prev.avatarUrl,
+          };
+          localStorage.setItem('effstreak_user', JSON.stringify(nextUser));
+          return nextUser;
+        });
       } else {
-        if (currentAuthUid.current !== 'guest_user_aditya') {
-          currentAuthUid.current = 'guest_user_aditya';
+        if (currentAuthUid.current !== 'guest_user_local') {
+          currentAuthUid.current = 'guest_user_local';
           isApplyingRemote.current = true;
           setHasLoadedFromCloud(false);
           initialRemoteLoaded.current = false;
+          setUser({ ...INITIAL_USER, uid: 'guest_user_local' });
+          setActivities([]);
+          setMatrixState({});
+          setEmergencyTasks([]);
+          setLogs([]);
+          localStorage.removeItem('effstreak_user');
+          localStorage.removeItem('effstreak_activities');
+          localStorage.removeItem('streak_monthly_matrix');
+          localStorage.removeItem('effstreak_logs');
+          localStorage.removeItem('effstreak_emergency_tasks');
         }
       }
     });
@@ -225,7 +242,7 @@ export const App: React.FC = () => {
 
     const freshUser: UserProfile = {
       ...INITIAL_USER,
-      uid: 'guest_user_aditya',
+      uid: 'guest_user_local',
     };
     const freshActivities: ActivityItem[] = [];
     const freshMatrix: Record<string, boolean[]> = {};
@@ -252,15 +269,29 @@ export const App: React.FC = () => {
     localStorage.setItem('effstreak_sync_phone', cleanPhone);
     setSyncEmail(cleanEmail);
     setSyncPhone(cleanPhone);
-    setUser((prev) => ({
-      ...prev,
-      email: cleanEmail || prev.email,
-      phoneNumber: cleanPhone || prev.phoneNumber,
-    }));
+
+    const computedUid = cleanEmail 
+      ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` 
+      : (user.uid || 'guest_user_local');
+
+    setUser((prev) => {
+      const nextUser = {
+        ...prev,
+        uid: prev.uid && prev.uid !== 'guest_user_local' ? prev.uid : computedUid,
+        email: cleanEmail || prev.email,
+        phoneNumber: cleanPhone || prev.phoneNumber,
+      };
+      localStorage.setItem('effstreak_user', JSON.stringify(nextUser));
+      return nextUser;
+    });
   };
 
   const handleUpdateUser = (updated: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...updated }));
+    setUser((prev) => {
+      const nextUser = { ...prev, ...updated };
+      localStorage.setItem('effstreak_user', JSON.stringify(nextUser));
+      return nextUser;
+    });
     if (updated.email !== undefined || updated.phoneNumber !== undefined) {
       const nextEmail = (updated.email !== undefined ? updated.email : syncEmail).trim().toLowerCase();
       const nextPhone = (updated.phoneNumber !== undefined ? updated.phoneNumber : syncPhone).trim();
@@ -290,7 +321,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTodayActivityOpen, setIsTodayActivityOpen] = useState(false);
   const [isEfficiencyAnalyticsOpen, setIsEfficiencyAnalyticsOpen] = useState(false);
-  const [isEmergencyWorkOpen, setIsEmergencyWorkOpen] = useState(false);
+  const [_isEmergencyWorkOpen, setIsEmergencyWorkOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
 
@@ -369,6 +400,20 @@ export const App: React.FC = () => {
     }, 800);
   }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey, hasLoadedFromCloud]);
 
+  const userRef = useRef(user);
+  const activitiesRef = useRef(activities);
+  const matrixStateRef = useRef(matrixState);
+  const emergencyTasksRef = useRef(emergencyTasks);
+  const logsRef = useRef(logs);
+
+  useEffect(() => {
+    userRef.current = user;
+    activitiesRef.current = activities;
+    matrixStateRef.current = matrixState;
+    emergencyTasksRef.current = emergencyTasks;
+    logsRef.current = logs;
+  }, [user, activities, matrixState, emergencyTasks, logs]);
+
   // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop)
   useEffect(() => {
     if (!activeSyncKey) return;
@@ -383,16 +428,34 @@ export const App: React.FC = () => {
       setHasLoadedFromCloud(true);
 
       if (!exists || !remoteState) {
-        console.log(`✨ [Cloud Sync] New or empty account detected for UID: ${syncKey}. Initializing clean state...`);
+        console.log(`✨ [Cloud Sync] New or empty account detected for UID: ${syncKey}.`);
         isApplyingRemote.current = true;
         initialRemoteLoaded.current = true;
+
+        // If this device already has local activities created, preserve and push them to the cloud account!
+        const localActs = activitiesRef.current;
+        if (localActs.length > 0) {
+          console.log(`✨ [Cloud Sync] Migrating ${localActs.length} local activities to cloud UID: ${syncKey}...`);
+          const existingPayload = {
+            user: { ...userRef.current, uid: syncKey },
+            activities: localActs,
+            matrixState: matrixStateRef.current,
+            emergencyTasks: emergencyTasksRef.current,
+            logs: logsRef.current,
+            updatedAt: Date.now(),
+          };
+          syncFullStateToFirestore(syncKey, existingPayload);
+          if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+          remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
+          return;
+        }
 
         const freshUser: UserProfile = {
           ...INITIAL_USER,
           uid: syncKey,
-          email: user.email || '',
-          name: user.name || 'New Hunter',
-          avatarUrl: user.avatarUrl,
+          email: userRef.current.email || '',
+          name: userRef.current.name || 'New Hunter',
+          avatarUrl: userRef.current.avatarUrl,
           overallStreak: 0,
           longestStreak: 0,
           currentXP: 0,
@@ -422,17 +485,17 @@ export const App: React.FC = () => {
         syncFullStateToFirestore(syncKey, initPayload);
 
         if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
+        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
         return;
       }
 
       const remoteTime = Number(remoteState.updatedAt || 0);
 
-      // On initial load, always unconditionally accept the database state
+      // On initial load, always unconditionally accept the database state.
+      // For subsequent updates, ignore only if it's our own local device's echo.
       if (initialRemoteLoaded.current) {
-        // ⚠️ Loop Preventer Guard for subsequent real-time updates:
-        if (remoteTime <= lastSyncTimestamp.current) {
-          console.log('📡 [Cloud Sync] Ignoring echoed snapshot (time:', remoteTime, '<= last:', lastSyncTimestamp.current, ')');
+        if (remoteState.deviceId === DEVICE_ID && remoteTime <= lastSyncTimestamp.current) {
+          console.log('📡 [Cloud Sync] Ignoring self device echo snapshot (time:', remoteTime, ')');
           return;
         }
       } else {
@@ -452,14 +515,14 @@ export const App: React.FC = () => {
         setEmergencyTasks([]);
         setLogs([]);
         if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
+        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
         return;
       }
 
       // Set guard: don't re-echo what we're about to apply
       isApplyingRemote.current = true;
       if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-      remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
+      remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
 
       // Overwrite local state directly with remote state (Single Source of Truth)
       if (remoteState.activities && Array.isArray(remoteState.activities)) {
@@ -487,17 +550,23 @@ export const App: React.FC = () => {
       }
     };
 
-    const unsubscribeCloud = subscribeToCloudSync(syncKey, (state) => applyRemoteState(state, true));
-    const unsubscribeFirestore = subscribeToFirestoreFullState(syncKey, applyRemoteState);
+    const unsubscribeCloud = subscribeToCloudSync(syncKey, (state) => applyRemoteState(state, true), userRef.current.email);
+    const unsubscribeFirestore = subscribeToFirestoreFullState(syncKey, applyRemoteState, userRef.current.email);
 
-    // Safeguard: If no response from Firestore/Cloud after 1.5 seconds,
-    // allow local writes.
+    // Safeguard: If no response from Firestore/Cloud after 1.2 seconds,
+    // allow local writes and load from backend admin SDK fallback.
     const safeguardTimer = setTimeout(() => {
       if (!resolved) {
-        console.log('⏰ [Cloud Sync Safeguard] Firestore connected or starting fresh.');
+        console.log('⏰ [Cloud Sync Safeguard] Permitting local writes & querying backend fallback for:', syncKey);
         setHasLoadedFromCloud(true);
+        fetchFullStateFromBackend(syncKey).then((bState) => {
+          if (bState && (bState.activities?.length > 0 || Object.keys(bState.matrix || {}).length > 0)) {
+            console.log('⚡ [Backend Sync] Successfully loaded state from backend fallback!');
+            applyRemoteState(bState, true);
+          }
+        }).catch(() => {});
       }
-    }, 1500);
+    }, 1200);
 
     return () => {
       unsubscribeCloud();
@@ -533,6 +602,9 @@ export const App: React.FC = () => {
   // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
   useEffect(() => {
     const syncKey = activeSyncKey;
+    // Firebase's Firestore listener is the authenticated realtime channel in production.
+    // Browser EventSource cannot send Authorization headers, so avoid unauthenticated SSE.
+    if (!syncKey || isFirebaseConfigured) return;
     const sseUrl = `${BACKEND_API_BASE}/sync/events?userId=${encodeURIComponent(syncKey)}`;
 
     let es: EventSource | null = null;
@@ -646,7 +718,6 @@ export const App: React.FC = () => {
 
   // Calculations
   const summary = useMemo(() => calculateSummary(activities), [activities]);
-  const analytics = useMemo(() => calculateAnalytics(history, activities), [history, activities]);
 
   // Monthly Matrix Metrics
   const totalMonthHabits = activities.length * daysInMonth;
@@ -764,7 +835,7 @@ export const App: React.FC = () => {
     const dayStr = String(dayIndex + 1).padStart(2, '0');
     const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
 
-    fetch(`${BACKEND_API_BASE}/sync/toggle`, {
+    fetchBackend(`${BACKEND_API_BASE}/sync/toggle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -818,7 +889,7 @@ export const App: React.FC = () => {
       // Use local date (not UTC ISO) to avoid IST timezone off-by-one before 5:30am
       const now = new Date();
       const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      fetch(`${BACKEND_API_BASE}/sync/toggle`, {
+      fetchBackend(`${BACKEND_API_BASE}/sync/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1055,14 +1126,14 @@ export const App: React.FC = () => {
     soundFx.playClick();
     setIsSyncing(true);
     setSyncToast({
-      message: '⚡ Live Sync: Fetching Codolio profile (@Mr.Aditya) & verified platform activity... (Note: Render cold-start may take up to 20-30s)',
+      message: '⚡ Live Sync: Fetching configured platform activity... (Note: Render cold-start may take up to 20-30s)',
       type: 'info'
     });
 
     try {
       // 1. Try backend canonical sync
       const res = await syncAllViaBackend({
-        userId: user.uid || 'aditya-singh',
+        userId: user.uid || 'local_authenticated_dev_user',
         habits: activities,
         matrixState,
         user,
@@ -1087,11 +1158,11 @@ export const App: React.FC = () => {
     // 2. Direct fetch from Codolio, LeetCode, Codeforces, GitHub & GFG APIs (client fallback)
     try {
       const [codolioRes, lcRes, cfRes, ghRes, gfgRes] = await Promise.all([
-        syncCodolio(user.codolioUsername || 'Mr.Aditya'),
-        syncLeetCode(user.leetcodeUsername || 'mradityasingh'),
-        syncCodeforces(user.codeforcesHandle || 'Aditya__YUPP'),
-        syncGitHub(user.githubUsername || 'MrAditya-Singh', undefined, user.codolioUsername || 'Mr.Aditya'),
-        syncGFG(user.gfgUsername || 'mraditya', user.codolioUsername || 'Mr.Aditya'),
+        syncCodolio(user.codolioUsername || ''),
+        syncLeetCode(user.leetcodeUsername || ''),
+        syncCodeforces(user.codeforcesHandle || ''),
+        syncGitHub(user.githubUsername || '', undefined, user.codolioUsername || ''),
+        syncGFG(user.gfgUsername || '', user.codolioUsername || ''),
       ]);
 
       const codolioActive = codolioRes.activePlatforms || {};
@@ -1285,10 +1356,12 @@ export const App: React.FC = () => {
       updatedAt: Date.now(),
     };
 
-    pushStateToCloud(syncKey, payload);
-    syncFullStateToFirestore(syncKey, payload);
+    if (hasLoadedFromCloud) {
+      pushStateToCloud(syncKey, payload);
+      syncFullStateToFirestore(syncKey, payload);
+    }
 
-    fetch(`${BACKEND_API_BASE}/sync/state`, {
+    fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: syncKey, state: payload }),
@@ -1317,10 +1390,12 @@ export const App: React.FC = () => {
       updatedAt: Date.now(),
     };
 
-    pushStateToCloud(syncKey, payload);
-    syncFullStateToFirestore(syncKey, payload);
+    if (hasLoadedFromCloud) {
+      pushStateToCloud(syncKey, payload);
+      syncFullStateToFirestore(syncKey, payload);
+    }
 
-    fetch(`${BACKEND_API_BASE}/sync/state`, {
+    fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: syncKey, state: payload }),
@@ -1368,7 +1443,7 @@ export const App: React.FC = () => {
       const cleanUser: UserProfile = {
         ...INITIAL_USER,
         name: user.name || 'Aditya Singh',
-        email: user.email || 'mradityasinghofficial1@gmail.com',
+        email: user.email || 'user@example.com',
         overallStreak: 0,
         longestStreak: 0,
         currentXP: 0,
@@ -1426,19 +1501,19 @@ export const App: React.FC = () => {
       syncFullStateToFirestore(activeSyncKey, resetPayload);
 
       // Sync force reset state to cloud backend & Firestore
-      fetch(`${BACKEND_API_BASE}/sync/reset`, {
+      fetchBackend(`${BACKEND_API_BASE}/sync/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: activeSyncKey }),
       }).catch((err) => console.warn('Sync force reset warning:', err));
 
-      fetch(`${BACKEND_API_BASE}/auth/reset`, {
+      fetchBackend(`${BACKEND_API_BASE}/auth/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: activeSyncKey }),
       }).catch((err) => console.warn('Auth reset warning:', err));
 
-      fetch(`${BACKEND_API_BASE}/sync/state`, {
+      fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

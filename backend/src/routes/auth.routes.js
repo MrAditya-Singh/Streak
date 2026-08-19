@@ -20,16 +20,16 @@ router.get('/me', verifyFirebaseToken, (req, res) => {
 // In-memory profiles list for local fallback
 let defaultProfiles = [
   {
-    id: 'aditya-singh',
-    name: 'Aditya Singh',
-    email: 'mradityasinghofficial1@gmail.com',
-    age: 21,
-    bloodGroup: 'B+',
-    height: '178 cm',
-    weight: '68 kg',
-    resident: 'India',
-    phoneNumber: '+91 9876543210',
-    bio: 'Solo Hunter • S-Rank Aspirant • Competitive Programmer & Developer',
+    id: 'local_authenticated_dev_user',
+    name: 'Local User',
+    email: 'user@example.com',
+    age: 25,
+    bloodGroup: 'A+',
+    height: '170 cm',
+    weight: '65 kg',
+    resident: 'Unknown',
+    phoneNumber: '+1 555 010 0000',
+    bio: 'Local development profile',
     hunterRank: 'A',
     level: 18,
     avatar: '/images/char_hero.jpg',
@@ -41,7 +41,7 @@ let defaultProfiles = [
  * @route   GET /api/auth/users
  * @desc    Get list of available profiles
  */
-router.get('/users', async (req, res) => {
+router.get('/users', verifyFirebaseToken, async (req, res) => {
   if (isFirebaseInitialized && db) {
     try {
       const snapshot = await db.collection('user_profiles').get();
@@ -74,18 +74,18 @@ router.get('/user-profile', verifyFirebaseToken, async (req, res) => {
     email: req.user.email,
     name: req.user.name || req.user.email?.split('@')[0] || 'Hunter',
     avatarUrl: '/images/char_hero.jpg',
-    hunterRank: 'A',
-    level: 18,
-    currentXP: 1840,
-    overallStreak: 98,
-    longestStreak: 98,
-    age: 21,
-    bloodGroup: 'B+',
-    height: '178 cm',
-    weight: '68 kg',
-    resident: 'India',
-    phoneNumber: '+91 9876543210',
-    bio: 'Solo Hunter • S-Rank Aspirant',
+    hunterRank: 'E',
+    level: 0,
+    currentXP: 0,
+    overallStreak: 0,
+    longestStreak: 0,
+    age: null,
+    bloodGroup: '',
+    height: '',
+    weight: '',
+    resident: '',
+    phoneNumber: '',
+    bio: '',
     updatedAt: new Date().toISOString(),
   };
 
@@ -113,26 +113,11 @@ router.get('/user-profile', verifyFirebaseToken, async (req, res) => {
  * @route   POST /api/auth/google
  * @desc    Google / Gmail Sign-In & Unified Multi-Device Profile Fetch (supports Firebase UID & token verification)
  */
-router.post('/google', async (req, res) => {
-  const { email, name, avatarUrl, googleId, firebaseUid } = req.body;
+router.post('/google', verifyFirebaseToken, async (req, res) => {
+  const { email, name, avatarUrl, googleId } = req.body;
 
-  let verifiedUid = firebaseUid;
-  let verifiedEmail = email ? email.trim().toLowerCase() : '';
-
-  // Optional token verification if Authorization header is provided
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.split('Bearer ')[1]?.trim();
-      if (token && isFirebaseInitialized && authAdmin) {
-        const decoded = await authAdmin.verifyIdToken(token);
-        verifiedUid = decoded.uid;
-        if (decoded.email) verifiedEmail = decoded.email.toLowerCase();
-      }
-    } catch (err) {
-      console.warn('Optional token verification warning in /google:', err.message);
-    }
-  }
+  const verifiedUid = req.user.uid;
+  const verifiedEmail = (req.user.email || email || '').trim().toLowerCase();
 
   if (!verifiedEmail && !verifiedUid) {
     return res.status(400).json({ error: 'Email or Firebase UID is required for Google Sign-In' });
@@ -147,18 +132,18 @@ router.post('/google', async (req, res) => {
     name: name || verifiedEmail.split('@')[0] || 'Hunter',
     avatarUrl: avatarUrl || '/images/char_hero.jpg',
     googleId: googleId || '',
-    hunterRank: 'A',
-    level: 18,
-    currentXP: 1840,
-    overallStreak: 98,
-    longestStreak: 98,
-    age: 21,
-    bloodGroup: 'B+',
-    height: '178 cm',
-    weight: '68 kg',
-    resident: 'India',
-    phoneNumber: '+91 9876543210',
-    bio: 'Solo Hunter • S-Rank Aspirant',
+    hunterRank: 'E',
+    level: 0,
+    currentXP: 0,
+    overallStreak: 0,
+    longestStreak: 0,
+    age: null,
+    bloodGroup: '',
+    height: '',
+    weight: '',
+    resident: '',
+    phoneNumber: '',
+    bio: '',
     lastActiveDate: new Date().toISOString().split('T')[0],
     updatedAt: new Date().toISOString(),
   };
@@ -196,9 +181,8 @@ router.post('/google', async (req, res) => {
  * @route   POST /api/auth/profile
  * @desc    Save/Update full personal profile details to Cloud Firestore
  */
-router.post('/profile', async (req, res) => {
+router.post('/profile', verifyFirebaseToken, async (req, res) => {
   const {
-    userId = 'aditya-singh',
     name,
     email,
     age,
@@ -211,21 +195,7 @@ router.post('/profile', async (req, res) => {
     avatarUrl,
   } = req.body;
 
-  let targetId = userId;
-
-  // Optional token verification if Bearer token present
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.split('Bearer ')[1]?.trim();
-      if (token && isFirebaseInitialized && authAdmin) {
-        const decoded = await authAdmin.verifyIdToken(token);
-        targetId = decoded.uid;
-      }
-    } catch (err) {
-      console.warn('Optional token verification warning in /profile:', err.message);
-    }
-  }
+  const targetId = req.user.uid;
 
   const updateData = {
     userId: targetId,
@@ -268,8 +238,8 @@ router.post('/profile', async (req, res) => {
  * @route   POST /api/auth/reset
  * @desc    Reset all data to clean 0 across Firestore and memory
  */
-router.post('/reset', async (req, res) => {
-  const { userId = 'aditya-singh' } = req.body;
+router.post('/reset', verifyFirebaseToken, async (req, res) => {
+  const userId = req.user.uid;
 
   const zeroState = {
     userId,

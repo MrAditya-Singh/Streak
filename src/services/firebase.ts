@@ -7,7 +7,6 @@ import {
   Firestore, 
   doc, 
   setDoc, 
-  getDoc, 
   deleteDoc, 
   onSnapshot,
   enableIndexedDbPersistence
@@ -91,6 +90,16 @@ export async function syncFullStateToFirestore(uid: string, state: Partial<UserC
 
     // Save detailed application state under users/{uid}/data/state
     await setDoc(dataRef, payload, { merge: true });
+
+    // Also mirror to email-based doc key if user has email, ensuring cross-device fallback sync
+    if (state.user?.email && state.user.email.includes('@') && state.user.email !== 'user@example.com') {
+      const cleanEmail = state.user.email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const emailDocKey = `user_email_${cleanEmail}`;
+      if (emailDocKey !== uid) {
+        const emailDataRef = doc(db, 'users', emailDocKey, 'data', 'state');
+        setDoc(emailDataRef, payload, { merge: true }).catch((err) => console.warn('Email alias mirror notice:', err));
+      }
+    }
   } catch (err) {
     console.warn('Firestore sync error:', err);
   }
@@ -102,7 +111,8 @@ export async function syncFullStateToFirestore(uid: string, state: Partial<UserC
  */
 export function subscribeToFirestoreFullState(
   uid: string,
-  onUpdate: (state: UserCloudState | null, exists: boolean) => void
+  onUpdate: (state: UserCloudState | null, exists: boolean) => void,
+  userEmail?: string
 ): () => void {
   if (!db || !uid) {
     onUpdate(null, false);
@@ -110,16 +120,43 @@ export function subscribeToFirestoreFullState(
   }
   try {
     const dataRef = doc(db, 'users', uid, 'data', 'state');
-    return onSnapshot(dataRef, (snap) => {
+    let fallbackUnsub: (() => void) | null = null;
+
+    const mainUnsub = onSnapshot(dataRef, (snap) => {
       if (snap.exists()) {
         onUpdate(snap.data() as UserCloudState, true);
       } else {
-        onUpdate(null, false);
+        // If UID doc not found, check if email-based doc exists to bridge accounts
+        const cleanEmail = userEmail ? userEmail.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') : '';
+        const emailDocKey = cleanEmail ? `user_email_${cleanEmail}` : '';
+        if (emailDocKey && emailDocKey !== uid && db) {
+          const emailDataRef = doc(db, 'users', emailDocKey, 'data', 'state');
+          if (!fallbackUnsub) {
+            fallbackUnsub = onSnapshot(emailDataRef, (eSnap) => {
+              if (eSnap.exists()) {
+                const eData = eSnap.data() as UserCloudState;
+                onUpdate(eData, true);
+                // Automatically migrate to the authenticated UID doc
+                syncFullStateToFirestore(uid, eData).catch(() => {});
+              } else {
+                onUpdate(null, false);
+              }
+            }, () => {
+              onUpdate(null, false);
+            });
+          }
+        } else {
+          onUpdate(null, false);
+        }
       }
     }, (error) => {
       console.warn('Firestore snapshot error:', error.message);
-      onUpdate(null, false);
     });
+
+    return () => {
+      mainUnsub();
+      if (fallbackUnsub) fallbackUnsub();
+    };
   } catch (err) {
     console.warn('Firestore subscription failed:', err);
     return () => {};

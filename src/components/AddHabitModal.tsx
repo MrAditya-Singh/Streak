@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Sparkles, Globe, UserCheck, Flame, Zap, Dumbbell, BookOpen, Briefcase, Heart, Code2 } from 'lucide-react';
+import { X, Plus, Globe, Dumbbell } from 'lucide-react';
 import { ActivityItem, ActivityCategory } from '../types';
 import { soundFx } from '../utils/audio';
 
@@ -11,15 +11,15 @@ interface AddHabitModalProps {
 }
 
 const PRESET_ONLINE_PLATFORMS = [
-  { id: 'github', name: 'GitHub', defaultUrl: 'https://github.com/MrAditya-Singh', category: 'coding' as ActivityCategory, icon: 'Github' },
-  { id: 'leetcode', name: 'LeetCode', defaultUrl: 'https://leetcode.com/u/mradityasingh', category: 'coding' as ActivityCategory, icon: 'Code2' },
-  { id: 'codeforces', name: 'Codeforces', defaultUrl: 'https://codeforces.com/profile/Aditya__YUPP', category: 'coding' as ActivityCategory, icon: 'BarChart3' },
-  { id: 'gfg', name: 'GeeksforGeeks', defaultUrl: 'https://www.geeksforgeeks.org/user/mraditya', category: 'coding' as ActivityCategory, icon: 'Binary' },
-  { id: 'atcoder', name: 'AtCoder', defaultUrl: 'https://atcoder.jp/users/MrAditya', category: 'coding' as ActivityCategory, icon: 'Zap' },
-  { id: 'hackerrank', name: 'HackerRank', defaultUrl: 'https://www.hackerrank.com/profile/mradityasingh', category: 'coding' as ActivityCategory, icon: 'Terminal' },
+  { id: 'github', name: 'GitHub', defaultUrl: 'https://github.com/', category: 'coding' as ActivityCategory, icon: 'Github' },
+  { id: 'leetcode', name: 'LeetCode', defaultUrl: 'https://leetcode.com/u/', category: 'coding' as ActivityCategory, icon: 'Code2' },
+  { id: 'codeforces', name: 'Codeforces', defaultUrl: 'https://codeforces.com/profile/', category: 'coding' as ActivityCategory, icon: 'BarChart3' },
+  { id: 'gfg', name: 'GeeksforGeeks', defaultUrl: 'https://www.geeksforgeeks.org/user/', category: 'coding' as ActivityCategory, icon: 'Binary' },
+  { id: 'atcoder', name: 'AtCoder', defaultUrl: 'https://atcoder.jp/users/', category: 'coding' as ActivityCategory, icon: 'Zap' },
+  { id: 'hackerrank', name: 'HackerRank', defaultUrl: 'https://www.hackerrank.com/profile/', category: 'coding' as ActivityCategory, icon: 'Terminal' },
   { id: 'codestudio', name: 'CodeStudio', defaultUrl: 'https://www.naukri.com/code360/profile/', category: 'coding' as ActivityCategory, icon: 'Code2' },
   { id: 'interviewbit', name: 'InterviewBit', defaultUrl: 'https://www.interviewbit.com/profile/', category: 'coding' as ActivityCategory, icon: 'Briefcase' },
-  { id: 'youtube', name: 'YouTube', defaultUrl: 'https://www.youtube.com/@Viralhit-1', category: 'personal' as ActivityCategory, icon: 'Youtube' },
+  { id: 'youtube', name: 'YouTube', defaultUrl: 'https://www.youtube.com/@', category: 'personal' as ActivityCategory, icon: 'Youtube' },
 ];
 
 export const AddHabitModal: React.FC<AddHabitModalProps> = ({
@@ -226,8 +226,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                   onChange={(e) => setManualName(e.target.value)}
                   className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
                     isDarkMode 
-                      ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600' 
-                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                      ? 'bg-black/60 border-white/10'
+                      : 'bg-slate-50 border-slate-200'
                   }`}
                   required
                   autoFocus
@@ -242,8 +242,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setManualCategory(e.target.value as ActivityCategory)}
                     className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                        ? 'bg-black/60 border-white/10' 
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                   >
                     <option value="fitness">Fitness / Health / Gym</option>
@@ -266,8 +266,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setManualDuration(Number(e.target.value))}
                     className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 font-mono ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                        ? 'bg-black/60 border-white/10' 
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                   />
                 </div>
@@ -284,8 +284,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setManualXpReward(Number(e.target.value))}
                     className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 font-mono ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                        ? 'bg-black/60 border-white/10' 
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                   />
                 </div>
@@ -297,8 +297,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setManualPriority(Number(e.target.value))}
                     className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                        ? 'bg-black/60 border-white/10' 
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                   >
                     <option value={5}>⭐⭐⭐⭐⭐ 5 (High Urgent)</option>
@@ -401,8 +401,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setOnlineName(e.target.value)}
                     className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                        ? 'bg-black/60 border-white/10'
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                     required
                   />
@@ -418,8 +418,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                   onChange={(e) => setOnlineProfileUrl(e.target.value)}
                   className={`w-full mt-1 border rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-purple-500 font-mono ${
                     isDarkMode 
-                      ? 'bg-black/60 border-white/10 text-white placeholder:text-slate-600' 
-                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                      ? 'bg-black/60 border-white/10'
+                      : 'bg-slate-50 border-slate-200'
                   }`}
                   required
                 />
@@ -433,8 +433,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setOnlineCategory(e.target.value as ActivityCategory)}
                     className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-purple-500 ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                        ? 'bg-black/60 border-white/10'
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                   >
                     <option value="coding">Coding / Dev</option>
@@ -454,8 +454,8 @@ export const AddHabitModal: React.FC<AddHabitModalProps> = ({
                     onChange={(e) => setOnlineDuration(Number(e.target.value))}
                     className={`w-full mt-1 border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-purple-500 font-mono ${
                       isDarkMode 
-                        ? 'bg-black/60 border-white/10 text-white' 
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
+                        ? 'bg-black/60 border-white/10'
+                        : 'bg-slate-50 border-slate-200'
                     }`}
                   />
                 </div>

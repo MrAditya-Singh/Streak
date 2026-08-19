@@ -34,12 +34,12 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
       if (!snapshot.empty) {
         snapshot.forEach((doc) => {
           const data = doc.data();
-          const uId = data.userId || 'aditya-singh';
+          const uId = data.userId || 'local_authenticated_dev_user';
           if (!usersIntegrations[uId]) usersIntegrations[uId] = {};
           usersIntegrations[uId][data.platform] = data;
         });
       } else {
-        usersIntegrations['aditya-singh'] = CANONICAL_MAPPING.integrations;
+        usersIntegrations['local_authenticated_dev_user'] = CANONICAL_MAPPING.integrations;
       }
 
       // 2. Execute pipeline per user
@@ -48,11 +48,11 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
           const userDoc = await db.collection('users').doc(userId).get();
           const user = userDoc.exists ? (userDoc.data().user || {}) : {};
           
-          const codolioUsername = user.codolioUsername || platforms.codolio?.username || 'Mr.Aditya';
-          const leetcodeUsername = user.leetcodeUsername || platforms.leetcode?.username || 'mradityasingh';
-          const codeforcesHandle = user.codeforcesHandle || platforms.codeforces?.username || 'Aditya__YUPP';
-          const gfgUsername = user.gfgUsername || platforms.gfg?.username || 'mraditya';
-          const githubUsername = user.githubUsername || platforms.github?.username || 'MrAditya-Singh';
+          const codolioUsername = user.codolioUsername || platforms.codolio?.username || '';
+          const leetcodeUsername = user.leetcodeUsername || platforms.leetcode?.username || '';
+          const codeforcesHandle = user.codeforcesHandle || platforms.codeforces?.username || '';
+          const gfgUsername = user.gfgUsername || platforms.gfg?.username || '';
+          const githubUsername = user.githubUsername || platforms.github?.username || '';
           const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
 
           // Fetch Codolio, LeetCode direct, Codeforces direct, GFG direct, & GitHub direct

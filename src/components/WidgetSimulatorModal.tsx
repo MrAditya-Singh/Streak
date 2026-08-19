@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { X, Smartphone, Monitor, Check, Flame, TrendingUp, Download, Copy, Sparkles } from 'lucide-react';
+import { X, Smartphone, Monitor, Check, Flame, Copy, Sparkles } from 'lucide-react';
 import { ActivityItem, UserProfile, DailySummary } from '../types';
-import { DuoMascot } from './DuoMascot';
 import { soundFx } from '../utils/audio';
 
 interface WidgetSimulatorModalProps {
@@ -27,7 +26,7 @@ export const WidgetSimulatorModal: React.FC<WidgetSimulatorModalProps> = ({
 
   if (!isOpen) return null;
 
-  const completedActivities = activities.filter((a) => a.completed);
+  const _completedActivities = activities.filter((a) => a.completed);
 
   const handleCopyRainmeterSkin = () => {
     soundFx.playCheck();

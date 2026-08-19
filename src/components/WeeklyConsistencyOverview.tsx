@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Trophy, Flame } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 interface DayColumnData {
   day: number;
@@ -61,10 +61,10 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         ? 'bg-[#0f1422]/95 border-slate-800/80 text-white shadow-2xl backdrop-blur-md' 
         : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-sm'
     }`}>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+      <div className="dashboard-weekly-grid grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
         
         {/* 1. Left: Luxury Polaroid / Motivation Card */}
-        <div className="lg:col-span-3 flex flex-col items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xs group">
+        <div className="dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-xs group">
           <div className="w-full h-44 sm:h-52 rounded-xl overflow-hidden relative shadow-inner">
             <img
               src="/images/char_hero.jpg"
@@ -88,7 +88,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         </div>
 
         {/* 2. Center: 5-Week Grouped Bar Chart & Weekly Circular Efficiency Gauges */}
-        <div className="lg:col-span-6 flex flex-col justify-between space-y-4 p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 shadow-xs relative overflow-hidden">
+        <div className="dashboard-weekly-chart lg:col-span-6 flex flex-col justify-between space-y-4 p-4 sm:p-5 rounded-2xl bg-white/80 dark:bg-slate-900/50 border border-slate-200/70 dark:border-slate-800 shadow-xs relative overflow-hidden">
           
           {/* Week Header Labels */}
           <div className="grid grid-cols-5 text-center text-xs font-serif-title italic font-bold border-b border-slate-200/80 dark:border-slate-800 pb-2">
@@ -191,7 +191,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         </div>
 
         {/* 3. Right: Top 10 Habits / Activities Ranked Leaderboard */}
-        <div className="lg:col-span-3 flex flex-col justify-between rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 p-4.5 shadow-xs">
+        <div className="dashboard-leaderboard lg:col-span-3 flex flex-col justify-between rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 p-4.5 shadow-xs">
           {/* Header */}
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center gap-1.5">

@@ -16,11 +16,11 @@ export const TodayPlanCard: React.FC<TodayPlanCardProps> = ({
   onToggleActivity,
   onAddActivity,
   onDeleteActivity,
-  onOpenSettings,
+  onOpenSettings: _onOpenSettings,
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newCategory, setNewCategory] = useState<'coding' | 'fitness' | 'education' | 'career' | 'personal'>('coding');
+  const [newCategory, _setNewCategory] = useState<'coding' | 'fitness' | 'education' | 'career' | 'personal'>('coding');
   const [newDuration, setNewDuration] = useState(45);
   const [newStreak, setNewStreak] = useState(1);
   const [newPriority, setNewPriority] = useState(3);

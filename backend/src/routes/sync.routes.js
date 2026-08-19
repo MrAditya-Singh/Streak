@@ -89,7 +89,7 @@ syncRouter.get('/events', verifyFirebaseToken, async (req, res) => {
         if (persisted.user) Object.assign(currentState.user, persisted.user);
         if (persisted.emergencyTasks) currentState.emergencyTasks = persisted.emergencyTasks;
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
   res.write(`data: ${JSON.stringify({ type: 'INIT_STATE', state: currentState })}\n\n`);
 
@@ -113,7 +113,7 @@ function broadcastToClients(userId, payload) {
     for (const client of sseClients.get(userId)) {
       try {
         client.write(data);
-      } catch (err) {
+      } catch {
         // Ignored
       }
     }

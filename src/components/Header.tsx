@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flame, Bell, Settings, Smartphone, Monitor, Sparkles, RefreshCw, Volume2, VolumeX, TrendingUp, Calendar, Sun, Moon } from 'lucide-react';
+import { Bell, Settings, Smartphone, Monitor, Sparkles, RefreshCw, Volume2, VolumeX, TrendingUp, Calendar, Sun, Moon } from 'lucide-react';
 import { UserProfile } from '../types';
 import { soundFx } from '../utils/audio';
 

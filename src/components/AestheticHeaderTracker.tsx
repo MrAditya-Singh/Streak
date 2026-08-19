@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { Sparkles, Smartphone, Settings, RefreshCw, Flame, Volume2, VolumeX, Sun, Moon, Zap, ShieldAlert, BarChart3, TrendingUp, Calendar, CheckCircle2, Users, Clock } from 'lucide-react';
+import { Sparkles, Smartphone, Settings, RefreshCw, Flame, Volume2, VolumeX, Sun, Moon, Zap, ShieldAlert, BarChart3, CheckCircle2, Users, Clock } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
 interface AestheticHeaderTrackerProps {
@@ -55,7 +55,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (Math.min(100, Math.max(0, dailyProgressPct)) / 100) * circumference;
 
-  const [hoveredWavePoint, setHoveredWavePoint] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
+  const [_hoveredWavePoint, _setHoveredWavePoint] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
 
   const [currentRealTime, setCurrentRealTime] = React.useState<string>(() => {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -81,10 +81,10 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
         : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-sm'
     }`}>
       {/* Top Main Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-center">
+      <div className="dashboard-header-grid grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-center">
         
         {/* Left Section: Serif Calligraphic Title & Period Badges */}
-        <div className="lg:col-span-3 space-y-3.5">
+        <div className="dashboard-header-copy lg:col-span-3 space-y-3.5">
           <div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
@@ -136,7 +136,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
         </div>
 
         {/* Center Section: Premium Visual Aesthetic Showcase Banner (Expanded & Enhanced) */}
-        <div className="lg:col-span-6 flex flex-col items-center justify-center">
+        <div className="dashboard-header-banner lg:col-span-6 flex flex-col items-center justify-center">
           <div className="w-full h-40 sm:h-44 md:h-48 relative rounded-3xl overflow-hidden border-2 border-purple-400/30 dark:border-purple-500/40 shadow-xl shadow-purple-500/10 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)] group transition-all duration-500 hover:shadow-purple-500/25">
             
             {/* Top Ambient Glow Edge */}
@@ -167,7 +167,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
         </div>
 
         {/* Right Section: Luxury Daily Progress & Circular Progress Counter */}
-        <div className="lg:col-span-3 flex items-center justify-between sm:justify-end gap-6 bg-slate-50/90 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
+        <div className="dashboard-header-progress lg:col-span-3 flex items-center justify-between sm:justify-end gap-6 bg-slate-50/90 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm">
           <div className="text-right">
             <div className="text-[10px] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">
               DAILY PROGRESS
@@ -300,10 +300,28 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
           {onOpenAuth && (
             <button
               onClick={onOpenAuth}
-              title="Switch Accounts & Profiles"
-              className="p-2 rounded-xl bg-white dark:bg-slate-800/90 hover:bg-slate-50 text-purple-700 dark:text-purple-300 transition-colors border border-purple-200 dark:border-slate-700/60 cursor-pointer shadow-xs"
+              title={
+                user.uid && user.uid !== 'guest_user_local' && !user.uid.startsWith('guest_')
+                  ? `Logged in as ${user.email || user.name || user.uid} - Click to switch accounts`
+                  : 'Connect Account & Sync Across Devices'
+              }
+              className={
+                user.uid && user.uid !== 'guest_user_local' && !user.uid.startsWith('guest_')
+                  ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-bold transition-all border border-emerald-500/30 cursor-pointer shadow-xs max-w-[170px]'
+                  : 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold transition-all shadow-md shadow-indigo-500/20 cursor-pointer text-[11px]'
+              }
             >
-              <Users className="w-3.5 h-3.5 text-purple-600" />
+              {user.uid && user.uid !== 'guest_user_local' && !user.uid.startsWith('guest_') ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="text-[11px] truncate">{user.email ? user.email.split('@')[0] : (user.name || 'Hunter')}</span>
+                </>
+              ) : (
+                <>
+                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  <span>Login / Sync</span>
+                </>
+              )}
             </button>
           )}
 

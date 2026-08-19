@@ -23,7 +23,10 @@ export function parseLeetCodeUsername(input) {
 }
 
 export async function fetchLeetCodeData(rawInput) {
-  const username = parseLeetCodeUsername(rawInput) || 'mradityasingh';
+  const username = parseLeetCodeUsername(rawInput);
+  if (!username) {
+    return { platform: 'leetcode', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://leetcode.com/u/${username}`;
 
   let totalSolved = 353;

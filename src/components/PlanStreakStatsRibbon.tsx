@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { Shield, Flame, Sparkles, Snowflake, Zap, CheckCircle2 } from 'lucide-react';
+import { Shield, Flame, Sparkles, Snowflake, CheckCircle2 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
 interface PlanStreakStatsRibbonProps {

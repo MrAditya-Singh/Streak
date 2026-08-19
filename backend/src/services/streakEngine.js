@@ -39,19 +39,19 @@ export function calculateConsecutiveStreak(daysHistory = []) {
 }
 
 export function evaluateHabitsAndStreaks({
-  userId = 'aditya-singh',
+  userId = 'local_authenticated_dev_user',
   habits = [],
   normalizedPlatforms = [],
   platformResults = {},
   matrixState = {},
   user = {},
-  currentDayOfMonth = 15,
+  currentDayOfMonth: _currentDayOfMonth = 15,
 }) {
   const tz = (user.timezone || 'Asia/Kolkata').split(' ')[0];
   let todayStr = new Date().toISOString().split('T')[0];
   try {
     todayStr = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  } catch (err) {
+  } catch {
     // Fallback
   }
   let xpAwardedThisRun = 0;

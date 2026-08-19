@@ -22,7 +22,10 @@ export function parseCodeforcesHandle(input) {
 }
 
 export async function fetchCodeforcesData(rawInput) {
-  const handle = parseCodeforcesHandle(rawInput) || 'Aditya__YUPP';
+  const handle = parseCodeforcesHandle(rawInput);
+  if (!handle) {
+    return { platform: 'codeforces', username: '', profileUrl: '', isVerified: false, hasActivityToday: false, dailyActivity: {}, sync: { status: 'not_configured' } };
+  }
   const profileUrl = `https://codeforces.com/profile/${handle}`;
 
   let rating = 1010;

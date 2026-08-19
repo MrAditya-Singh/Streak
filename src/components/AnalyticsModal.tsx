@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, TrendingUp, Calendar, Zap, Clock, Award, Target, Flame } from 'lucide-react';
+import { X, TrendingUp, Calendar, Clock, Award, Target, Flame } from 'lucide-react';
 import { AnalyticsSummary, HistoricalDayRecord } from '../types';
 
 interface AnalyticsModalProps {

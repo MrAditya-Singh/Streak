@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Sparkles, Shield, Award, Zap, Flame, Crown, Swords, Dumbbell, Brain, BookOpen, Briefcase } from 'lucide-react';
+import { X, Sparkles, Zap, Flame, Crown, Swords, Dumbbell, Brain, BookOpen, Briefcase } from 'lucide-react';
 import { UserProfile } from '../types';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';

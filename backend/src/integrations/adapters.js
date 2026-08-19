@@ -44,7 +44,6 @@ export async function normalizeLeetCode(rawInput) {
       if (data.status === 'success') {
         solved = data.totalSolved || 0;
         const cal = data.submissionCalendar || {};
-        const todayTs = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
         
         // Match submissions within today's Unix timestamp window
         for (const [ts, count] of Object.entries(cal)) {
@@ -251,7 +250,7 @@ export async function normalizeYouTube(rawInput) {
     } else {
       hasActivityToday = true; // Profile verified
     }
-  } catch (err) {
+  } catch {
     hasActivityToday = true;
   }
 

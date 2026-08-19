@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Bell, Settings, Shield, Sparkles } from 'lucide-react';
+import { Bell, Settings, Shield } from 'lucide-react';
 import { UserProfile } from '../types';
 import { soundFx } from '../utils/audio';
 
