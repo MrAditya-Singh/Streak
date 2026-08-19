@@ -171,17 +171,44 @@ export const App: React.FC = () => {
     return user.uid || 'guest_user_aditya';
   }, [user.uid]);
 
+  // Ref tracking current active user ID to catch account switches
+  const currentAuthUid = React.useRef<string>(user.uid);
+
   // Real-time Firebase Authentication State Listener
   useEffect(() => {
     const unsubAuth = onAuthStateChange((firebaseUser) => {
       if (firebaseUser && firebaseUser.uid) {
+        const nextUid = firebaseUser.uid;
+        if (nextUid !== currentAuthUid.current) {
+          console.log(`🔐 [Auth Change] Account switched from ${currentAuthUid.current} → ${nextUid}`);
+          currentAuthUid.current = nextUid;
+          
+          // Stop any pending push from previous account
+          if (pendingCloudPush.current) {
+            clearTimeout(pendingCloudPush.current);
+            pendingCloudPush.current = null;
+          }
+
+          // Lock writes until new user's document is loaded from Firestore
+          isApplyingRemote.current = true;
+          setHasLoadedFromCloud(false);
+          initialRemoteLoaded.current = false;
+        }
+
         setUser((prev) => ({
           ...prev,
           uid: firebaseUser.uid,
           email: firebaseUser.email || prev.email,
-          name: firebaseUser.displayName || prev.name || 'Aditya (Firebase User)',
+          name: firebaseUser.displayName || prev.name || 'Hunter',
           avatarUrl: firebaseUser.photoURL || prev.avatarUrl,
         }));
+      } else {
+        if (currentAuthUid.current !== 'guest_user_aditya') {
+          currentAuthUid.current = 'guest_user_aditya';
+          isApplyingRemote.current = true;
+          setHasLoadedFromCloud(false);
+          initialRemoteLoaded.current = false;
+        }
       }
     });
     return () => unsubAuth();
@@ -191,13 +218,34 @@ export const App: React.FC = () => {
     try {
       await logOutUser();
     } catch { /* ignore */ }
-    setUser(INITIAL_USER);
-    setActivities(INITIAL_ACTIVITIES);
-    setEmergencyTasks(INITIAL_EMERGENCY_TASKS);
-    setLogs(INITIAL_LOGS);
+    
+    isApplyingRemote.current = true;
     setHasLoadedFromCloud(false);
+    initialRemoteLoaded.current = false;
+
+    const freshUser: UserProfile = {
+      ...INITIAL_USER,
+      uid: 'guest_user_aditya',
+    };
+    const freshActivities = INITIAL_ACTIVITIES.map((a) => ({ ...a, completed: false, streak: 0 }));
+    const freshMatrix: Record<string, boolean[]> = {};
+    INITIAL_ACTIVITIES.forEach((a) => {
+      freshMatrix[a.id] = Array.from({ length: 31 }, () => false);
+    });
+
+    setUser(freshUser);
+    setActivities(freshActivities);
+    setEmergencyTasks([]);
+    setLogs([]);
+    setMatrixState(freshMatrix);
+
     localStorage.removeItem('effstreak_user');
     localStorage.removeItem('effstreak_activities');
+    localStorage.removeItem('streak_monthly_matrix');
+    localStorage.removeItem('effstreak_logs');
+    localStorage.removeItem('effstreak_emergency_tasks');
+
+    setTimeout(() => { isApplyingRemote.current = false; }, 1000);
   };
 
   const handleConfirmSyncIdentity = (email: string, phone: string) => {
@@ -338,6 +386,54 @@ export const App: React.FC = () => {
       setHasLoadedFromCloud(true);
 
       if (!exists || !remoteState) {
+        console.log(`✨ [Cloud Sync] New or empty account detected for UID: ${syncKey}. Initializing clean state...`);
+        isApplyingRemote.current = true;
+        initialRemoteLoaded.current = true;
+
+        const freshUser: UserProfile = {
+          ...INITIAL_USER,
+          uid: syncKey,
+          email: user.email || '',
+          name: user.name || 'New Hunter',
+          avatarUrl: user.avatarUrl,
+          overallStreak: 0,
+          longestStreak: 0,
+          currentXP: 0,
+          level: 0,
+          hunterRank: 'E',
+          attributes: { strength: 0, intelligence: 0, discipline: 0, skill: 0, knowledge: 0, professional: 0 },
+        };
+
+        const freshActivities = INITIAL_ACTIVITIES.map((a) => ({
+          ...a,
+          completed: false,
+          streak: 0,
+        }));
+
+        const freshMatrix: Record<string, boolean[]> = {};
+        INITIAL_ACTIVITIES.forEach((a) => {
+          freshMatrix[a.id] = Array.from({ length: 31 }, () => false);
+        });
+
+        setUser(freshUser);
+        setActivities(freshActivities);
+        setEmergencyTasks([]);
+        setLogs([]);
+        setMatrixState(freshMatrix);
+
+        // Save fresh 0-streak initial state for this new user to Firestore
+        const initPayload = {
+          user: freshUser,
+          activities: freshActivities,
+          matrixState: freshMatrix,
+          emergencyTasks: [],
+          logs: [],
+          updatedAt: Date.now(),
+        };
+        syncFullStateToFirestore(syncKey, initPayload);
+
+        if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 2000);
         return;
       }
 
