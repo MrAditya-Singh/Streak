@@ -1,206 +1,174 @@
-# 🔥 EffStreak (#SoloLeveling)
+# 🔥 EffStreak (#SoloLeveling Edition)
 
-> **A cross-device, gamified personal productivity and activity-tracking system inspired by Duolingo streaks and Solo Leveling RPG progression, designed to turn everyday coding practice, learning, projects, and personal goals into measurable daily consistency.**
+[![Live App on Surge](https://img.shields.io/badge/Live_App-effstreak--tracker.surge.sh-58CC02?style=for-the-badge&logo=surge&logoColor=white)](https://effstreak-tracker.surge.sh)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github-actions)](https://github.com/MrAditya-Singh/Streak)
+[![Firebase Powered](https://img.shields.io/badge/Cloud-Firebase_UID-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![React + Vite](https://img.shields.io/badge/Frontend-React_18_+_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)](LICENSE)
 
-Designed for **Android (Jetpack Glance)**, **Windows (Rainmeter)**, and **Interactive Web Hub (Vite/React)**.
+> **EffStreak** is an enterprise-grade, gamified personal productivity and activity-tracking platform inspired by **Duolingo streaks** and **Solo Leveling RPG progression**. It aggregates coding practice (LeetCode, Codeforces, GFG, AtCoder, GitHub), learning, and daily habits into a real-time, cross-device cloud synchronization hub with central source-of-truth reliability.
 
 ---
 
-## 🌟 Overview & Philosophy
+## 🌐 Live Production Application
 
-EffStreak answers the one question that truly matters:
+- 🚀 **Primary Web App**: **[https://effstreak-tracker.surge.sh](https://effstreak-tracker.surge.sh)**
+- ⚡ **Secondary Web App**: **[https://effectivestreak-app.surge.sh](https://effectivestreak-app.surge.sh)**
+- 🐙 **GitHub Repository**: **[https://github.com/MrAditya-Singh/Streak](https://github.com/MrAditya-Singh/Streak)**
 
-> **"Am I consistently showing up and doing the things that matter to me?"**
+---
 
-Instead of overwhelming spreadsheets and bloated project management apps, EffStreak distills your daily consistency into a compact, glanceable, motivating dashboard and cross-device widgets that you can digest in under five seconds.
+## 🌟 Core Architecture & Principles
+
+EffStreak is built ground-up around 7 non-negotiable architectural principles:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ 🔥 97 DAY STREAK                                            │
-│ Keep going, Eren! 💪                                        │
-│                                                             │
-│ 🛡️ Level 18 [████████████████████░░░░] 1,840 / 2,000 XP    │
-│                                                             │
-│ LC 🔥42   CF 🔥18   GFG 🔥31   GH 🔥26   YT 🔥12   PR 🔥9   │
-│                                                             │
-│ TODAY'S PLAN                                    5 / 7 DONE  │
-│ ✓ LeetCode (1h)          ✓ Codeforces (1h)                  │
-│ ✓ GFG (1h)               ✓ GitHub (30m)                     │
-│ ✓ Gates Study (2h)       ○ Internship (30m)                 │
-│                                                             │
-│ 82% EFFICIENCY (↑ 7% from yesterday)                        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    EFFSTREAK CLOUD ARCHITECTURE                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│    ┌─────────────────┐       ┌─────────────────┐       ┌──────────────┐ │
+│    │ Multiple Users  │       │ Multi-Device    │       │ Firebase     │ │
+│    │ (Infinite UIDs) │ ────► │ Real-Time Sync  │ ────► │ Cloud        │ │
+│    └─────────────────┘       └─────────────────┘       │ Firestore    │ │
+│                                                        └──────┬───────┘ │
+│    ┌─────────────────┐       ┌─────────────────┐              │         │
+│    │ Production      │       │ Strict Data     │ ◄────────────┘         │
+│    │ Security Rules  │ ────► │ Isolation (UID) │                        │
+│    └─────────────────┘       └─────────────────┘                        │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+1. **Central Cloud Database as Primary Source of Truth**: `users/{uid}/data/state` on Firebase Firestore stores all user attributes, habits, streaks, and monthly matrix states. Local storage acts purely as a secondary offline buffer.
+2. **Strict User Data Isolation**: Cloud security rules strictly enforce `request.auth != null && request.auth.uid == uid`, guaranteeing total data privacy across independent users.
+3. **No Accidental Data Overwrites**: Atomic `setDoc(..., { merge: true })` updates preserve user state even under simultaneous multi-device sync.
+4. **Real-time Live Synchronization**: Instant cross-device state propagation via Firestore snapshot listeners and client-side `BroadcastChannel`.
+5. **Multi-Platform Live API Integration**: Fast, direct integration with **LeetCode**, **Codeforces**, **GitHub**, **GeeksforGeeks**, **AtCoder**, **HackerRank**, and **YouTube** via Codolio & public APIs.
 
 ---
 
 ## 🚀 Key Features
 
 ### 1. 🔥 Duolingo-Inspired Streak Engine
-- **Overall Streak**: Represents daily consistency without being excessively punishing. Completing at least 1 qualifying activity keeps the flame alive.
-- **Per-Platform Streaks**: Individual flame counters for LeetCode (🔥42), Codeforces (🔥18), GFG (🔥31), GitHub (🔥26), YouTube (🔥12), Projects (🔥9), and custom tasks.
-- **Sparkline & Best Record**: Visual trend curve highlighting peak records and daily completions (`S M T W T F S`).
+- **Unified Overall Streak**: Tracks daily consistency across all learning and practice tracks. Completing any qualifying activity maintains the global flame.
+- **Per-Platform Flame Counters**: Dedicated streaks for **LeetCode**, **Codeforces**, **GeeksforGeeks**, **GitHub**, **AtCoder**, and **YouTube**.
+- **Interactive Monthly Matrix Grid**: 31-day visual habit completion matrix with automatic date fill from live platform submission calendars.
 
 ### 2. ⚔️ Solo Leveling Hunter Progression System
-- **Hunter Ranks**: Progress from **E-Rank** to **D**, **C**, **B**, **A**, **S**, and **National Level / Shadow Monarch**.
-- **Attributes**: Real-time attribute calculation for *Discipline*, *Code Mastery*, *Focus Stamina*, and *Daily Grind*.
-- **Gamified Sound Effects & Confetti**: Synthesized Web Audio chimes, level-up fanfares, and celebration confetti.
+- **Hunter Ranks**: Advance from **E-Rank** to **D-Rank**, **C-Rank**, **B-Rank**, **A-Rank**, **S-Rank**, and **Shadow Monarch / National Level Hunter**.
+- **Dynamic RPG Attributes**: Real-time attribute accumulation for *Strength*, *Intelligence*, *Discipline*, *Skill*, *Knowledge*, and *Professionalism*.
+- **Web Audio FX & Confetti**: Immersive audio chimes on task completion and level-up fanfares with particle celebrations.
 
-### 3. ⏱️ Planned vs. Actual Efficiency Engine
-- Focuses on completed time vs planned time rather than raw task count.
-- Dynamic circular efficiency ring (82%) with daily trend comparisons (`↑ 7% from yesterday`).
+### 3. 🔄 Multi-Platform Live Sync Engine
+- **LeetCode**: Full 365-day submission calendar integration, total problems solved by difficulty (Easy/Medium/Hard), and daily POTD detection.
+- **Codeforces**: Real-time user status API integration for contest ratings and submission verdicts.
+- **GitHub**: Complete annual contribution map (`developmentActivity`) with public repo counts and commit verification.
+- **GeeksforGeeks**: Verified practice history, total solved count, and streak detection.
+- **AtCoder & HackerRank**: Live submission checks and contest activity sync.
 
-### 4. 🟩 GitHub-Style Activity Heatmap
-- 30-Day and 90-Day interactive commit/activity matrix.
-- 5 levels of neon green intensity with hover tooltips displaying date, activities done, and focus minutes.
-
-### 5. 🔄 Live Automated Platform Synchronization
-- **GitHub**: Automatically detects public commits, pushes, and pull requests made today.
-- **Codeforces**: Queries official Codeforces API for submissions and AC verdicts.
-- **LeetCode**: Detects daily solved problems and updates streaks.
-- **Manual Overrides**: Seamless toggle support for offline, Gym, Books, Study, and Career goals.
+### 4. 🟩 GitHub-Style Activity Heatmap & Analytics
+- 30-day and 90-day interactive activity heatmaps with 5 levels of neon green intensity.
+- Focus time statistics, efficiency percentage calculation (planned vs completed minutes), and trend curves.
 
 ---
 
-## 📱 Cross-Platform Architecture
-
-```
-                               ┌───────────────────────────────┐
-                               │     EffStreak Sync Engine     │
-                               │  (Local Cache / API Services) │
-                               └───────────────┬───────────────┘
-                                               │
-            ┌──────────────────────────────────┼──────────────────────────────────┐
-            │                                  │                                  │
-    ┌───────▼────────┐                 ┌───────▼────────┐                 ┌───────▼────────┐
-    │  Android App   │                 │ Windows Widget │                 │   Web Hub /    │
-    │  & Glance UI   │                 │   (Rainmeter)  │                 │ Live Simulator │
-    │  Kotlin/Glance │                 │   INI + Lua    │                 │ React+Vite+CSS │
-    └────────────────┘                 └────────────────┘                 └────────────────┘
-```
-
----
-
-## 💻 1. Running the Web Hub Locally (Localhost)
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/EffectiveStreak.git
-cd EffectiveStreak
-
-# Install dependencies
-npm install
-
-# Start the dev server
-npm run dev
-```
-
-Open `http://localhost:5173` in your browser.
-
----
-
-## 🤖 2. Android Studio & Jetpack Glance Setup
-
-The Android project is located in `android/`:
-
-1. Open **Android Studio** and select **Open** -> browse to the `android/` directory.
-2. Ensure you have **Android SDK 35** and **JDK 17** installed.
-3. Sync Gradle and run the app on an emulator or physical device.
-4. Long-press on your Android Home Screen -> **Widgets** -> Add **EffStreak (4x2 / 2x2)** widget.
-
-### Android Highlights:
-- `EffStreakWidget.kt`: Modern **Jetpack Glance** widget with responsive layout.
-- `StreakSyncWorker.kt`: **WorkManager** periodic background worker ensuring zero battery waste.
-- `MainActivity.kt`: Companion Jetpack Compose configuration UI.
-
----
-
-## 🪟 3. Windows Desktop Widget (Rainmeter)
-
-The Rainmeter skin is located in `windows/Rainmeter/`:
-
-1. Download and install [Rainmeter](https://www.rainmeter.net/).
-2. Run `windows/Rainmeter/install_skin.bat` to automatically install the skin to `%USERPROFILE%\Documents\Rainmeter\Skins\EffStreak`.
-3. Right-click the Rainmeter system tray icon -> select **Refresh All** -> Load `EffStreak.ini`.
-
----
-
-## 📂 Project Structure
+## 📂 Repository Structure
 
 ```
 EffectiveStreak/
-├── android/                             # Android Studio native package
-│   ├── app/
-│   │   ├── src/main/java/com/effstreak/app/
-│   │   │   ├── data/StreakModels.kt     # Data definitions & offline models
-│   │   │   ├── sync/StreakSyncWorker.kt # WorkManager background sync
-│   │   │   ├── widget/EffStreakWidget.kt# Jetpack Glance Home Screen Widget
-│   │   │   ├── widget/EffStreakReceiver.kt
-│   │   │   └── MainActivity.kt          # Compose Companion UI
-│   │   └── src/main/AndroidManifest.xml
-│   ├── build.gradle.kts
-│   └── settings.gradle.kts
-│
-├── windows/                             # Windows Desktop Widget package
-│   └── Rainmeter/
-│       ├── install_skin.bat             # 1-click Windows installer
-│       └── Skins/EffStreak/
-│           ├── EffStreak.ini            # Main Rainmeter desktop skin
-│           └── scripts/EffStreak.lua    # Lua data parser
-│
-├── src/                                 # Interactive Web Hub & Simulator
-│   ├── components/                      # UI cards matching reference mockup
-│   │   ├── DuoMascot.tsx                # Animated Duolingo owl mascot
-│   │   ├── StreakHeaderCard.tsx         # 97 Day Streak + XP progress card
-│   │   ├── StreakBannerCurve.tsx        # Sparkline & Best streak curve
-│   │   ├── PlatformCardsGrid.tsx        # LC, CF, GFG, GH, YT, Projects cards
-│   │   ├── PlatformRings.tsx            # Circular platform progress rings
-│   │   ├── CircularPlanIcons.tsx        # Today's plan icon strip
-│   │   ├── TodayPlanCard.tsx            # Interactive task checklist & quote
-│   │   ├── TodayActivityTimeline.tsx    # Activity timeline with timestamps
-│   │   ├── EfficiencyGauge.tsx          # 82% circular SVG gauge
-│   │   ├── ActivityHeatmap.tsx          # GitHub-style activity matrix
-│   │   ├── QuickStatsBar.tsx            # Focus time, tasks done, XP, streak
-│   │   ├── MiniWidgetCards.tsx          # Compact badges & mountain banner
-│   │   ├── WidgetSimulatorModal.tsx     # Live cross-platform widget simulator
-│   │   ├── LiveSyncModal.tsx            # GitHub, Codeforces, LeetCode live sync
-│   │   ├── SoloLevelingModal.tsx        # RPG Hunter rank & stats modal
-│   │   └── SettingsModal.tsx            # Custom tasks, timezone, export/import
-│   ├── services/apiSync.ts              # Live external API integration
-│   ├── utils/audio.ts                   # Web Audio API sound FX synthesizer
-│   ├── utils/streakEngine.ts            # Streak, summary, and heatmap engine
-│   ├── types/index.ts
-│   ├── App.tsx
-│   └── index.css                        # Glassmorphism design system
-│
-├── package.json
-└── README.md
+├── firestore.rules                      # Production Firestore Security Rules (UID isolated)
+├── public/                              # Static public assets & SPA routing fallback
+│   ├── 200.html                         # Surge CDN SPA fallback page
+│   └── favicon.svg
+├── src/                                 # Frontend Web Hub (React + Vite + TypeScript)
+│   ├── components/                      # UI Components & Modals
+│   │   ├── AuthModal.tsx                # Firebase Authentication Modal (Google & Email)
+│   │   ├── LiveSyncModal.tsx            # Multi-Platform Parallel Live Sync Modal
+│   │   ├── MasterMonthlyHabitGrid.tsx   # 31-Day Monthly Habit Checkbox Matrix
+│   │   ├── LivePerformanceDeck.tsx      # Solo Leveling RPG Deck & Efficiency Gauges
+│   │   ├── PlatformCardsGrid.tsx        # Platform Flame Cards with Weekly Themes
+│   │   ├── AestheticHeaderTracker.tsx   # Header Progress Bar & Hunter Rank Banner
+│   │   └── ...
+│   ├── services/                        # Cloud & API Services
+│   │   ├── firebase.ts                  # Firebase Initializer & Firestore CRUD Operations
+│   │   ├── firebaseAuth.ts              # Firebase Auth Helpers & Bearer Token Provider
+│   │   ├── cloudSync.ts                 # Realtime Firestore Listener & Sync Engine
+│   │   └── apiSync.ts                   # Multi-Platform Fast API Integration Engine
+│   ├── utils/                           # Engine Utilities
+│   │   ├── streakEngine.ts              # Streak Math, Levels, and Default State
+│   │   └── audio.ts                     # Web Audio API Sound Synthesizer
+│   ├── types/                           # TypeScript Interface & Type Definitions
+│   ├── App.tsx                          # Core Application Lifecycle & Auth Bindings
+│   ├── main.tsx                         # ErrorBoundary & React Root Entry
+│   └── index.css                        # Glassmorphism Design System & Cyber Aesthetics
+├── backend/                             # Express.js Proxy Backend (Render Free Tier Ready)
+│   ├── src/
+│   │   ├── config/firebase.js           # Firebase Admin SDK Initializer
+│   │   ├── routes/sync.routes.js        # Auth-Verified Cloud Sync Endpoints
+│   │   └── routes/integrations.routes.js# Auth-Verified Platform Proxy Routes
+│   ├── package.json
+│   └── server.js
+├── android/                             # Android Companion App & Jetpack Glance Widgets
+├── windows/                             # Windows Rainmeter Desktop Skin & Lua Scripts
+├── package.json                         # Vite Build Configuration & NPM Dependencies
+├── tsconfig.json
+├── vite.config.ts
+└── README.md                            # Comprehensive Developer Documentation
 ```
 
 ---
 
-## 🔒 Security & Privacy
+## 🛠️ Local Development Setup
 
-- External platform usernames are stored locally on device and never exposed to unauthenticated third parties.
-- Server-side API tokens (where required) should be kept in environment variables (`.env`).
+### Prerequisites
+- **Node.js** >= 18.x
+- **NPM** >= 9.x
+
+### Steps
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/MrAditya-Singh/Streak.git
+   cd Streak
+   ```
+
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Start Local Development Server**:
+   ```bash
+   npm run dev
+   ```
+   Open `http://localhost:5173` in your browser.
+
+4. **Build Production Dist Bundle**:
+   ```bash
+   npm run build
+   ```
+
+5. **Deploy to Surge CDN**:
+   ```bash
+   npx -y surge dist --domain effstreak-tracker.surge.sh
+   ```
 
 ---
 
-## 🏆 Definition of Done Checklist
+## 🔒 Security & Data Isolation
 
-- [x] Pixel-perfect visual fidelity to design mockup (Dark mode, Duolingo mascot, glowing cards).
-- [x] Streak Engine with overall and per-platform streaks.
-- [x] Efficiency system (planned vs completed minutes).
-- [x] Solo Leveling RPG ranking & leveling system with audio and confetti.
-- [x] GitHub & Codeforces live API synchronization.
-- [x] GitHub-style activity heatmap with 5 green intensity levels.
-- [x] Android Jetpack Glance widget package (`android/`).
-- [x] Windows Rainmeter desktop widget package (`windows/`).
-- [x] Interactive Widget Simulator for 2x2, 4x2, and 4x4 Android/Windows widgets.
-- [x] Production build passes with 0 errors (`npm run build`).
+- **Firebase Security Rules**: All user document reads/writes require verified Firebase ID tokens and are restricted to `/users/{uid}/*`.
+- **Zero Accidental Wipes**: Local state parsing includes `try / catch` fallback shields, preventing broken cache states from corrupting user profiles.
+- **Client Shield**: Network or API failures fallback gracefully to direct aggregator APIs without clearing existing habit completion history.
 
 ---
 
 ## 📄 License
 
-MIT License © 2026 EffStreak Team.
+Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  <b>Built with ❤️ by Aditya Singh for developers, competitive coders, and lifelong learners.</b>
+</p>
