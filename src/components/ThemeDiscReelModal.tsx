@@ -10,18 +10,17 @@ interface ThemeDiscReelModalProps {
   onSelectTheme: (themeId: string) => void;
 }
 
-// Geometry for 7 thematic positions symmetrically around the 360° circular disc (360/7 ≈ 51.43° increments)
+// 6 slot positions matching the custom 6-hole disc wheel geometry (60° increments)
 const THEME_HOLE_POSITIONS = [
-  { top: '16%', left: '50%', angle: 0 },            // 0° (Top)
-  { top: '28.8%', left: '76.6%', angle: 51.43 },    // 51.43°
-  { top: '57.6%', left: '83.1%', angle: 102.86 },   // 102.86°
-  { top: '80.6%', left: '64.8%', angle: 154.29 },   // 154.29°
-  { top: '80.6%', left: '35.2%', angle: 205.71 },   // 205.71°
-  { top: '57.6%', left: '16.9%', angle: 257.14 },   // 257.14°
-  { top: '28.8%', left: '23.4%', angle: 308.57 },   // 308.57°
+  { top: '17%', left: '50%', angle: 0 },         // 0° (Top)
+  { top: '33.5%', left: '78.6%', angle: 60 },    // 60° (Top-Right)
+  { top: '66.5%', left: '78.6%', angle: 120 },   // 120° (Bottom-Right)
+  { top: '83%', left: '50%', angle: 180 },       // 180° (Bottom)
+  { top: '66.5%', left: '21.4%', angle: 240 },   // 240° (Bottom-Left)
+  { top: '33.5%', left: '21.4%', angle: 300 },   // 300° (Top-Left)
 ];
 
-const STEP_ANGLE = 360 / 7; // ≈ 51.42857°
+const STEP_ANGLE = 60;
 
 export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
   isOpen,
@@ -83,12 +82,12 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
                 <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 tracking-tight">
                   <span>Theme Reel Dial</span>
                   <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-extrabold border border-cyan-500/40 uppercase tracking-wider">
-                    7 Bespoke Themes
+                    6 Unique Worlds
                   </span>
                 </h3>
               </div>
               <p className="text-xs text-slate-400">
-                Rotate the mechanical 7-slot dial or switch to grid view to explore unique aesthetics
+                Rotate the 6-slot mechanical dial or browse the gallery to transform the app aesthetic
               </p>
             </div>
           </div>
@@ -129,7 +128,7 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
         {/* Modal Body */}
         <div className="overflow-y-auto pr-1 flex-1 space-y-4 custom-theme-scroll">
           {viewMode === 'reel' ? (
-            /* 🎡 1. ViewMaster Rotating 7-Slot Theme Disc Reel Lens */
+            /* 🎡 1. ViewMaster Rotating 6-Slot Theme Disc Reel Lens */
             <div className="flex flex-col items-center justify-center py-2 relative">
               
               {/* Top Active Pointer Beacon */}
@@ -140,10 +139,10 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
 
               {/* Rotating Disc Body Container */}
               <div
-                className="relative w-64 h-64 sm:w-76 sm:h-76 rounded-full cursor-pointer shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] my-2 ring-1 ring-white/10"
+                className="relative w-64 h-64 sm:w-76 sm:h-76 rounded-full cursor-pointer shadow-[0_0_50px_rgba(0,0,0,0.8)] transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] my-2 ring-1 ring-white/10 select-none"
                 style={{ transform: `rotate(${rotationAngle}deg)` }}
               >
-                {/* 7 Thematic Aperture Holes */}
+                {/* 6 Thematic Aperture Holes fitted precisely */}
                 {THEME_HOLE_POSITIONS.map((pos, idx) => {
                   const themeItem = APP_THEMES[idx];
                   const isActive = idx === activeSlotIndex;
@@ -162,21 +161,21 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
                         transform: 'translate(-50%, -50%)',
                       }}
                       title={`${themeItem.name} • ${themeItem.subtitle}`}
-                      className={`absolute w-13 h-13 sm:w-15 sm:h-15 rounded-full flex flex-col items-center justify-center transition-all duration-300 z-10 cursor-pointer shadow-lg overflow-hidden ${
+                      className={`absolute w-14 h-14 sm:w-16 sm:h-16 rounded-full flex flex-col items-center justify-center transition-all duration-300 z-10 cursor-pointer shadow-lg overflow-hidden ${
                         isActive
-                          ? 'ring-4 ring-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.8)] scale-115'
-                          : 'hover:scale-110 hover:ring-2 hover:ring-amber-400 opacity-90 hover:opacity-100'
+                          ? 'ring-4 ring-rose-500 shadow-[0_0_25px_rgba(244,63,94,0.8)] scale-110'
+                          : 'hover:scale-108 hover:ring-2 hover:ring-cyan-400 opacity-95 hover:opacity-100'
                       }`}
                     >
                       {/* Theme Background Swatch & Radial Glow */}
                       <div
-                        className="w-full h-full flex flex-col items-center justify-center relative p-1 transition-all"
+                        className="w-full h-full rounded-full flex flex-col items-center justify-center relative p-1 transition-all"
                         style={{
                           background: `radial-gradient(circle, ${themeItem.colors.primary} 0%, ${themeItem.colors.bg} 85%)`,
                         }}
                       >
                         <span
-                          className="text-base sm:text-xl select-none drop-shadow-md transition-transform duration-500"
+                          className="text-lg sm:text-2xl select-none drop-shadow-md transition-transform duration-500"
                           style={{
                             transform: `rotate(${-rotationAngle}deg)`,
                           }}
@@ -186,7 +185,7 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
 
                         {/* Miniature color dots preview */}
                         <div
-                          className="flex items-center gap-0.5 mt-0.5"
+                          className="flex items-center gap-1 mt-0.5"
                           style={{ transform: `rotate(${-rotationAngle}deg)` }}
                         >
                           <span className="w-1.5 h-1.5 rounded-full ring-1 ring-white/30" style={{ backgroundColor: themeItem.colors.primary }} />
@@ -306,7 +305,7 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
                     ))}
                   </div>
 
-                  {/* Mini Interactive UI Preview Container */}
+                  {/* Theme Accent Bar */}
                   <div
                     className="mt-1 p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs flex-wrap"
                     style={{
@@ -316,32 +315,32 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className="w-5 h-5 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shadow-xs"
+                        className="w-2.5 h-2.5 rounded-full animate-ping"
                         style={{ backgroundColor: activeTheme.colors.primary }}
-                      >
-                        ✓
+                      />
+                      <span className="font-bold text-white text-[11px] uppercase tracking-wider">
+                        {activeTheme.archetype}
                       </span>
-                      <span className="font-bold text-white text-[11px]">Daily Habit Demo</span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span
-                        className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-extrabold flex items-center gap-1"
+                        className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold"
                         style={{
                           backgroundColor: activeTheme.colors.pillBg,
                           color: activeTheme.colors.primary,
                         }}
                       >
-                        🔥 14 DAYS STREAK
+                        ACTIVE PALETTE
                       </span>
 
-                      {/* Mini Gradient Progress Bar */}
-                      <div className="w-20 h-2 rounded-full bg-white/10 overflow-hidden">
+                      {/* Gradient Bar */}
+                      <div className="w-24 h-2 rounded-full bg-white/10 overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r"
+                          className="h-full rounded-full"
                           style={{
-                            width: '78%',
-                            backgroundImage: `linear-gradient(to right, ${activeTheme.colors.primary}, ${activeTheme.colors.secondary})`,
+                            width: '100%',
+                            backgroundImage: `linear-gradient(to right, ${activeTheme.colors.primary}, ${activeTheme.colors.secondary}, ${activeTheme.colors.accent})`,
                           }}
                         />
                       </div>
@@ -351,7 +350,7 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
               </div>
             </div>
           ) : (
-            /* 🎴 2. Full Bespoke Gallery Grid View (7 Themes) */
+            /* 🎴 2. Full Bespoke Gallery Grid View (6 Themes) */
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {APP_THEMES.map((theme, idx) => {
                 const isSelected = theme.id === currentThemeId;
@@ -434,7 +433,7 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
                       ))}
                     </div>
 
-                    {/* Mini UI Preview Box */}
+                    {/* Palette showcase strip */}
                     <div
                       className="p-2.5 rounded-xl border flex items-center justify-between gap-2 text-[10px]"
                       style={{
@@ -442,34 +441,15 @@ export const ThemeDiscReelModal: React.FC<ThemeDiscReelModalProps> = ({
                         borderColor: theme.colors.border,
                       }}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="w-4 h-4 rounded-md flex items-center justify-center text-white text-[9px] font-bold"
-                          style={{ backgroundColor: theme.colors.primary }}
-                        >
-                          ✓
-                        </span>
-                        <span className="font-semibold text-white truncate max-w-[100px]">
-                          Habit UI Preview
-                        </span>
-                      </div>
-
-                      {/* Mini Streak Pill */}
-                      <span
-                        className="px-2 py-0.5 rounded-md font-mono font-bold"
-                        style={{
-                          backgroundColor: theme.colors.pillBg,
-                          color: theme.colors.primary,
-                        }}
-                      >
-                        ⚡ 100%
+                      <span className="font-semibold text-slate-300 truncate max-w-[120px]">
+                        {theme.subtitle}
                       </span>
 
                       {/* Palette Dots */}
-                      <div className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.colors.primary }} />
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.colors.secondary }} />
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.colors.accent }} />
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-full ring-1 ring-white/30" style={{ backgroundColor: theme.colors.primary }} />
+                        <span className="w-3 h-3 rounded-full ring-1 ring-white/30" style={{ backgroundColor: theme.colors.secondary }} />
+                        <span className="w-3 h-3 rounded-full ring-1 ring-white/30" style={{ backgroundColor: theme.colors.accent }} />
                       </div>
                     </div>
 

@@ -219,10 +219,10 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
   }[size];
 
   const holeSizeClasses = {
-    mini: 'w-6 h-6',
-    sm: 'w-9 h-9',
-    md: 'w-13 h-13 sm:w-15 sm:h-15',
-    lg: 'w-16 h-16 sm:w-18 sm:h-18',
+    mini: 'w-5 h-5',
+    sm: 'w-8 h-8',
+    md: 'w-11 h-11 sm:w-13 sm:h-13',
+    lg: 'w-14 h-14 sm:w-16 sm:h-16',
   }[size];
 
   return (

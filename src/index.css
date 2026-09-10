@@ -91,32 +91,7 @@ html[data-theme="cyber-obsidian"] .glass-card:hover {
 }
 
 /* =========================================================================
-   🎨 THEME 2: TOKYO SYNTHWAVE (Shibuya Neon 1984 & Hot Magenta)
-   ========================================================================= */
-html[data-theme="tokyo-synthwave"] body {
-  background-color: #0d061f !important;
-  color: #FDF2F8 !important;
-  background-image: 
-    linear-gradient(rgba(244, 63, 94, 0.03) 1px, transparent 1px),
-    radial-gradient(ellipse at 50% 0%, rgba(244, 63, 94, 0.16) 0%, transparent 55%),
-    radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 15% 85%, rgba(6, 182, 212, 0.09) 0%, transparent 50%) !important;
-  background-size: 100% 4px, 100% 100%, 100% 100%, 100% 100% !important;
-}
-
-html[data-theme="tokyo-synthwave"] .glass-card {
-  background: linear-gradient(135deg, rgba(24, 11, 51, 0.92) 0%, rgba(13, 6, 31, 0.88) 100%) !important;
-  border-color: rgba(244, 63, 94, 0.32) !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65), 0 0 22px -5px rgba(244, 63, 94, 0.2) !important;
-}
-
-html[data-theme="tokyo-synthwave"] .glass-card:hover {
-  border-color: rgba(244, 63, 94, 0.6) !important;
-  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.75), 0 0 30px -2px rgba(244, 63, 94, 0.35) !important;
-}
-
-/* =========================================================================
-   🎨 THEME 3: EMERALD MATRIX ZEN (Cyber Grove & Luminous Jade)
+   🎨 THEME 2: EMERALD MATRIX ZEN (Cyber Grove & Luminous Jade)
    ========================================================================= */
 html[data-theme="emerald-matrix"] body {
   background-color: #02150e !important;
@@ -138,29 +113,6 @@ html[data-theme="emerald-matrix"] .glass-card {
 html[data-theme="emerald-matrix"] .glass-card:hover {
   border-color: rgba(52, 211, 153, 0.55) !important;
   box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.7), 0 0 28px -2px rgba(16, 185, 129, 0.32) !important;
-}
-
-/* =========================================================================
-   🎨 THEME 4: SOLAR FLARE ROYALE (Volcanic Stellar Core & Molten Amber)
-   ========================================================================= */
-html[data-theme="solar-flare"] body {
-  background-color: #15060d !important;
-  color: #FFFBEB !important;
-  background-image: 
-    radial-gradient(circle at 50% 10%, rgba(245, 158, 11, 0.18) 0%, transparent 55%),
-    radial-gradient(circle at 85% 40%, rgba(249, 115, 22, 0.14) 0%, transparent 45%),
-    radial-gradient(circle at 15% 80%, rgba(225, 29, 72, 0.11) 0%, transparent 50%) !important;
-}
-
-html[data-theme="solar-flare"] .glass-card {
-  background: linear-gradient(135deg, rgba(37, 11, 24, 0.92) 0%, rgba(21, 6, 13, 0.88) 100%) !important;
-  border-color: rgba(245, 158, 11, 0.32) !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65), 0 0 22px -5px rgba(245, 158, 11, 0.18) !important;
-}
-
-html[data-theme="solar-flare"] .glass-card:hover {
-  border-color: rgba(245, 158, 11, 0.6) !important;
-  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.75), 0 0 30px -2px rgba(249, 115, 22, 0.35) !important;
 }
 
 /* =========================================================================
