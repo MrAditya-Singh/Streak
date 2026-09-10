@@ -89,6 +89,15 @@ export const App: React.FC = () => {
   // Main persistent state with safe JSON parsing & fallback defaults
   const [user, setUser] = useState<UserProfile>(() => {
     try {
+      let headerReelDefault: string[] | undefined;
+      let mantraReelDefault: string[] | undefined;
+      try {
+        const savedHeaderReel = localStorage.getItem('effstreak_reel_header_reel');
+        if (savedHeaderReel) headerReelDefault = JSON.parse(savedHeaderReel);
+        const savedMantraReel = localStorage.getItem('effstreak_reel_mantra_reel');
+        if (savedMantraReel) mantraReelDefault = JSON.parse(savedMantraReel);
+      } catch {}
+
       const savedAuth = localStorage.getItem('effstreak_auth_user');
       let authDefaults: Partial<UserProfile> = {};
       if (savedAuth) {
@@ -109,6 +118,8 @@ export const App: React.FC = () => {
         if (parsed && typeof parsed === 'object') {
           return {
             ...INITIAL_USER,
+            headerReel: headerReelDefault,
+            mantraReel: mantraReelDefault,
             ...authDefaults,
             ...parsed,
             attributes: { ...INITIAL_USER.attributes, ...(parsed.attributes || {}) },
@@ -118,6 +129,8 @@ export const App: React.FC = () => {
       if (authDefaults.uid) {
         return {
           ...INITIAL_USER,
+          headerReel: headerReelDefault,
+          mantraReel: mantraReelDefault,
           ...authDefaults,
         };
       }
@@ -462,11 +475,25 @@ export const App: React.FC = () => {
       return nextUser;
     });
 
-    if (updated.headerImage !== undefined || updated.dailyMantraImage !== undefined || updated.avatarUrl !== undefined) {
+    if (
+      updated.headerImage !== undefined ||
+      updated.dailyMantraImage !== undefined ||
+      updated.avatarUrl !== undefined ||
+      updated.headerReel !== undefined ||
+      updated.mantraReel !== undefined
+    ) {
+      if (updated.headerReel) {
+        try { localStorage.setItem('effstreak_reel_header_reel', JSON.stringify(updated.headerReel)); } catch {}
+      }
+      if (updated.mantraReel) {
+        try { localStorage.setItem('effstreak_reel_mantra_reel', JSON.stringify(updated.mantraReel)); } catch {}
+      }
       syncUserPhotosToBackend(activeSyncKey, {
         headerImage: updated.headerImage,
         dailyMantraImage: updated.dailyMantraImage,
         avatarUrl: updated.avatarUrl,
+        headerReel: updated.headerReel,
+        mantraReel: updated.mantraReel,
       }).catch(() => {});
     }
 
@@ -740,13 +767,24 @@ export const App: React.FC = () => {
       }
 
       if (remoteState.user) {
-        setUser((prev) => ({
-          ...prev,
-          ...remoteState.user,
-          uid: syncKey,
-          email: remoteState.user.email || prev.email,
-          name: remoteState.user.name || prev.name,
-        }));
+        setUser((prev) => {
+          const mergedUser = {
+            ...prev,
+            ...remoteState.user,
+            headerReel: remoteState.user.headerReel || prev.headerReel,
+            mantraReel: remoteState.user.mantraReel || prev.mantraReel,
+            uid: syncKey,
+            email: remoteState.user.email || prev.email,
+            name: remoteState.user.name || prev.name,
+          };
+          if (mergedUser.headerReel) {
+            try { localStorage.setItem('effstreak_reel_header_reel', JSON.stringify(mergedUser.headerReel)); } catch {}
+          }
+          if (mergedUser.mantraReel) {
+            try { localStorage.setItem('effstreak_reel_mantra_reel', JSON.stringify(mergedUser.mantraReel)); } catch {}
+          }
+          return mergedUser;
+        });
       }
 
       if (remoteState.emergencyTasks && Array.isArray(remoteState.emergencyTasks)) {
@@ -1749,6 +1787,8 @@ export const App: React.FC = () => {
             setUser((prev) => ({ ...prev, soundEnabled: next }));
           }}
           onUpdateHeaderImage={(newImage) => handleUpdateUser({ headerImage: newImage })}
+          headerReel={user.headerReel}
+          onUpdateHeaderReel={(newReel) => handleUpdateUser({ headerReel: newReel })}
           isSyncing={isSyncing}
           emergencyTasks={emergencyTasks}
           onCompleteEmergencyTask={handleCompleteEmergencyTask}
@@ -1787,6 +1827,8 @@ export const App: React.FC = () => {
           isDarkMode={isDarkMode}
           dailyMantraImage={user.dailyMantraImage}
           onUpdateMantraImage={(newImage) => handleUpdateUser({ dailyMantraImage: newImage })}
+          mantraReel={user.mantraReel}
+          onUpdateMantraReel={(newReel) => handleUpdateUser({ mantraReel: newReel })}
           emergencyTasks={emergencyTasks}
           onCompleteEmergencyTask={handleCompleteEmergencyTask}
           onDeleteEmergencyTask={handleDeleteEmergencyTask}

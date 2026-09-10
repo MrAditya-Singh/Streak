@@ -33,6 +33,8 @@ interface WeeklyConsistencyOverviewProps {
   isDarkMode: boolean;
   dailyMantraImage?: string;
   onUpdateMantraImage?: (newImage: string) => void;
+  mantraReel?: string[];
+  onUpdateMantraReel?: (reel: string[]) => void;
   emergencyTasks?: EmergencyTask[];
   onCompleteEmergencyTask?: (id: string) => void;
   onDeleteEmergencyTask?: (id: string) => void;
@@ -179,6 +181,8 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
   isDarkMode,
   dailyMantraImage,
   onUpdateMantraImage,
+  mantraReel,
+  onUpdateMantraReel,
   emergencyTasks = [],
   onCompleteEmergencyTask,
   onDeleteEmergencyTask,
@@ -187,6 +191,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
   const [hoveredDay, setHoveredDay] = useState<DayColumnData | null>(null);
   const [isMantraReelActive, setIsMantraReelActive] = useState<boolean>(false);
   const [isMantraModalOpen, setIsMantraModalOpen] = useState<boolean>(false);
+  const effectiveMantraReel = mantraReel || MANTRA_DEFAULT_PHOTOS;
 
   // Gradient helper for bars based on week
   const getBarGradient = (weekIndex: number, pct: number) => {
@@ -241,6 +246,24 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                 <span className="absolute top-2.5 left-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-white/95 text-black backdrop-blur-md shadow-xs font-mono">
                   Daily Mantra
                 </span>
+
+                {/* Modal Instance when triggered from Photo View */}
+                {isMantraModalOpen && (
+                  <PhotoDiscWheel
+                    storageKey="mantra_reel"
+                    title="Daily Mantra"
+                    activePhoto={dailyMantraImage || "/images/char_hero.jpg"}
+                    defaultPhotos={MANTRA_DEFAULT_PHOTOS}
+                    slots={effectiveMantraReel}
+                    onUpdateSlots={onUpdateMantraReel}
+                    onSelectPhoto={(url) => {
+                      onUpdateMantraImage?.(url);
+                    }}
+                    size="sm"
+                    isOpenModal={isMantraModalOpen}
+                    onCloseModal={() => setIsMantraModalOpen(false)}
+                  />
+                )}
               </>
             ) : (
               /* View Mode 2: Interactive 6-Hole Rotating Disc Reel Lens */
@@ -250,6 +273,8 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   title="Daily Mantra"
                   activePhoto={dailyMantraImage || "/images/char_hero.jpg"}
                   defaultPhotos={MANTRA_DEFAULT_PHOTOS}
+                  slots={effectiveMantraReel}
+                  onUpdateSlots={onUpdateMantraReel}
                   onSelectPhoto={(url) => {
                     onUpdateMantraImage?.(url);
                   }}

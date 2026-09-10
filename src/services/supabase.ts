@@ -83,6 +83,10 @@ export async function syncFullStateToSupabase(uid: string, state: Partial<UserCl
         resident: state.user.resident ?? null,
         phone_number: state.user.phoneNumber ?? null,
         bio: state.user.bio ?? null,
+        header_image: state.user.headerImage ?? null,
+        daily_mantra_image: state.user.dailyMantraImage ?? null,
+        header_reel: state.user.headerReel ?? null,
+        mantra_reel: state.user.mantraReel ?? null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
     }
@@ -97,6 +101,7 @@ export async function syncFullStateToSupabase(uid: string, state: Partial<UserCl
       level: state.user?.level ?? 0,
       overall_streak: state.user?.overallStreak ?? 0,
       longest_streak: state.user?.longestStreak ?? 0,
+      user_data: state.user || {},
       updated_at: new Date().toISOString(),
     };
 
@@ -131,8 +136,10 @@ export function subscribeToSupabaseFullState(
       .maybeSingle()
       .then(({ data, error }) => {
         if (!error && data) {
+          const userData = data.user_data || {};
           const cloudState: UserCloudState = {
             user: {
+              ...userData,
               uid: targetId,
               currentXP: data.xp || 0,
               level: data.level || 0,
@@ -164,8 +171,10 @@ export function subscribeToSupabaseFullState(
         (payload) => {
           if (payload.new && typeof payload.new === 'object') {
             const row = payload.new as any;
+            const userData = row.user_data || {};
             const cloudState: UserCloudState = {
               user: {
+                ...userData,
                 uid,
                 currentXP: row.xp || 0,
                 level: row.level || 0,

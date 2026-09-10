@@ -9,6 +9,8 @@ export interface PhotoDiscWheelProps {
   title: string;
   activePhoto: string;
   defaultPhotos: string[];
+  slots?: string[];
+  onUpdateSlots?: (slots: string[]) => void;
   onSelectPhoto: (photoUrl: string) => void;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'mini';
@@ -32,6 +34,8 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
   title,
   activePhoto,
   defaultPhotos,
+  slots: incomingSlots,
+  onUpdateSlots,
   onSelectPhoto,
   className = '',
   size = 'md',
@@ -41,6 +45,9 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
 }) => {
   // 6 Slots State
   const [slots, setSlots] = useState<string[]>(() => {
+    if (Array.isArray(incomingSlots) && incomingSlots.length === 6 && incomingSlots.some(Boolean)) {
+      return incomingSlots;
+    }
     try {
       const saved = localStorage.getItem(`effstreak_reel_${storageKey}`);
       if (saved) {
@@ -50,6 +57,16 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
     } catch { /* ignore */ }
     return Array.from({ length: 6 }, (_, i) => defaultPhotos[i] || (i === 0 ? activePhoto : ''));
   });
+
+  // Keep slots in sync if incoming slots prop changes from cloud sync
+  useEffect(() => {
+    if (Array.isArray(incomingSlots) && incomingSlots.length === 6 && incomingSlots.some(Boolean)) {
+      const isDiff = incomingSlots.some((s, idx) => s !== slots[idx]);
+      if (isDiff) {
+        setSlots(incomingSlots);
+      }
+    }
+  }, [incomingSlots]);
 
   const [activeSlotIndex, setActiveSlotIndex] = useState<number>(() => {
     const idx = slots.findIndex((s) => s && s === activePhoto);
@@ -66,7 +83,7 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
   const [_editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
   const lastClickTimeRef = useRef<{ slot: number; time: number }>({ slot: -1, time: 0 });
 
-  // Sync to local storage & backend
+  // Sync to local storage & backend & parent component
   useEffect(() => {
     try {
       localStorage.setItem(`effstreak_reel_${storageKey}`, JSON.stringify(slots));
@@ -85,6 +102,7 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
       setSlots((prev) => {
         const next = [...prev];
         next[activeSlotIndex] = activePhoto;
+        onUpdateSlots?.(next);
         return next;
       });
     }
@@ -136,34 +154,40 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
     soundFx.playClick();
     openImagePicker(
       async (dataUrl) => {
-        // Immediate visual update
-        setSlots((prev) => {
-          const next = [...prev];
-          next[slotIdx] = dataUrl;
-          return next;
-        });
+        // Immediate visual update with portable compressed data URL (works everywhere: mobile & desktop)
+        const nextSlots = [...slots];
+        nextSlots[slotIdx] = dataUrl;
+        setSlots(nextSlots);
+        onUpdateSlots?.(nextSlots);
         setActiveSlotIndex(slotIdx);
         setRotationAngle(-slotIdx * 60);
         onSelectPhoto(dataUrl);
         soundFx.playLevelUp();
 
-        // Convert & upload as genuine .jpg to backend database
+        // Convert & upload to backend database / cloud
         try {
           const uploadRes = await uploadImageToBackend(dataUrl, `${storageKey}_slot${slotIdx + 1}`, 'reel_photo', userId);
-          if (uploadRes && uploadRes.url) {
-            const jpgUrl = uploadRes.url;
-            setSlots((prev) => {
-              const next = [...prev];
-              next[slotIdx] = jpgUrl;
-              return next;
-            });
-            onSelectPhoto(jpgUrl);
+          // Only overwrite dataUrl if returned URL is a public/cloud URL (NOT localhost which breaks on mobile)
+          if (uploadRes && uploadRes.url && !uploadRes.url.includes('localhost') && !uploadRes.url.includes('127.0.0.1')) {
+            const publicUrl = uploadRes.url;
+            const updatedSlots = [...nextSlots];
+            updatedSlots[slotIdx] = publicUrl;
+            setSlots(updatedSlots);
+            onUpdateSlots?.(updatedSlots);
+            onSelectPhoto(publicUrl);
 
             // Persist to user profile
             if (storageKey === 'mantra_reel') {
-              syncUserPhotosToBackend(userId, { dailyMantraImage: jpgUrl });
+              syncUserPhotosToBackend(userId, { mantraReel: updatedSlots, dailyMantraImage: publicUrl });
             } else if (storageKey === 'header_reel') {
-              syncUserPhotosToBackend(userId, { headerImage: jpgUrl });
+              syncUserPhotosToBackend(userId, { headerReel: updatedSlots, headerImage: publicUrl });
+            }
+          } else {
+            // Persist dataUrl to user profile backend
+            if (storageKey === 'mantra_reel') {
+              syncUserPhotosToBackend(userId, { mantraReel: nextSlots, dailyMantraImage: dataUrl });
+            } else if (storageKey === 'header_reel') {
+              syncUserPhotosToBackend(userId, { headerReel: nextSlots, headerImage: dataUrl });
             }
           }
         } catch (err) {
@@ -187,18 +211,17 @@ export const PhotoDiscWheel: React.FC<PhotoDiscWheelProps> = ({
   // Remove photo from a slot
   const handleRemoveFromSlot = (slotIdx: number) => {
     soundFx.playUncheck();
-    setSlots((prev) => {
-      const next = [...prev];
-      next[slotIdx] = '';
-      return next;
-    });
+    const next = [...slots];
+    next[slotIdx] = '';
+    setSlots(next);
+    onUpdateSlots?.(next);
     // If we removed the active photo, find first available photo
     if (slotIdx === activeSlotIndex) {
-      const firstAvail = slots.findIndex((s, i) => i !== slotIdx && Boolean(s));
-      if (firstAvail !== -1 && slots[firstAvail]) {
+      const firstAvail = next.findIndex((s, i) => i !== slotIdx && Boolean(s));
+      if (firstAvail !== -1 && next[firstAvail]) {
         setActiveSlotIndex(firstAvail);
         setRotationAngle(-firstAvail * 60);
-        onSelectPhoto(slots[firstAvail]);
+        onSelectPhoto(next[firstAvail]);
       }
     }
   };

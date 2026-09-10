@@ -47,6 +47,8 @@ interface AestheticHeaderTrackerProps {
   onOpenAuth?: () => void;
   onToggleSound: () => void;
   onUpdateHeaderImage?: (newImage: string) => void;
+  headerReel?: string[];
+  onUpdateHeaderReel?: (reel: string[]) => void;
   isSyncing?: boolean;
   emergencyTasks?: EmergencyTask[];
   onCompleteEmergencyTask?: (id: string) => void;
@@ -93,6 +95,8 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
   onOpenAuth,
   onToggleSound,
   onUpdateHeaderImage,
+  headerReel,
+  onUpdateHeaderReel,
   isSyncing = false,
   emergencyTasks = [],
   onCompleteEmergencyTask,
@@ -104,6 +108,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
 }) => {
   const [isHeaderReelActive, setIsHeaderReelActive] = useState<boolean>(false);
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState<boolean>(false);
+  const effectiveHeaderReel = user.headerReel || headerReel || HEADER_DEFAULT_PHOTOS;
 
   const [currentRealTime, setCurrentRealTime] = React.useState<string>(() => {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -219,6 +224,25 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
                   </div>
                   <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-pink-200 font-mono">Hunter Squad</span>
                 </div>
+
+                {/* Hidden Modal Trigger Instance when in Photo View */}
+                {isHeaderModalOpen && (
+                  <PhotoDiscWheel
+                    storageKey="header_reel"
+                    title="Header Banner"
+                    activePhoto={user.headerImage || "/images/header_aesthetic.png"}
+                    defaultPhotos={HEADER_DEFAULT_PHOTOS}
+                    slots={effectiveHeaderReel}
+                    onUpdateSlots={onUpdateHeaderReel}
+                    onSelectPhoto={(url) => {
+                      onUpdateHeaderImage?.(url);
+                    }}
+                    size="sm"
+                    isOpenModal={isHeaderModalOpen}
+                    onCloseModal={() => setIsHeaderModalOpen(false)}
+                    userId={user.uid}
+                  />
+                )}
               </>
             ) : (
               /* View Mode 2: Interactive 6-Hole Rotating Disc Reel Lens Overlay */
@@ -228,12 +252,15 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
                   title="Header Banner"
                   activePhoto={user.headerImage || "/images/header_aesthetic.png"}
                   defaultPhotos={HEADER_DEFAULT_PHOTOS}
+                  slots={effectiveHeaderReel}
+                  onUpdateSlots={onUpdateHeaderReel}
                   onSelectPhoto={(url) => {
                     onUpdateHeaderImage?.(url);
                   }}
                   size="sm"
                   isOpenModal={isHeaderModalOpen}
                   onCloseModal={() => setIsHeaderModalOpen(false)}
+                  userId={user.uid}
                 />
               </div>
             )}

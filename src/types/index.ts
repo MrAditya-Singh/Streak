@@ -116,6 +116,8 @@ export interface UserProfile {
   hackerrankUsername?: string;
   headerImage?: string;
   dailyMantraImage?: string;
+  headerReel?: string[];
+  mantraReel?: string[];
   lastSyncedAt?: string;
   syncStatus?: 'idle' | 'syncing' | 'synced' | 'error';
   platformUrls?: Record<string, string>;
