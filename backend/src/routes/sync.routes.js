@@ -35,14 +35,42 @@ const sseClients = new Map(); // userId (uid) -> Set of res objects
 // -------------------------------------------------------------
 // Helper: Broadcast to Real-Time SSE Clients
 // -------------------------------------------------------------
-function broadcastToClients(userId, payload) {
-  if (sseClients.has(userId)) {
-    const data = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const client of sseClients.get(userId)) {
-      try {
-        client.write(data);
-      } catch {
-        // Ignored
+function broadcastToClients(userIdOrProfile, payload) {
+  const targetIds = new Set();
+  if (typeof userIdOrProfile === 'string') {
+    targetIds.add(userIdOrProfile);
+    const user = getUser(userIdOrProfile);
+    if (user?.id) targetIds.add(user.id);
+    if (user?.uid) targetIds.add(user.uid);
+    if (user?.email) {
+      const cleanEmail = user.email.trim().toLowerCase();
+      targetIds.add(cleanEmail);
+      targetIds.add(`user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`);
+    }
+  } else if (userIdOrProfile && typeof userIdOrProfile === 'object') {
+    if (userIdOrProfile.id) targetIds.add(userIdOrProfile.id);
+    if (userIdOrProfile.uid) targetIds.add(userIdOrProfile.uid);
+    if (userIdOrProfile.email) {
+      const cleanEmail = userIdOrProfile.email.trim().toLowerCase();
+      targetIds.add(cleanEmail);
+      targetIds.add(`user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`);
+    }
+  }
+
+  const data = `data: ${JSON.stringify(payload)}\n\n`;
+  const notifiedClients = new Set();
+
+  for (const tid of targetIds) {
+    if (sseClients.has(tid)) {
+      for (const client of sseClients.get(tid)) {
+        if (!notifiedClients.has(client)) {
+          notifiedClients.add(client);
+          try {
+            client.write(data);
+          } catch {
+            // Client disconnected
+          }
+        }
       }
     }
   }
@@ -52,7 +80,11 @@ function broadcastToClients(userId, payload) {
 // 1. Real-Time SSE Stream for Instant Push
 // -------------------------------------------------------------
 syncRouter.get('/events', verifySupabaseToken, async (req, res) => {
-  const userId = req.uid || 'local_authenticated_dev_user';
+  const email = (req.query?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.query?.userId || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -60,14 +92,16 @@ syncRouter.get('/events', verifySupabaseToken, async (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
-  if (!sseClients.has(userId)) {
-    sseClients.set(userId, new Set());
-  }
-  const clientSet = sseClients.get(userId);
-  clientSet.add(res);
+  const registerKeys = [rawId, canonicalId, cleanEmail].filter(Boolean);
+  registerKeys.forEach((key) => {
+    if (!sseClients.has(key)) {
+      sseClients.set(key, new Set());
+    }
+    sseClients.get(key).add(res);
+  });
 
   // Fetch current state from local SQLite
-  const currentState = getUserState(userId);
+  const currentState = getUserState(canonicalId, cleanEmail);
 
   // If Supabase is connected, check for newer cloud state
   if (isSupabaseConfigured && supabase) {
@@ -75,14 +109,14 @@ syncRouter.get('/events', verifySupabaseToken, async (req, res) => {
       const { data: cloudState, error } = await supabase
         .from('user_state')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', canonicalId)
         .maybeSingle();
 
       if (!error && cloudState) {
         if (cloudState.activities) currentState.activities = cloudState.activities;
         if (cloudState.matrix_state) currentState.matrix = cloudState.matrix_state;
         if (cloudState.emergency_tasks) currentState.emergencyTasks = cloudState.emergency_tasks;
-        saveUserState(userId, currentState);
+        saveUserState(canonicalId, currentState, cleanEmail);
       }
     } catch { /* ignore */ }
   }
@@ -98,7 +132,9 @@ syncRouter.get('/events', verifySupabaseToken, async (req, res) => {
   }, 25000);
 
   req.on('close', () => {
-    clientSet.delete(res);
+    registerKeys.forEach((key) => {
+      sseClients.get(key)?.delete(res);
+    });
     clearInterval(heartbeat);
   });
 });
@@ -107,20 +143,25 @@ syncRouter.get('/events', verifySupabaseToken, async (req, res) => {
 // 2. Fetch Latest State (GET /api/sync/state)
 // -------------------------------------------------------------
 syncRouter.get('/state', verifySupabaseToken, async (req, res) => {
-  const userId = req.query?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
-  let state = getUserState(userId);
+  const email = (req.query?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.query?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
+  let state = getUserState(canonicalId, cleanEmail);
 
   if (isSupabaseConfigured && supabase) {
     try {
       const { data: cloudState, error } = await supabase
         .from('user_state')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', canonicalId)
         .maybeSingle();
 
       if (!error && cloudState) {
         state = {
-          userId,
+          userId: canonicalId,
           activities: cloudState.activities || state.activities,
           matrix: cloudState.matrix_state || state.matrix,
           yearlyMatrix: cloudState.yearly_matrix || state.yearlyMatrix || {},
@@ -137,7 +178,7 @@ syncRouter.get('/state', verifySupabaseToken, async (req, res) => {
           lastUpdated: cloudState.updated_at || new Date().toISOString(),
         };
         // Keep SQLite synced
-        saveUserState(userId, state);
+        saveUserState(canonicalId, state, cleanEmail);
       }
     } catch (err) {
       console.warn('Supabase state fetch notice:', err.message);
@@ -151,11 +192,16 @@ syncRouter.get('/state', verifySupabaseToken, async (req, res) => {
 // 3. Mobile / Laptop Toggle Action (POST /api/sync/toggle)
 // -------------------------------------------------------------
 syncRouter.post('/toggle', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
   const { habitId, completed, date } = req.body;
   const targetDate = date || new Date().toISOString().split('T')[0];
 
-  const state = getUserState(userId);
+  const state = getUserState(canonicalId, cleanEmail);
 
   if (!state.matrix) state.matrix = {};
   if (!state.matrix[habitId]) state.matrix[habitId] = {};
@@ -179,15 +225,15 @@ syncRouter.post('/toggle', verifySupabaseToken, async (req, res) => {
   state.lastUpdated = new Date().toISOString();
 
   // 1. Save to Local SQLite
-  const savedState = saveUserState(userId, state);
+  const savedState = saveUserState(canonicalId, state, cleanEmail);
 
   // 2. Sync to Supabase Cloud
   if (isSupabaseConfigured) {
-    syncStateToSupabase(userId, savedState).catch(() => {});
+    syncStateToSupabase(canonicalId, savedState, cleanEmail).catch(() => {});
   }
 
   // 3. Broadcast to Real-Time SSE Listeners
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'HABIT_TOGGLED',
     habitId,
     completed,
@@ -207,22 +253,27 @@ syncRouter.post('/toggle', verifySupabaseToken, async (req, res) => {
 // 4. Save Full State (POST /api/sync/state)
 // -------------------------------------------------------------
 syncRouter.post('/state', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.body?.state?.user?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
   const { state: incomingState } = req.body;
   if (!incomingState) {
     return res.status(400).json({ success: false, error: 'Missing state object' });
   }
 
   // 1. Persist to Local SQLite
-  const savedState = saveUserState(userId, incomingState);
+  const savedState = saveUserState(canonicalId, incomingState, cleanEmail);
 
   // 2. Persist to Cloud Supabase
   if (isSupabaseConfigured) {
-    syncStateToSupabase(userId, savedState).catch(() => {});
+    syncStateToSupabase(canonicalId, savedState, cleanEmail).catch(() => {});
   }
 
   // 3. Broadcast to Live SSE Clients
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'STATE_UPDATED',
     state: savedState,
     timestamp: Date.now(),
@@ -235,16 +286,20 @@ syncRouter.post('/state', verifySupabaseToken, async (req, res) => {
 // 5. Force Reset Endpoint (POST /api/sync/reset)
 // -------------------------------------------------------------
 syncRouter.post('/reset', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
 
   // 1. Reset in Local SQLite
-  const cleanState = resetUserData(userId);
+  const cleanState = resetUserData(canonicalId);
 
   // 2. Reset in Supabase Cloud
   if (isSupabaseConfigured && supabase) {
     try {
       await supabase.from('user_state').upsert({
-        user_id: userId,
+        user_id: canonicalId,
         activities: [],
         matrix_state: {},
         yearly_matrix: {},
@@ -263,7 +318,7 @@ syncRouter.post('/reset', verifySupabaseToken, async (req, res) => {
   }
 
   // 3. Broadcast to SSE Clients
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'FORCE_RESET',
     state: cleanState,
     timestamp: Date.now(),
@@ -276,7 +331,12 @@ syncRouter.post('/reset', verifySupabaseToken, async (req, res) => {
 // 6. Habit CRUD Sync (POST /api/sync/habit & DELETE /api/sync/habit/:id)
 // -------------------------------------------------------------
 syncRouter.post('/habit', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
   const { habit } = req.body;
 
   if (!habit || !habit.id || !habit.name) {
@@ -284,26 +344,26 @@ syncRouter.post('/habit', verifySupabaseToken, async (req, res) => {
   }
 
   // 1. Save to SQLite
-  const savedHabit = saveHabit(userId, habit);
+  const savedHabit = saveHabit(canonicalId, habit);
 
   // 2. Also keep user_state activities array in sync
-  const currentState = getUserState(userId);
+  const currentState = getUserState(canonicalId, cleanEmail);
   const exists = (currentState.activities || []).some((a) => a.id === habit.id);
   if (!exists) {
     currentState.activities = [...(currentState.activities || []), savedHabit];
   } else {
     currentState.activities = (currentState.activities || []).map((a) => a.id === habit.id ? { ...a, ...savedHabit } : a);
   }
-  const updatedState = saveUserState(userId, currentState);
+  const updatedState = saveUserState(canonicalId, currentState, cleanEmail);
 
   // 3. Sync to Supabase
   if (isSupabaseConfigured) {
-    syncHabitToSupabase(userId, savedHabit).catch(() => {});
-    syncStateToSupabase(userId, updatedState).catch(() => {});
+    syncHabitToSupabase(canonicalId, savedHabit, cleanEmail).catch(() => {});
+    syncStateToSupabase(canonicalId, updatedState, cleanEmail).catch(() => {});
   }
 
   // 4. Realtime Broadcast
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'HABIT_SAVED',
     habit: savedHabit,
     state: updatedState,
@@ -314,7 +374,11 @@ syncRouter.post('/habit', verifySupabaseToken, async (req, res) => {
 });
 
 syncRouter.delete('/habit/:id', verifySupabaseToken, async (req, res) => {
-  const userId = req.query?.userId || req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.query?.email || req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.query?.userId || req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
   const habitId = req.params.id;
 
   if (!habitId) {
@@ -322,24 +386,24 @@ syncRouter.delete('/habit/:id', verifySupabaseToken, async (req, res) => {
   }
 
   // 1. Delete from SQLite
-  deleteHabit(userId, habitId);
+  deleteHabit(canonicalId, habitId);
 
   // 2. Update user_state activities array
-  const currentState = getUserState(userId);
+  const currentState = getUserState(canonicalId, cleanEmail);
   currentState.activities = (currentState.activities || []).filter((a) => a.id !== habitId);
   if (currentState.matrix && currentState.matrix[habitId]) {
     delete currentState.matrix[habitId];
   }
-  const updatedState = saveUserState(userId, currentState);
+  const updatedState = saveUserState(canonicalId, currentState, cleanEmail);
 
   // 3. Delete from Supabase
   if (isSupabaseConfigured) {
-    deleteHabitFromSupabase(userId, habitId).catch(() => {});
-    syncStateToSupabase(userId, updatedState).catch(() => {});
+    deleteHabitFromSupabase(canonicalId, habitId, cleanEmail).catch(() => {});
+    syncStateToSupabase(canonicalId, updatedState, cleanEmail).catch(() => {});
   }
 
   // 4. Realtime Broadcast
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'HABIT_DELETED',
     habitId,
     state: updatedState,
@@ -353,7 +417,12 @@ syncRouter.delete('/habit/:id', verifySupabaseToken, async (req, res) => {
 // 7. Habit Tick Record with status: 'done' (POST /api/sync/habit-tick)
 // -------------------------------------------------------------
 syncRouter.post('/habit-tick', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
   const { habitId, date, status = 'done', xpEarned = 20, completed = true } = req.body;
   const targetDate = date || new Date().toISOString().split('T')[0];
 
@@ -362,7 +431,7 @@ syncRouter.post('/habit-tick', verifySupabaseToken, async (req, res) => {
   }
 
   // 1. Save Relational Habit Tick Log in SQLite
-  const tickRecord = saveHabitTick(userId, {
+  const tickRecord = saveHabitTick(canonicalId, {
     habitId,
     date: targetDate,
     status: status || 'done',
@@ -371,7 +440,7 @@ syncRouter.post('/habit-tick', verifySupabaseToken, async (req, res) => {
   });
 
   // 2. Update user_state & matrix
-  const state = getUserState(userId);
+  const state = getUserState(canonicalId, cleanEmail);
   if (!state.matrix) state.matrix = {};
   if (!state.matrix[habitId]) state.matrix[habitId] = {};
   state.matrix[habitId][targetDate] = completed;
@@ -392,16 +461,16 @@ syncRouter.post('/habit-tick', verifySupabaseToken, async (req, res) => {
   }
   state.lastUpdated = new Date().toISOString();
 
-  const savedState = saveUserState(userId, state);
+  const savedState = saveUserState(canonicalId, state, cleanEmail);
 
   // 3. Sync to Supabase
   if (isSupabaseConfigured) {
-    syncHabitTickToSupabase(userId, tickRecord).catch(() => {});
-    syncStateToSupabase(userId, savedState).catch(() => {});
+    syncHabitTickToSupabase(canonicalId, tickRecord, cleanEmail).catch(() => {});
+    syncStateToSupabase(canonicalId, savedState, cleanEmail).catch(() => {});
   }
 
   // 4. Realtime Broadcast
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'HABIT_TICKED',
     habitId,
     tick: tickRecord,
@@ -424,35 +493,40 @@ syncRouter.post('/habit-tick', verifySupabaseToken, async (req, res) => {
 // 8. Thoughts Sync (POST /api/sync/thoughts & DELETE /api/sync/thought/:id)
 // -------------------------------------------------------------
 syncRouter.post('/thoughts', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
   const { thoughts, thought } = req.body;
 
   let savedThoughts = [];
   if (thought) {
-    savedThoughts = saveSingleThought(userId, thought);
+    savedThoughts = saveSingleThought(canonicalId, thought);
     if (isSupabaseConfigured) {
-      syncThoughtToSupabase(userId, thought).catch(() => {});
+      syncThoughtToSupabase(canonicalId, thought, cleanEmail).catch(() => {});
     }
   } else if (Array.isArray(thoughts)) {
-    savedThoughts = saveThoughts(userId, thoughts);
+    savedThoughts = saveThoughts(canonicalId, thoughts);
     if (isSupabaseConfigured) {
       for (const t of thoughts) {
-        syncThoughtToSupabase(userId, t).catch(() => {});
+        syncThoughtToSupabase(canonicalId, t, cleanEmail).catch(() => {});
       }
     }
   }
 
   // Update user_state thoughts array
-  const state = getUserState(userId);
+  const state = getUserState(canonicalId, cleanEmail);
   state.thoughts = savedThoughts;
-  const savedState = saveUserState(userId, state);
+  const savedState = saveUserState(canonicalId, state, cleanEmail);
 
   if (isSupabaseConfigured) {
-    syncStateToSupabase(userId, savedState).catch(() => {});
+    syncStateToSupabase(canonicalId, savedState, cleanEmail).catch(() => {});
   }
 
   // Broadcast
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'THOUGHTS_UPDATED',
     thoughts: savedThoughts,
     state: savedState,
@@ -463,22 +537,26 @@ syncRouter.post('/thoughts', verifySupabaseToken, async (req, res) => {
 });
 
 syncRouter.delete('/thought/:id', verifySupabaseToken, async (req, res) => {
-  const userId = req.query?.userId || req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.query?.email || req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.query?.userId || req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
   const thoughtId = req.params.id;
 
-  const savedThoughts = deleteThought(userId, thoughtId);
+  const savedThoughts = deleteThought(canonicalId, thoughtId);
 
   // Update user_state
-  const state = getUserState(userId);
+  const state = getUserState(canonicalId, cleanEmail);
   state.thoughts = savedThoughts;
-  const savedState = saveUserState(userId, state);
+  const savedState = saveUserState(canonicalId, state, cleanEmail);
 
   if (isSupabaseConfigured) {
-    deleteThoughtFromSupabase(userId, thoughtId).catch(() => {});
-    syncStateToSupabase(userId, savedState).catch(() => {});
+    deleteThoughtFromSupabase(canonicalId, thoughtId, cleanEmail).catch(() => {});
+    syncStateToSupabase(canonicalId, savedState, cleanEmail).catch(() => {});
   }
 
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'THOUGHT_DELETED',
     thoughtId,
     thoughts: savedThoughts,
@@ -493,12 +571,20 @@ syncRouter.delete('/thought/:id', verifySupabaseToken, async (req, res) => {
 // 9. User Photos & Reel Dial Persistence (POST /api/sync/user-photos)
 // -------------------------------------------------------------
 syncRouter.post('/user-photos', verifySupabaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const email = (req.body?.email || req.user?.email)?.trim().toLowerCase();
+  const rawId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const targetUser = getUser(email || rawId);
+  const cleanEmail = targetUser?.email || email;
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : rawId);
+
   const { headerImage, dailyMantraImage, mantraReel, headerReel, avatarUrl } = req.body;
 
-  const currentProfile = getUser(userId) || { id: userId, uid: userId };
+  const currentProfile = getUser(canonicalId) || { id: canonicalId, uid: canonicalId, email: cleanEmail };
   const updatedProfile = saveUser({
     ...currentProfile,
+    id: canonicalId,
+    uid: canonicalId,
+    email: cleanEmail || currentProfile.email,
     headerImage: headerImage !== undefined ? headerImage : currentProfile.headerImage,
     dailyMantraImage: dailyMantraImage !== undefined ? dailyMantraImage : currentProfile.dailyMantraImage,
     mantraReel: mantraReel !== undefined ? mantraReel : currentProfile.mantraReel,
@@ -510,7 +596,7 @@ syncRouter.post('/user-photos', verifySupabaseToken, async (req, res) => {
     syncUserToSupabase(updatedProfile).catch(() => {});
   }
 
-  broadcastToClients(userId, {
+  broadcastToClients(canonicalId, {
     type: 'USER_PHOTOS_UPDATED',
     user: updatedProfile,
     timestamp: Date.now(),

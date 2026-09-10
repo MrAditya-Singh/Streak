@@ -41,20 +41,32 @@ export interface UserCloudState {
   updatedAt: number;
 }
 
+export function getCanonicalCloudId(uid: string, email?: string): string {
+  const cleanEmail = (email || (typeof uid === 'string' && uid.includes('@') ? uid : null))?.trim().toLowerCase();
+  if (cleanEmail && cleanEmail.includes('@')) {
+    return 'user_email_' + cleanEmail.replace(/[^a-z0-9]/g, '_');
+  }
+  if (typeof uid === 'string' && uid.startsWith('user_email_')) {
+    return uid;
+  }
+  return uid || 'guest_user_local';
+}
+
 /**
  * ⚡ Save Full User Cloud State to Supabase tables (user_profiles, user_state)
  */
-export async function syncFullStateToSupabase(uid: string, state: Partial<UserCloudState>): Promise<void> {
+export async function syncFullStateToSupabase(uid: string, state: Partial<UserCloudState>, email?: string): Promise<void> {
   if (!supabase || !uid) return;
   try {
-    const targetId = uid;
+    const cleanEmail = (email || state.user?.email || (typeof uid === 'string' && uid.includes('@') ? uid : null))?.trim().toLowerCase();
+    const targetId = getCanonicalCloudId(uid, cleanEmail);
 
     // 1. Upsert to public.user_profiles
     if (state.user) {
       await supabase.from('user_profiles').upsert({
         id: targetId,
         uid: targetId,
-        email: state.user.email || null,
+        email: cleanEmail || state.user.email || null,
         name: state.user.name || 'Hunter',
         avatar_url: state.user.avatarUrl || '/images/char_hero.jpg',
         hunter_rank: state.user.hunterRank || 'E',
@@ -97,25 +109,29 @@ export async function syncFullStateToSupabase(uid: string, state: Partial<UserCl
  */
 export function subscribeToSupabaseFullState(
   uid: string,
-  onUpdate: (state: UserCloudState | null, exists: boolean) => void
+  onUpdate: (state: UserCloudState | null, exists: boolean) => void,
+  email?: string
 ): () => void {
   if (!supabase || !uid) {
     onUpdate(null, false);
     return () => {};
   }
 
+  const cleanEmail = (email || (typeof uid === 'string' && uid.includes('@') ? uid : null))?.trim().toLowerCase();
+  const targetId = getCanonicalCloudId(uid, cleanEmail);
+
   try {
     // Initial fetch
     supabase
       .from('user_state')
       .select('*')
-      .eq('user_id', uid)
+      .eq('user_id', targetId)
       .maybeSingle()
       .then(({ data, error }) => {
         if (!error && data) {
           const cloudState: UserCloudState = {
             user: {
-              uid,
+              uid: targetId,
               currentXP: data.xp || 0,
               level: data.level || 0,
               overallStreak: data.overall_streak || 0,
@@ -134,14 +150,14 @@ export function subscribeToSupabaseFullState(
 
     // Realtime channel subscription
     const channel = supabase
-      .channel(`public:user_state:${uid}`)
+      .channel(`public:user_state:${targetId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'user_state',
-          filter: `user_id=eq.${uid}`,
+          filter: `user_id=eq.${targetId}`,
         },
         (payload) => {
           if (payload.new && typeof payload.new === 'object') {

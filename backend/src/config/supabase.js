@@ -28,17 +28,29 @@ if (isSupabaseConfigured) {
   console.log('ℹ️ Supabase credentials not configured in backend env. Running with local SQLite database engine.');
 }
 
+export function getCanonicalSupabaseId(userId, email) {
+  const cleanEmail = (email || (typeof userId === 'string' && userId.includes('@') ? userId : null))?.trim().toLowerCase();
+  if (cleanEmail && cleanEmail.includes('@')) {
+    return `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+  }
+  if (typeof userId === 'string' && userId.startsWith('user_email_')) {
+    return userId;
+  }
+  return userId || 'local_authenticated_dev_user';
+}
+
 /**
- * ⚡ Sync profile to Supabase public.user_profiles table
+ * ⚡ Sync profile to Supabase public.user_profiles table (One Gmail = One Account)
  */
 export async function syncUserToSupabase(profile) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
-    const targetId = profile.id || profile.uid;
+    const cleanEmail = (profile.email || (typeof profile.id === 'string' && profile.id.includes('@') ? profile.id : null))?.trim().toLowerCase();
+    const targetId = getCanonicalSupabaseId(profile.id || profile.uid, cleanEmail);
     const payload = {
       id: targetId,
       uid: profile.uid || targetId,
-      email: profile.email || null,
+      email: cleanEmail || profile.email || null,
       name: profile.name || 'Hunter',
       avatar_url: profile.avatarUrl || '/images/char_hero.jpg',
       hunter_rank: profile.hunterRank || 'E',
@@ -73,13 +85,15 @@ export async function syncUserToSupabase(profile) {
 }
 
 /**
- * ⚡ Sync state to Supabase public.user_state table
+ * ⚡ Sync state to Supabase public.user_state table (One Gmail = One Account)
  */
-export async function syncStateToSupabase(userId, state) {
+export async function syncStateToSupabase(userId, state, email) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
+    const cleanEmail = email || state.user?.email || state.email;
+    const targetId = getCanonicalSupabaseId(userId, cleanEmail);
     const payload = {
-      user_id: userId,
+      user_id: targetId,
       activities: state.activities || [],
       matrix_state: state.matrixState || state.matrix || {},
       yearly_matrix: state.yearlyMatrixState || state.yearlyMatrix || {},
@@ -110,12 +124,13 @@ export async function syncStateToSupabase(userId, state) {
 /**
  * ⚡ Sync Habit to Supabase habits table
  */
-export async function syncHabitToSupabase(userId, habit) {
+export async function syncHabitToSupabase(userId, habit, email) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
+    const targetId = getCanonicalSupabaseId(userId, email);
     const payload = {
       id: habit.id,
-      user_id: userId,
+      user_id: targetId,
       name: habit.name,
       category: habit.category || 'Focus',
       icon_name: habit.iconName || habit.icon || 'Activity',
@@ -146,14 +161,15 @@ export async function syncHabitToSupabase(userId, habit) {
 /**
  * ⚡ Delete Habit from Supabase habits table
  */
-export async function deleteHabitFromSupabase(userId, habitId) {
+export async function deleteHabitFromSupabase(userId, habitId, email) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
+    const targetId = getCanonicalSupabaseId(userId, email);
     const { error } = await supabase
       .from('habits')
       .delete()
       .eq('id', habitId)
-      .eq('user_id', userId);
+      .eq('user_id', targetId);
 
     if (error) throw error;
     return true;
@@ -166,13 +182,14 @@ export async function deleteHabitFromSupabase(userId, habitId) {
 /**
  * ⚡ Sync Habit Tick to Supabase habit_ticks table (status: 'done')
  */
-export async function syncHabitTickToSupabase(userId, { habitId, date, status = 'done', timestamp = Date.now(), xpEarned = 20 }) {
+export async function syncHabitTickToSupabase(userId, { habitId, date, status = 'done', timestamp = Date.now(), xpEarned = 20 }, email) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
-    const tickId = `${userId}_${habitId}_${date}`;
+    const targetId = getCanonicalSupabaseId(userId, email);
+    const tickId = `${targetId}_${habitId}_${date}`;
     const payload = {
       id: tickId,
-      user_id: userId,
+      user_id: targetId,
       habit_id: habitId,
       date,
       status: status || 'done',
@@ -198,13 +215,14 @@ export async function syncHabitTickToSupabase(userId, { habitId, date, status = 
 /**
  * ⚡ Sync Thought to Supabase thoughts table
  */
-export async function syncThoughtToSupabase(userId, thought) {
+export async function syncThoughtToSupabase(userId, thought, email) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
+    const targetId = getCanonicalSupabaseId(userId, email);
     const now = Date.now();
     const payload = {
       id: thought.id || `thought_${now}_${Math.random().toString(36).slice(2, 6)}`,
-      user_id: userId,
+      user_id: targetId,
       category: thought.category || 'personal',
       title: thought.title || 'Untitled Thought',
       content: thought.content || '',
@@ -232,14 +250,15 @@ export async function syncThoughtToSupabase(userId, thought) {
 /**
  * ⚡ Delete Thought from Supabase thoughts table
  */
-export async function deleteThoughtFromSupabase(userId, thoughtId) {
+export async function deleteThoughtFromSupabase(userId, thoughtId, email) {
   if (!supabase || !isSupabaseConfigured) return null;
   try {
+    const targetId = getCanonicalSupabaseId(userId, email);
     const { error } = await supabase
       .from('thoughts')
       .delete()
       .eq('id', thoughtId)
-      .eq('user_id', userId);
+      .eq('user_id', targetId);
 
     if (error) throw error;
     return true;

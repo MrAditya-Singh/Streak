@@ -308,14 +308,14 @@ export const App: React.FC = () => {
 
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
 
-  // Single source of truth for cross-device cloud storage identity
+  // 🌟 Single Source of Truth for "One Gmail = One Account" Cross-Device Identity
   const activeSyncKey = useMemo(() => {
-    if (user.uid && user.uid !== 'guest_user_local' && !user.uid.startsWith('guest_')) {
-      return user.uid;
-    }
     const cleanEmail = (user.email || syncEmail || '').trim().toLowerCase();
     if (cleanEmail && cleanEmail.includes('@')) {
       return 'user_email_' + cleanEmail.replace(/[^a-z0-9]/g, '_');
+    }
+    if (user.uid && user.uid !== 'guest_user_local' && !user.uid.startsWith('guest_')) {
+      return user.uid;
     }
     const cleanPhone = (user.phoneNumber || syncPhone || '').trim();
     if (cleanPhone && cleanPhone.length > 5) {
@@ -590,7 +590,7 @@ export const App: React.FC = () => {
       // Update local timestamp guard immediately before write to ignore our own echo
       lastSyncTimestamp.current = writeTime;
       pushStateToCloud(syncKey, payload);
-      syncFullStateToSupabase(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload, user.email);
     }, 800);
   }, [user, activities, matrixState, yearlyMatrixState, emergencyTasks, thoughts, logs, activeSyncKey, hasLoadedFromCloud]);
 
@@ -683,7 +683,7 @@ export const App: React.FC = () => {
             logs: localLogs,
             updatedAt: Date.now(),
           };
-          syncFullStateToSupabase(syncKey, existingPayload);
+          syncFullStateToSupabase(syncKey, existingPayload, localUser.email);
           pushFullStateToBackend(syncKey, existingPayload, localUser.email).catch(() => {});
         }
         if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
@@ -761,7 +761,7 @@ export const App: React.FC = () => {
     };
 
     const unsubscribeCloud = subscribeToCloudSync(syncKey, (state) => applyRemoteState(state, true), userRef.current.email);
-    const unsubscribeSupabase = subscribeToSupabaseFullState(syncKey, applyRemoteState);
+    const unsubscribeSupabase = subscribeToSupabaseFullState(syncKey, applyRemoteState, userRef.current.email);
 
     // Safeguard: If no response from Firestore/Cloud after 1.2 seconds,
     // allow local writes and load from backend admin SDK fallback.
@@ -1597,13 +1597,13 @@ export const App: React.FC = () => {
 
     if (hasLoadedFromCloud) {
       pushStateToCloud(syncKey, payload);
-      syncFullStateToSupabase(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload, user.email);
     }
 
     fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: syncKey, state: payload }),
+      body: JSON.stringify({ userId: syncKey, state: payload, email: user.email }),
     }).catch((err) => console.warn('Habit add sync warning:', err));
 
     handleAwardXP(20);
@@ -1635,13 +1635,13 @@ export const App: React.FC = () => {
 
     if (hasLoadedFromCloud) {
       pushStateToCloud(syncKey, payload);
-      syncFullStateToSupabase(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload, user.email);
     }
 
     fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: syncKey, state: payload }),
+      body: JSON.stringify({ userId: syncKey, state: payload, email: user.email }),
     }).catch((err) => console.warn('Habit delete sync warning:', err));
 
     soundFx.playClick();
@@ -1665,13 +1665,13 @@ export const App: React.FC = () => {
 
     if (hasLoadedFromCloud) {
       pushStateToCloud(syncKey, payload);
-      syncFullStateToSupabase(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload, user.email);
     }
 
     fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: syncKey, state: payload }),
+      body: JSON.stringify({ userId: syncKey, state: payload, email: user.email }),
     }).catch((err) => console.warn('Habit edit sync warning:', err));
 
     soundFx.playClick();
@@ -1722,51 +1722,52 @@ export const App: React.FC = () => {
     soundFx.playClick();
   };
 
-  // Complete Clean Reset All Data Handler
+  const handleUpdateActivities = (updatedActivities: ActivityItem[]) => {
+    setActivities(updatedActivities);
+  };
+
   const handleResetData = () => {
-    if (window.confirm('Are you sure you want to reset all data? This will clear all level, XP, overall streaks, emergency directives, platform streaks to 0, and reset efficiency to 0%.')) {
+    soundFx.playClick();
+    const confirmed = window.confirm(
+      '⚠️ Solo Leveling System Warning: Are you sure you want to completely RESET all streak data, activity logs, matrix history, and XP to zero?'
+    );
+    if (confirmed) {
       const cleanUser: UserProfile = {
         ...INITIAL_USER,
-        name: user.name || 'Hunter',
-        email: user.email || '',
-        overallStreak: 0,
-        longestStreak: 0,
-        currentXP: 0,
-        level: 0,
-        xpToNextLevel: 500,
-        hunterRank: 'E',
-        isActiveToday: false,
-        lastActiveDate: '',
-        platformStats: {},
-        platformVerified: {},
+        name: user.name || INITIAL_USER.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        avatarUrl: user.avatarUrl || INITIAL_USER.avatarUrl,
+        uid: activeSyncKey,
       };
-      setUser(cleanUser);
-
       const cleanActs = activities.map((act) => ({
         ...act,
         completed: false,
         streak: 0,
         completedAt: undefined,
-        isAutoDetected: false,
+        lastSyncedAt: undefined,
       }));
-      setActivities(cleanActs);
-
       const cleanMatrix: Record<string, boolean[]> = {};
-      cleanActs.forEach((act) => {
-        cleanMatrix[act.id] = Array.from({ length: daysInMonth }, () => false);
+      Object.keys(matrixState).forEach((key) => {
+        cleanMatrix[key] = Array(31).fill(false);
       });
-      setMatrixState(cleanMatrix);
-      setLogs([]);
-      setEmergencyTasks([]);
-      setHistory(generateHistoricalRecords(30));
-      setHeatmapData(generateHeatmapData(90));
 
-      // Overwrite LocalStorage with clean 0 state
-      localStorage.setItem('effstreak_user', JSON.stringify(cleanUser));
-      localStorage.setItem('effstreak_activities', JSON.stringify(cleanActs));
-      localStorage.setItem('streak_monthly_matrix', JSON.stringify(cleanMatrix));
-      localStorage.setItem('effstreak_logs', JSON.stringify([]));
-      localStorage.setItem('effstreak_emergency_tasks', JSON.stringify([]));
+      // Clear local memory
+      setUser(cleanUser);
+      setActivities(cleanActs);
+      setMatrixState(cleanMatrix);
+      setEmergencyTasks([]);
+      setLogs([]);
+      setYearlyMatrixState({});
+
+      // Wipe local storage
+      localStorage.removeItem('effstreak_user');
+      localStorage.removeItem('effstreak_auth_user');
+      localStorage.removeItem('effstreak_activities');
+      localStorage.removeItem('streak_monthly_matrix');
+      localStorage.removeItem('streak_yearly_matrix');
+      localStorage.removeItem('effstreak_logs');
+      localStorage.removeItem('effstreak_emergency_tasks');
 
       // Push clean 0 reset state to Cloud Relay & Firestore with isReset flag
       const resetPayload = {
@@ -1774,35 +1775,33 @@ export const App: React.FC = () => {
         activities: cleanActs,
         matrixState: cleanMatrix,
         emergencyTasks: [],
+        thoughts: [],
         logs: [],
         isReset: true,
         updatedAt: Date.now() + 10000,
       };
 
       pushStateToCloud(activeSyncKey, resetPayload);
-      syncFullStateToSupabase(activeSyncKey, resetPayload);
+      syncFullStateToSupabase(activeSyncKey, resetPayload, user.email);
 
       // Sync force reset state to cloud backend & Firestore
       fetchBackend(`${BACKEND_API_BASE}/sync/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: activeSyncKey }),
+        body: JSON.stringify({ userId: activeSyncKey, email: user.email }),
       }).catch((err) => console.warn('Sync force reset warning:', err));
 
       fetchBackend(`${BACKEND_API_BASE}/auth/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: activeSyncKey }),
+        body: JSON.stringify({ userId: activeSyncKey, email: user.email }),
       }).catch((err) => console.warn('Auth reset warning:', err));
 
       fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: activeSyncKey,
-          state: resetPayload,
-        }),
-      }).catch((err) => console.warn('Reset sync warning:', err));
+        body: JSON.stringify({ userId: activeSyncKey, state: resetPayload, email: user.email }),
+      }).catch((err) => console.warn('Sync reset state warning:', err));
 
       soundFx.playUncheck();
       setIsSettingsOpen(false);

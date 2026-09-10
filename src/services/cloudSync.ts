@@ -57,15 +57,20 @@ export async function pushStateToCloud(
 ): Promise<boolean> {
   if (!uid) return false;
 
+  const cleanEmail = (state.user?.email || (typeof uid === 'string' && uid.includes('@') ? uid : null))?.trim().toLowerCase();
+  const canonicalId = (cleanEmail && cleanEmail.includes('@'))
+    ? 'user_email_' + cleanEmail.replace(/[^a-z0-9]/g, '_')
+    : uid;
+
   const now = Date.now();
   _lastLocalPushTimestamp = now;
 
   const payload: CloudSyncState = {
     version: 2,
-    syncId: uid,
+    syncId: canonicalId,
     updatedAt: now,
     deviceId: DEVICE_ID,
-    user: { ...state.user, uid },
+    user: { ...state.user, uid: canonicalId, email: cleanEmail || state.user?.email },
     activities: state.activities,
     matrixState: state.matrixState,
     yearlyMatrixState: state.yearlyMatrixState,
@@ -84,10 +89,10 @@ export async function pushStateToCloud(
   }
 
   // 2. Dual-Channel Push: Local SQLite Backend API + Supabase Cloud PostgREST
-  pushFullStateToBackend(uid, payload, state.user?.email).catch(() => {});
+  pushFullStateToBackend(canonicalId, payload, cleanEmail).catch(() => {});
 
   try {
-    await syncFullStateToSupabase(uid, payload as UserCloudState);
+    await syncFullStateToSupabase(canonicalId, payload as UserCloudState, cleanEmail);
     return true;
   } catch (err) {
     console.warn('Cloud sync push warning (operating in local offline mode):', err);
@@ -102,9 +107,14 @@ export async function pushStateToCloud(
 export function subscribeToCloudSync(
   uid: string,
   onRemoteStateReceived: (remoteState: CloudSyncState) => void,
-  _userEmail?: string
+  userEmail?: string
 ): () => void {
   if (!uid) return () => {};
+
+  const cleanEmail = (userEmail || (typeof uid === 'string' && uid.includes('@') ? uid : null))?.trim().toLowerCase();
+  const canonicalId = (cleanEmail && cleanEmail.includes('@'))
+    ? 'user_email_' + cleanEmail.replace(/[^a-z0-9]/g, '_')
+    : uid;
 
   let isActive = true;
 
@@ -113,7 +123,11 @@ export function subscribeToCloudSync(
     if (!isActive) return;
     if (event.data?.type === 'STATE_PUSH' && event.data.payload) {
       const payload: CloudSyncState = event.data.payload;
-      if (payload.syncId === uid && payload.deviceId !== DEVICE_ID && payload.updatedAt > lastRemoteReceivedTimestamp) {
+      const isTarget = payload.syncId === canonicalId || 
+                       payload.syncId === uid || 
+                       (cleanEmail && payload.user?.email?.toLowerCase() === cleanEmail);
+
+      if (isTarget && payload.deviceId !== DEVICE_ID && payload.updatedAt > lastRemoteReceivedTimestamp) {
         lastRemoteReceivedTimestamp = payload.updatedAt;
         onRemoteStateReceived(payload);
       }
@@ -125,7 +139,7 @@ export function subscribeToCloudSync(
   }
 
   // 2. Real-Time Supabase Listener
-  const unsubSupabase = subscribeToSupabaseFullState(uid, (data, exists) => {
+  const unsubSupabase = subscribeToSupabaseFullState(canonicalId, (data, exists) => {
     if (!isActive || !exists || !data) return;
 
     const remoteState = data as unknown as CloudSyncState;
@@ -133,7 +147,7 @@ export function subscribeToCloudSync(
       lastRemoteReceivedTimestamp = remoteState.updatedAt;
       onRemoteStateReceived(remoteState);
     }
-  });
+  }, cleanEmail);
 
   return () => {
     isActive = false;

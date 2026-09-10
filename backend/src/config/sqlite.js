@@ -150,11 +150,23 @@ try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN header_reel_json TEXT DEFAULT 
 try { sqliteDb.exec(`ALTER TABLE user_state ADD COLUMN thoughts_json TEXT DEFAULT '[]'`); } catch {}
 try { sqliteDb.exec(`ALTER TABLE user_state ADD COLUMN yearly_matrix_json TEXT DEFAULT '{}'`); } catch {}
 
-// Prepared Statements & Helper APIs
+// Prepared Statements & Helper Functions
+export function getUser(userIdOrEmail) {
+  if (!userIdOrEmail) return null;
+  const raw = String(userIdOrEmail).trim();
+  const cleanEmail = raw.startsWith('user_email_') 
+    ? raw.replace('user_email_', '').replace(/_/g, '.') 
+    : (raw.includes('@') ? raw.toLowerCase() : null);
+  const emailKey = cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : null;
 
-export function getUser(userId) {
-  const stmt = sqliteDb.prepare('SELECT * FROM users WHERE id = ? OR uid = ? OR email = ?');
-  const row = stmt.get(userId, userId, userId);
+  const stmt = sqliteDb.prepare(`
+    SELECT * FROM users 
+    WHERE id = ? OR uid = ? OR email = ? 
+       OR (? IS NOT NULL AND id = ?)
+       OR (? IS NOT NULL AND LOWER(email) = LOWER(?))
+    LIMIT 1
+  `);
+  const row = stmt.get(raw, raw, raw, emailKey, emailKey, cleanEmail, cleanEmail);
   if (!row) return null;
 
   let mantraReel = [];
@@ -191,7 +203,17 @@ export function getUser(userId) {
 }
 
 export function saveUser(profile) {
-  const targetId = profile.id || profile.uid || 'local_authenticated_dev_user';
+  const cleanEmail = (profile.email || (typeof profile.id === 'string' && profile.id.includes('@') ? profile.id : null))?.trim().toLowerCase();
+  let existingUser = null;
+  if (cleanEmail) {
+    const emailKey = `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`;
+    existingUser = sqliteDb.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR id = ?').get(cleanEmail, emailKey);
+  }
+  if (!existingUser) {
+    existingUser = getUser(profile.id || profile.uid);
+  }
+
+  const targetId = existingUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : (profile.id || profile.uid || 'local_authenticated_dev_user'));
   const mantraReelJson = profile.mantraReel ? JSON.stringify(profile.mantraReel) : undefined;
   const headerReelJson = profile.headerReel ? JSON.stringify(profile.headerReel) : undefined;
 
@@ -235,7 +257,7 @@ export function saveUser(profile) {
   stmt.run({
     id: targetId,
     uid: profile.uid || targetId,
-    email: profile.email || null,
+    email: cleanEmail || profile.email || null,
     name: profile.name || 'Hunter',
     avatar_url: profile.avatarUrl || '/images/char_hero.jpg',
     hunter_rank: profile.hunterRank || 'E',
@@ -294,8 +316,9 @@ export function getAllUsers() {
 // Habits Relational Model CRUD
 // -------------------------------------------------------------
 export function saveHabit(userId, habit) {
-  const targetId = userId || 'local_authenticated_dev_user';
-  if (!getUser(targetId)) {
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
+  if (!user) {
     saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
   }
 
@@ -339,44 +362,28 @@ export function saveHabit(userId, habit) {
     updated_at: now,
   });
 
-  return getHabit(habit.id);
+  return getHabits(targetId);
 }
 
-export function getHabit(habitId) {
-  const row = sqliteDb.prepare('SELECT * FROM habits WHERE id = ?').get(habitId);
-  if (!row) return null;
-  return {
-    id: row.id,
-    userId: row.user_id,
-    name: row.name,
-    category: row.category,
-    iconName: row.icon_name,
-    icon: row.icon_name,
-    plannedMinutes: row.planned_minutes,
-    duration: row.planned_minutes,
-    color: row.color,
-    streak: row.streak,
-    completed: Boolean(row.completed),
-    targetCount: row.target_count,
-    unit: row.unit,
-    source: row.source,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+export function deleteHabit(userId, habitId) {
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
+  sqliteDb.prepare('DELETE FROM habits WHERE id = ? AND user_id = ?').run(habitId, targetId);
+  sqliteDb.prepare('DELETE FROM habit_ticks WHERE habit_id = ? AND user_id = ?').run(habitId, targetId);
+  return getHabits(targetId);
 }
 
 export function getHabits(userId) {
-  const targetId = userId || 'local_authenticated_dev_user';
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
   const rows = sqliteDb.prepare('SELECT * FROM habits WHERE user_id = ? ORDER BY created_at ASC').all(targetId);
   return rows.map((row) => ({
     id: row.id,
-    userId: row.user_id,
     name: row.name,
     category: row.category,
-    iconName: row.icon_name,
     icon: row.icon_name,
+    iconName: row.icon_name,
     plannedMinutes: row.planned_minutes,
-    duration: row.planned_minutes,
     color: row.color,
     streak: row.streak,
     completed: Boolean(row.completed),
@@ -388,54 +395,59 @@ export function getHabits(userId) {
   }));
 }
 
-export function deleteHabit(userId, habitId) {
-  const targetId = userId || 'local_authenticated_dev_user';
-  sqliteDb.prepare('DELETE FROM habits WHERE id = ? AND (user_id = ? OR user_id = "local_authenticated_dev_user")').run(habitId, targetId);
-  sqliteDb.prepare('DELETE FROM habit_ticks WHERE habit_id = ?').run(habitId);
-  return { success: true, deletedHabitId: habitId };
-}
+// -------------------------------------------------------------
+// Habit Ticks Relational Model CRUD
+// -------------------------------------------------------------
+export function saveHabitTick(userId, tick) {
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
+  if (!user) {
+    saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
+  }
 
-// -------------------------------------------------------------
-// Habit Ticks ('done' status logging)
-// -------------------------------------------------------------
-export function saveHabitTick(userId, { habitId, date, status = 'done', timestamp = Date.now(), xpEarned = 20 }) {
-  const targetId = userId || 'local_authenticated_dev_user';
-  const tickId = `${targetId}_${habitId}_${date}`;
+  const tickId = tick.id || `tick_${tick.habitId}_${tick.date}_${Date.now()}`;
   const now = new Date().toISOString();
+  const timestamp = tick.timestamp || Date.now();
 
   const stmt = sqliteDb.prepare(`
     INSERT INTO habit_ticks (id, user_id, habit_id, date, status, timestamp, xp_earned, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (@id, @user_id, @habit_id, @date, @status, @timestamp, @xp_earned, @created_at)
     ON CONFLICT(id) DO UPDATE SET
       status = excluded.status,
-      timestamp = excluded.timestamp,
-      xp_earned = excluded.xp_earned
+      xp_earned = excluded.xp_earned,
+      timestamp = excluded.timestamp
   `);
 
-  stmt.run(tickId, targetId, habitId, date, status, timestamp, xpEarned, now);
-  return { id: tickId, userId: targetId, habitId, date, status, timestamp, xpEarned };
+  stmt.run({
+    id: tickId,
+    user_id: targetId,
+    habit_id: tick.habitId,
+    date: tick.date,
+    status: tick.status || 'done',
+    timestamp,
+    xp_earned: tick.xpEarned ?? 20,
+    created_at: now,
+  });
+
+  return { id: tickId, userId: targetId, habitId: tick.habitId, date: tick.date, status: tick.status || 'done', timestamp, xpEarned: tick.xpEarned ?? 20 };
 }
 
-export function getHabitTicks(userId, dateOrMonth) {
-  const targetId = userId || 'local_authenticated_dev_user';
-  let query = 'SELECT * FROM habit_ticks WHERE user_id = ?';
-  const params = [targetId];
-
-  if (dateOrMonth) {
-    query += ' AND date LIKE ?';
-    params.push(`${dateOrMonth}%`);
+export function getHabitTicks(userId, date) {
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
+  if (date) {
+    return sqliteDb.prepare('SELECT * FROM habit_ticks WHERE user_id = ? AND date = ?').all(targetId, date);
   }
-  query += ' ORDER BY timestamp DESC';
-
-  return sqliteDb.prepare(query).all(...params);
+  return sqliteDb.prepare('SELECT * FROM habit_ticks WHERE user_id = ? ORDER BY timestamp DESC').all(targetId);
 }
 
 // -------------------------------------------------------------
 // Thoughts Relational Model CRUD
 // -------------------------------------------------------------
 export function saveSingleThought(userId, thought) {
-  const targetId = userId || 'local_authenticated_dev_user';
-  if (!getUser(targetId)) {
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
+  if (!user) {
     saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
   }
 
@@ -470,7 +482,8 @@ export function saveSingleThought(userId, thought) {
 }
 
 export function saveThoughts(userId, thoughts) {
-  const targetId = userId || 'local_authenticated_dev_user';
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
   if (!Array.isArray(thoughts)) return [];
 
   const deleteTx = sqliteDb.transaction((items) => {
@@ -501,13 +514,15 @@ export function saveThoughts(userId, thoughts) {
 }
 
 export function deleteThought(userId, thoughtId) {
-  const targetId = userId || 'local_authenticated_dev_user';
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
   sqliteDb.prepare('DELETE FROM thoughts WHERE id = ? AND user_id = ?').run(thoughtId, targetId);
   return getThoughts(targetId);
 }
 
 export function getThoughts(userId) {
-  const targetId = userId || 'local_authenticated_dev_user';
+  const user = getUser(userId);
+  const targetId = user?.id || userId || 'local_authenticated_dev_user';
   const rows = sqliteDb.prepare('SELECT * FROM thoughts WHERE user_id = ? ORDER BY updated_at DESC').all(targetId);
   return rows.map((row) => {
     let tags = [];
@@ -527,28 +542,30 @@ export function getThoughts(userId) {
 }
 
 // -------------------------------------------------------------
-// User State Sync & Retrieval
+// User State Sync & Retrieval (One Gmail = One Account)
 // -------------------------------------------------------------
-export function getUserState(userId) {
-  const targetUser = getUser(userId);
-  const targetId = targetUser?.id || targetUser?.uid || userId || 'local_authenticated_dev_user';
+export function getUserState(userIdOrEmail, email) {
+  const lookupKey = email || userIdOrEmail;
+  const targetUser = getUser(lookupKey) || getUser(userIdOrEmail);
+  const cleanEmail = (targetUser?.email || email || (typeof userIdOrEmail === 'string' && userIdOrEmail.includes('@') ? userIdOrEmail : null))?.trim().toLowerCase();
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : (userIdOrEmail || 'local_authenticated_dev_user'));
   
   if (!targetUser) {
-    saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
+    saveUser({ id: canonicalId, uid: canonicalId, email: cleanEmail, name: 'Local Hunter' });
   }
 
   const row = sqliteDb.prepare(`
     SELECT * FROM user_state 
     WHERE user_id = ? OR user_id = ? OR user_id = ?
     ORDER BY updated_at DESC LIMIT 1
-  `).get(targetId, targetUser?.uid || targetId, userId || targetId);
+  `).get(canonicalId, targetUser?.uid || canonicalId, userIdOrEmail || canonicalId);
 
-  let activities = getHabits(targetId);
-  let thoughts = getThoughts(targetId);
+  let activities = getHabits(canonicalId);
+  let thoughts = getThoughts(canonicalId);
 
   if (!row) {
     return {
-      userId: targetId,
+      userId: canonicalId,
       activities,
       matrix: {},
       yearlyMatrix: {},
@@ -584,7 +601,7 @@ export function getUserState(userId) {
   } catch {}
 
   return {
-    userId: targetId,
+    userId: canonicalId,
     activities,
     matrix,
     yearlyMatrix,
@@ -602,22 +619,25 @@ export function getUserState(userId) {
   };
 }
 
-export function saveUserState(userId, state) {
-  const targetId = userId || 'local_authenticated_dev_user';
-  if (!getUser(targetId)) {
-    saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
+export function saveUserState(userIdOrEmail, state, explicitEmail) {
+  const cleanEmail = (explicitEmail || state.user?.email || state.email || (typeof userIdOrEmail === 'string' && userIdOrEmail.includes('@') ? userIdOrEmail : null))?.trim().toLowerCase();
+  const targetUser = getUser(cleanEmail || userIdOrEmail) || getUser(userIdOrEmail);
+  const canonicalId = targetUser?.id || (cleanEmail ? `user_email_${cleanEmail.replace(/[^a-z0-9]/g, '_')}` : (userIdOrEmail || 'local_authenticated_dev_user'));
+  
+  if (!targetUser || !targetUser.email && cleanEmail) {
+    saveUser({ id: canonicalId, uid: canonicalId, email: cleanEmail, name: state.user?.name || 'Local Hunter' });
   }
 
   // Also sync habits table if activities provided
   if (Array.isArray(state.activities) && state.activities.length > 0) {
     for (const act of state.activities) {
-      saveHabit(targetId, act);
+      saveHabit(canonicalId, act);
     }
   }
 
   // Also sync thoughts table if thoughts provided
   if (Array.isArray(state.thoughts) && state.thoughts.length > 0) {
-    saveThoughts(targetId, state.thoughts);
+    saveThoughts(canonicalId, state.thoughts);
   }
 
   const activitiesJson = JSON.stringify(state.activities || []);
@@ -655,11 +675,11 @@ export function saveUserState(userId, state) {
   `);
 
   stmt.run(
-    targetId, activitiesJson, matrixJson, yearlyMatrixJson, emergencyTasksJson, thoughtsJson,
+    canonicalId, activitiesJson, matrixJson, yearlyMatrixJson, emergencyTasksJson, thoughtsJson,
     xp, level, overallStreak, longestStreak, efficiencyPct, updatedAt
   );
 
-  return getUserState(targetId);
+  return getUserState(canonicalId);
 }
 
 export function resetUserData(userId) {
