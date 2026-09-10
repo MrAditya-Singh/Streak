@@ -7,7 +7,9 @@ export const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseKey && 
   supabaseUrl.startsWith('http') && 
-  supabaseKey.length > 20
+  supabaseKey.length > 20 &&
+  !supabaseUrl.includes('your-project-id') &&
+  !supabaseKey.includes('your-anon-public-key')
 );
 
 export let supabase = null;

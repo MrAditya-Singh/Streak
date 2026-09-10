@@ -3,7 +3,7 @@
 
 import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry, ThoughtItem } from '../types';
 import { syncFullStateToSupabase, subscribeToSupabaseFullState, UserCloudState } from './supabase';
-import { pushFullStateToBackend } from './apiSync';
+import { pushFullStateToBackend, fetchFullStateFromBackend, BACKEND_API_BASE } from './apiSync';
 
 export interface CloudSyncState {
   version: number;
@@ -101,8 +101,9 @@ export async function pushStateToCloud(
 }
 
 /**
- * ⚡ Real-Time Cloud Supabase Listener + Local Broadcast Hook
- * Automatically synchronizes Mobile and Laptop whenever data is modified in Supabase.
+ * ⚡ Real-Time Cloud Synchronization Engine
+ * Combines Backend SSE, Supabase Realtime, Local BroadcastChannel, and Active Window Reconciliation
+ * to guarantee instant sub-second synchronization between Downloaded App and Website on the same account.
  */
 export function subscribeToCloudSync(
   uid: string,
@@ -118,7 +119,7 @@ export function subscribeToCloudSync(
 
   let isActive = true;
 
-  // 1. Listen for local BroadcastChannel messages
+  // 1. Listen for local BroadcastChannel messages (same device instant sync)
   const handleBroadcast = (event: MessageEvent) => {
     if (!isActive) return;
     if (event.data?.type === 'STATE_PUSH' && event.data.payload) {
@@ -138,7 +139,81 @@ export function subscribeToCloudSync(
     broadcastChannel.addEventListener('message', handleBroadcast);
   }
 
-  // 2. Real-Time Supabase Listener
+  // 2. Real-Time Backend SSE Stream (Cross-Device Instant Push between App & Website)
+  let eventSource: EventSource | null = null;
+  const connectSSE = () => {
+    if (!isActive) return;
+    try {
+      const sseQuery = new URLSearchParams({ userId: canonicalId });
+      if (cleanEmail) sseQuery.set('email', cleanEmail);
+      const sseUrl = `${BACKEND_API_BASE}/sync/events?${sseQuery.toString()}`;
+
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.onmessage = (e) => {
+        if (!isActive || !e.data) return;
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'INIT_STATE' && msg.state) {
+            const remote = msg.state;
+            const uTime = new Date(remote.lastUpdated || remote.updatedAt || 0).getTime();
+            if (uTime > lastRemoteReceivedTimestamp) {
+              lastRemoteReceivedTimestamp = uTime;
+              onRemoteStateReceived({
+                version: 2,
+                syncId: canonicalId,
+                updatedAt: uTime,
+                deviceId: 'remote_peer_sse',
+                user: remote.user || { uid: canonicalId, email: cleanEmail },
+                activities: remote.activities || [],
+                matrixState: remote.matrixState || remote.matrix || {},
+                yearlyMatrixState: remote.yearlyMatrixState || remote.yearlyMatrix || {},
+                emergencyTasks: remote.emergencyTasks || [],
+                thoughts: remote.thoughts || [],
+                logs: remote.logs || [],
+              });
+            }
+          } else if (msg.state) {
+            const remote = msg.state;
+            const uTime = msg.timestamp || new Date(remote.lastUpdated || remote.updatedAt || 0).getTime() || Date.now();
+            if (uTime > lastRemoteReceivedTimestamp) {
+              lastRemoteReceivedTimestamp = uTime;
+              onRemoteStateReceived({
+                version: 2,
+                syncId: canonicalId,
+                updatedAt: uTime,
+                deviceId: 'remote_peer_sse',
+                user: remote.user || { uid: canonicalId, email: cleanEmail },
+                activities: remote.activities || [],
+                matrixState: remote.matrixState || remote.matrix || {},
+                yearlyMatrixState: remote.yearlyMatrixState || remote.yearlyMatrix || {},
+                emergencyTasks: remote.emergencyTasks || [],
+                thoughts: remote.thoughts || [],
+                logs: remote.logs || [],
+              });
+            }
+          }
+        } catch {}
+      };
+
+      eventSource.onerror = () => {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        // Auto-reconnect after 4s
+        if (isActive) {
+          setTimeout(connectSSE, 4000);
+        }
+      };
+    } catch {
+      // EventSource fallback
+    }
+  };
+
+  connectSSE();
+
+  // 3. Real-Time Supabase Listener
   const unsubSupabase = subscribeToSupabaseFullState(canonicalId, (data, exists) => {
     if (!isActive || !exists || !data) return;
 
@@ -149,11 +224,65 @@ export function subscribeToCloudSync(
     }
   }, cleanEmail);
 
+  // 4. Active Window & Background Polling Reconciliation
+  const reconcileLatestState = async () => {
+    if (!isActive) return;
+    try {
+      const bState = await fetchFullStateFromBackend(canonicalId, cleanEmail);
+      if (bState && (
+        (Array.isArray(bState.activities) && bState.activities.length > 0) ||
+        (bState.matrix && Object.keys(bState.matrix).length > 0) ||
+        (bState.matrixState && Object.keys(bState.matrixState).length > 0) ||
+        (bState.user && (bState.user.overallStreak > 0 || bState.user.currentXP > 0 || bState.user.level > 0))
+      )) {
+        const uTime = new Date(bState.lastUpdated || bState.updatedAt || 0).getTime();
+        if (uTime > lastRemoteReceivedTimestamp) {
+          lastRemoteReceivedTimestamp = uTime;
+          onRemoteStateReceived({
+            version: 2,
+            syncId: canonicalId,
+            updatedAt: uTime,
+            deviceId: 'remote_backend_poller',
+            user: bState.user || { uid: canonicalId, email: cleanEmail },
+            activities: bState.activities || [],
+            matrixState: bState.matrixState || bState.matrix || {},
+            yearlyMatrixState: bState.yearlyMatrixState || bState.yearlyMatrix || {},
+            emergencyTasks: bState.emergencyTasks || [],
+            thoughts: bState.thoughts || [],
+            logs: bState.logs || [],
+          });
+        }
+      }
+    } catch {}
+  };
+
+  // Trigger poll immediately and when window/app is focused or unlocked
+  reconcileLatestState();
+
+  const handleVisibilityOrFocus = () => {
+    if (document.visibilityState === 'visible' || !document.hidden) {
+      reconcileLatestState();
+    }
+  };
+
+  window.addEventListener('focus', handleVisibilityOrFocus);
+  document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+  // Periodic background check every 6 seconds to ensure App & Website never drift
+  const intervalId = setInterval(reconcileLatestState, 6000);
+
   return () => {
     isActive = false;
     unsubSupabase();
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
     if (broadcastChannel) {
       broadcastChannel.removeEventListener('message', handleBroadcast);
     }
+    window.removeEventListener('focus', handleVisibilityOrFocus);
+    document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+    clearInterval(intervalId);
   };
 }

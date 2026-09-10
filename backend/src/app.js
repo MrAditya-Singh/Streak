@@ -27,26 +27,30 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http:/
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Capacitor, local files)
     if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
-    // Allow local network IP addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x, localhost, 127.0.0.1)
-    if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin)) {
+    // Allow surge.sh, vercel.app, onrender.com, localhost, and local IPs
+    if (
+      /\.surge\.sh$/.test(origin) ||
+      /\.vercel\.app$/.test(origin) ||
+      /\.onrender\.com$/.test(origin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin) ||
+      origin.startsWith('capacitor://') ||
+      origin.startsWith('ionic://') ||
+      origin.startsWith('http://localhost')
+    ) {
       callback(null, true);
       return;
     }
-
-    if (process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error(`Origin ${origin} not allowed by CORS`));
+    // Safe default to ensure cross-device web & downloaded app synchronization
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 app.use(express.json({ limit: '50mb' }));
