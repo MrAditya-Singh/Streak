@@ -18,11 +18,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "firebase-admin": "^14.2.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.6.0"
   }

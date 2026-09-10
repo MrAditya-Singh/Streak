@@ -1,187 +1,178 @@
 import { Router } from 'express';
-import { db, isFirebaseInitialized } from '../config/firebase.js';
-import { verifyFirebaseToken } from '../middleware/firebaseAuth.middleware.js';
+import { 
+  getUser, 
+  saveUser, 
+  getAllUsers, 
+  resetUserData 
+} from '../config/sqlite.js';
+import { 
+  supabase, 
+  isSupabaseConfigured, 
+  syncUserToSupabase 
+} from '../config/supabase.js';
+import { verifySupabaseToken } from '../middleware/supabaseAuth.middleware.js';
 
 const router = Router();
 
 /**
  * @route   GET /api/auth/me
- * @desc    Protected authentication test endpoint (verifies Firebase ID Token)
+ * @desc    Protected authentication test endpoint (verifies Supabase / Local Token)
  */
-router.get('/me', verifyFirebaseToken, (req, res) => {
+router.get('/me', verifySupabaseToken, (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Firebase ID Token verified successfully by backend!',
+    message: 'Auth token verified successfully by backend!',
     user: req.user,
     timestamp: new Date().toISOString(),
   });
 });
 
-// In-memory profiles list for local fallback
-let defaultProfiles = [
-  {
-    id: 'local_authenticated_dev_user',
-    name: 'Local User',
-    email: 'user@example.com',
-    age: 25,
-    bloodGroup: 'A+',
-    height: '170 cm',
-    weight: '65 kg',
-    resident: 'Unknown',
-    phoneNumber: '+1 555 010 0000',
-    bio: 'Local development profile',
-    hunterRank: 'A',
-    level: 18,
-    avatar: '/images/char_hero.jpg',
-    createdAt: new Date().toISOString(),
-  },
-];
-
 /**
  * @route   GET /api/auth/users
- * @desc    Get list of available profiles
+ * @desc    Get list of available profiles from SQLite & Supabase
  */
-router.get('/users', verifyFirebaseToken, async (req, res) => {
-  if (isFirebaseInitialized && db) {
+router.get('/users', verifySupabaseToken, async (req, res) => {
+  // 1. Check Supabase if configured
+  if (isSupabaseConfigured && supabase) {
     try {
-      const snapshot = await db.collection('user_profiles').get();
-      if (!snapshot.empty) {
-        const users = [];
-        snapshot.forEach((doc) => users.push(doc.data()));
-        return res.status(200).json({ success: true, users });
+      const { data: cloudUsers, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (!error && cloudUsers && cloudUsers.length > 0) {
+        return res.status(200).json({ success: true, users: cloudUsers, source: 'supabase' });
       }
     } catch (err) {
-      console.warn('Firestore user profile fetch fallback:', err.message);
+      console.warn('Supabase users fetch fallback to SQLite:', err.message);
     }
   }
 
+  // 2. Fetch from Local SQLite Database
+  const localUsers = getAllUsers();
   res.status(200).json({
     success: true,
-    users: defaultProfiles,
+    users: localUsers.length > 0 ? localUsers : [
+      {
+        id: 'local_authenticated_dev_user',
+        uid: 'local_authenticated_dev_user',
+        name: 'Local User',
+        email: 'user@example.com',
+        hunterRank: 'A',
+        level: 18,
+        avatarUrl: '/images/char_hero.jpg',
+      },
+    ],
+    source: 'sqlite',
   });
 });
 
 /**
  * @route   GET /api/auth/user-profile
- * @desc    Fetch authenticated user profile from Cloud Firestore using verified Firebase UID
+ * @desc    Fetch authenticated user profile from SQLite local database + Supabase
  */
-router.get('/user-profile', verifyFirebaseToken, async (req, res) => {
+router.get('/user-profile', verifySupabaseToken, async (req, res) => {
   const uid = req.user.uid;
 
-  let profile = {
-    id: uid,
-    uid: uid,
-    email: req.user.email,
-    name: req.user.name || req.user.email?.split('@')[0] || 'Hunter',
-    avatarUrl: '/images/char_hero.jpg',
-    hunterRank: 'E',
-    level: 0,
-    currentXP: 0,
-    overallStreak: 0,
-    longestStreak: 0,
-    age: null,
-    bloodGroup: '',
-    height: '',
-    weight: '',
-    resident: '',
-    phoneNumber: '',
-    bio: '',
-    updatedAt: new Date().toISOString(),
-  };
+  // 1. Check local SQLite DB first
+  let localProfile = getUser(uid);
 
-  if (isFirebaseInitialized && db) {
+  // 2. If Supabase configured, check cloud DB
+  if (isSupabaseConfigured && supabase) {
     try {
-      const docRef = db.collection('users').doc(uid);
-      const existing = await docRef.get();
-      if (existing.exists) {
-        profile = { ...profile, ...existing.data(), uid };
-      } else {
-        await docRef.set(profile, { merge: true });
+      const { data: cloudUser, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', uid)
+        .maybeSingle();
+
+      if (!error && cloudUser) {
+        // Update local SQLite cache
+        saveUser(cloudUser);
+        localProfile = getUser(uid);
       }
     } catch (err) {
-      console.warn('Firestore user profile fetch warning:', err.message);
+      console.warn('Supabase user-profile fetch notice:', err.message);
     }
+  }
+
+  if (!localProfile) {
+    localProfile = saveUser({
+      id: uid,
+      uid: uid,
+      email: req.user.email,
+      name: req.user.name || req.user.email?.split('@')[0] || 'Hunter',
+      avatarUrl: req.user.avatarUrl || '/images/char_hero.jpg',
+      hunterRank: 'E',
+      level: 0,
+      currentXP: 0,
+      overallStreak: 0,
+      longestStreak: 0,
+    });
   }
 
   res.status(200).json({
     success: true,
-    user: profile,
+    user: localProfile,
   });
 });
 
 /**
  * @route   POST /api/auth/google
- * @desc    Google / Gmail Sign-In & Unified Multi-Device Profile Fetch (supports Firebase UID & token verification)
+ * @desc    Google / OAuth Sign-In & Multi-Device Profile Fetch & SQLite/Supabase Upsert
  */
-router.post('/google', verifyFirebaseToken, async (req, res) => {
+router.post('/google', verifySupabaseToken, async (req, res) => {
   const { email, name, avatarUrl, googleId } = req.body;
 
   const verifiedUid = req.user.uid;
   const verifiedEmail = (req.user.email || email || '').trim().toLowerCase();
 
-  if (!verifiedEmail && !verifiedUid) {
-    return res.status(400).json({ error: 'Email or Firebase UID is required for Google Sign-In' });
-  }
+  const targetDocId = verifiedUid || (verifiedEmail ? verifiedEmail.replace(/[^a-z0-9]/g, '_') : 'local_authenticated_dev_user');
 
-  const targetDocId = verifiedUid || verifiedEmail.replace(/[^a-z0-9]/g, '_');
+  const existingProfile = getUser(targetDocId);
 
-  let profile = {
+  const profileData = {
     id: targetDocId,
     uid: targetDocId,
-    email: verifiedEmail,
-    name: name || verifiedEmail.split('@')[0] || 'Hunter',
-    avatarUrl: avatarUrl || '/images/char_hero.jpg',
+    email: verifiedEmail || existingProfile?.email || '',
+    name: name || existingProfile?.name || verifiedEmail.split('@')[0] || 'Hunter',
+    avatarUrl: avatarUrl || existingProfile?.avatarUrl || '/images/char_hero.jpg',
     googleId: googleId || '',
-    hunterRank: 'E',
-    level: 0,
-    currentXP: 0,
-    overallStreak: 0,
-    longestStreak: 0,
-    age: null,
-    bloodGroup: '',
-    height: '',
-    weight: '',
-    resident: '',
-    phoneNumber: '',
-    bio: '',
+    hunterRank: existingProfile?.hunterRank || 'E',
+    level: existingProfile?.level ?? 0,
+    currentXP: existingProfile?.currentXP ?? 0,
+    overallStreak: existingProfile?.overallStreak ?? 0,
+    longestStreak: existingProfile?.longestStreak ?? 0,
+    age: existingProfile?.age ?? null,
+    bloodGroup: existingProfile?.bloodGroup ?? '',
+    height: existingProfile?.height ?? '',
+    weight: existingProfile?.weight ?? '',
+    resident: existingProfile?.resident ?? '',
+    phoneNumber: existingProfile?.phoneNumber ?? '',
+    bio: existingProfile?.bio ?? '',
     lastActiveDate: new Date().toISOString().split('T')[0],
-    updatedAt: new Date().toISOString(),
   };
 
-  if (isFirebaseInitialized && db) {
-    try {
-      const docRef = db.collection('users').doc(targetDocId);
-      const existing = await docRef.get();
-      if (existing.exists) {
-        profile = { ...profile, ...existing.data(), ...(verifiedEmail && { email: verifiedEmail }) };
-      } else {
-        await docRef.set(profile, { merge: true });
-        await db.collection('user_profiles').doc(targetDocId).set(profile, { merge: true });
-      }
-    } catch (err) {
-      console.warn('Firestore Google auth merge warning:', err.message);
-    }
-  }
+  // 1. Save to Local SQLite Database
+  const savedProfile = saveUser(profileData);
 
-  const existingIdx = defaultProfiles.findIndex((u) => u.email === verifiedEmail || u.id === targetDocId);
-  if (existingIdx >= 0) {
-    defaultProfiles[existingIdx] = profile;
-  } else {
-    defaultProfiles.push(profile);
+  // 2. Sync to Supabase Cloud if available
+  if (isSupabaseConfigured) {
+    syncUserToSupabase(profileData).catch(() => {});
   }
 
   res.status(200).json({
     success: true,
-    message: `Logged in as ${profile.name} (${verifiedEmail || targetDocId})`,
-    user: profile,
+    message: `Logged in as ${savedProfile.name} (${verifiedEmail || targetDocId})`,
+    user: savedProfile,
   });
 });
 
 /**
  * @route   POST /api/auth/profile
- * @desc    Save/Update full personal profile details to Cloud Firestore
+ * @desc    Save/Update personal profile details to SQLite & Supabase
  */
-router.post('/profile', verifyFirebaseToken, async (req, res) => {
+router.post('/profile', verifySupabaseToken, async (req, res) => {
   const {
     name,
     email,
@@ -196,9 +187,11 @@ router.post('/profile', verifyFirebaseToken, async (req, res) => {
   } = req.body;
 
   const targetId = req.user.uid;
+  const existing = getUser(targetId) || {};
 
-  const updateData = {
-    userId: targetId,
+  const updatedProfile = {
+    ...existing,
+    id: targetId,
     uid: targetId,
     ...(name && { name: name.trim() }),
     ...(email && { email: email.trim().toLowerCase() }),
@@ -210,69 +203,66 @@ router.post('/profile', verifyFirebaseToken, async (req, res) => {
     ...(phoneNumber && { phoneNumber: phoneNumber.trim() }),
     ...(bio && { bio: bio.trim() }),
     ...(avatarUrl && { avatarUrl: avatarUrl.trim() }),
-    updatedAt: new Date().toISOString(),
   };
 
-  if (isFirebaseInitialized && db) {
-    try {
-      await db.collection('users').doc(targetId).set(updateData, { merge: true });
-      await db.collection('user_profiles').doc(targetId).set(updateData, { merge: true });
-    } catch (err) {
-      console.warn('Firestore profile save warning:', err.message);
-    }
-  }
+  // 1. Persist to SQLite
+  const saved = saveUser(updatedProfile);
 
-  const idx = defaultProfiles.findIndex((u) => u.id === targetId || u.email === email);
-  if (idx >= 0) {
-    defaultProfiles[idx] = { ...defaultProfiles[idx], ...updateData };
+  // 2. Sync to Supabase Cloud
+  if (isSupabaseConfigured) {
+    syncUserToSupabase(updatedProfile).catch(() => {});
   }
 
   res.status(200).json({
     success: true,
-    message: 'Profile details saved to Cloud Database successfully!',
-    profile: updateData,
+    message: 'Profile details saved to SQLite & Cloud Database successfully!',
+    profile: saved,
   });
 });
 
 /**
  * @route   POST /api/auth/reset
- * @desc    Reset all data to clean 0 across Firestore and memory
+ * @desc    Reset all data to clean 0 across SQLite and Supabase
  */
-router.post('/reset', verifyFirebaseToken, async (req, res) => {
+router.post('/reset', verifySupabaseToken, async (req, res) => {
   const userId = req.user.uid;
 
-  const zeroState = {
-    userId,
-    currentXP: 0,
-    xp: 0,
-    level: 0,
-    overallStreak: 0,
-    longestStreak: 0,
-    efficiencyPct: 0,
-    hunterRank: 'E',
-    isActiveToday: false,
-    streakFreezeCount: 0,
-    emergencyTasks: [],
-    platformStreaks: {},
-    updatedAt: new Date().toISOString(),
-  };
+  // 1. Reset in SQLite Local Database
+  const resetState = resetUserData(userId);
 
-  if (isFirebaseInitialized && db) {
+  // 2. Reset in Supabase Cloud
+  if (isSupabaseConfigured && supabase) {
     try {
-      await db.collection('users').doc(userId).set(zeroState, { merge: true });
-      await db.collection('matrix').doc(`${userId}_matrix`).set({
-        lastUpdated: new Date().toISOString(),
-        isReset: true,
-      });
+      await supabase.from('user_profiles').update({
+        level: 0,
+        current_xp: 0,
+        overall_streak: 0,
+        longest_streak: 0,
+        efficiency_pct: 0,
+        hunter_rank: 'E',
+        updated_at: new Date().toISOString(),
+      }).eq('id', userId);
+
+      await supabase.from('user_state').update({
+        activities: [],
+        matrix_state: {},
+        emergency_tasks: [],
+        xp: 0,
+        level: 0,
+        overall_streak: 0,
+        longest_streak: 0,
+        efficiency_pct: 0,
+        updated_at: new Date().toISOString(),
+      }).eq('user_id', userId);
     } catch (err) {
-      console.warn('Firestore reset warning:', err.message);
+      console.warn('Supabase reset notice:', err.message);
     }
   }
 
   res.status(200).json({
     success: true,
-    message: 'All streak, level, XP, and platform data wiped to clean 0!',
-    zeroState,
+    message: 'All streak, level, XP, and platform data wiped to clean 0 in SQLite & Supabase!',
+    zeroState: resetState,
   });
 });
 

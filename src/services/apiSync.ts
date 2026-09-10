@@ -2,7 +2,7 @@
 // with Automated + Manual Activity Reconciliation
 
 import { ActivityItem, ActivityLogEntry, UserProfile } from '../types';
-import { getCurrentUserToken } from './firebaseAuth';
+import { getCurrentUserToken } from './supabaseAuth';
 
 export interface SyncResult {
   platform: string;

@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { isFirebaseInitialized } from '../config/firebase.js';
+import { isSupabaseConfigured } from '../config/supabase.js';
+import { sqliteDb } from '../config/sqlite.js';
 
 const router = Router();
 
@@ -12,6 +13,14 @@ router.get('/', (req, res) => {
   const uptimeSeconds = process.uptime();
   const memoryUsage = process.memoryUsage();
 
+  let sqliteStatus = 'unknown';
+  try {
+    const check = sqliteDb.prepare('SELECT 1 as ok').get();
+    sqliteStatus = check.ok === 1 ? 'connected' : 'error';
+  } catch (e) {
+    sqliteStatus = `error: ${e.message}`;
+  }
+
   res.status(200).json({
     status: 'healthy',
     service: 'Streak API Server',
@@ -19,7 +28,10 @@ router.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: `${Math.floor(uptimeSeconds)}s`,
     environment: process.env.NODE_ENV || 'development',
-    firestore: isFirebaseInitialized ? 'connected' : 'not_configured',
+    database: {
+      sqlite: sqliteStatus,
+      supabase: isSupabaseConfigured ? 'connected' : 'offline_mode',
+    },
     system: {
       memoryUsageMB: {
         rss: (memoryUsage.rss / 1024 / 1024).toFixed(2),

@@ -1,9 +1,20 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcPath = "C:\Users\Dell\.gemini\antigravity-ide\brain\fbe73f37-b4d0-4a2b-94c4-05daf01be127\.user_uploaded\media_1786663308229.jpg"
-$srcImg = [System.Drawing.Bitmap]::new($srcPath)
+$projectRoot = $PSScriptRoot
+$srcPath = Join-Path $projectRoot "public\app-icon.png"
+
+if (-not (Test-Path $srcPath)) {
+    Write-Host "Source icon not found at: $srcPath"
+    exit
+}
+
+$srcImg = [System.Drawing.Bitmap]::FromFile($srcPath)
 
 function Resize-Image($img, [int]$width, [int]$height, [string]$destPath) {
+    $destDir = Split-Path $destPath -Parent
+    if (-not (Test-Path $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
     $destBitmap = New-Object System.Drawing.Bitmap($width, $height)
     $graphics = [System.Drawing.Graphics]::FromImage($destBitmap)
     $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
@@ -18,30 +29,27 @@ function Resize-Image($img, [int]$width, [int]$height, [string]$destPath) {
 }
 
 # 1. Android Mipmaps
-$resRoot = "d:\AndroidStudio\TestProject\EffectiveStreak\android_wrapper\app\src\main\res"
-Resize-Image $srcImg 48 48 "$resRoot\mipmap-mdpi\ic_launcher.png"
-Resize-Image $srcImg 48 48 "$resRoot\mipmap-mdpi\ic_launcher_round.png"
-Resize-Image $srcImg 72 72 "$resRoot\mipmap-hdpi\ic_launcher.png"
-Resize-Image $srcImg 72 72 "$resRoot\mipmap-hdpi\ic_launcher_round.png"
-Resize-Image $srcImg 96 96 "$resRoot\mipmap-xhdpi\ic_launcher.png"
-Resize-Image $srcImg 96 96 "$resRoot\mipmap-xhdpi\ic_launcher_round.png"
-Resize-Image $srcImg 144 144 "$resRoot\mipmap-xxhdpi\ic_launcher.png"
-Resize-Image $srcImg 144 144 "$resRoot\mipmap-xxhdpi\ic_launcher_round.png"
-Resize-Image $srcImg 192 192 "$resRoot\mipmap-xxxhdpi\ic_launcher.png"
-Resize-Image $srcImg 192 192 "$resRoot\mipmap-xxxhdpi\ic_launcher_round.png"
-
-# Adaptive foreground
-Resize-Image $srcImg 432 432 "$resRoot\drawable\ic_launcher_foreground.png"
+$resRoot = Join-Path $projectRoot "android_wrapper\app\src\main\res"
+if (Test-Path $resRoot) {
+    Resize-Image $srcImg 48 48 "$resRoot\mipmap-mdpi\ic_launcher.png"
+    Resize-Image $srcImg 48 48 "$resRoot\mipmap-mdpi\ic_launcher_round.png"
+    Resize-Image $srcImg 72 72 "$resRoot\mipmap-hdpi\ic_launcher.png"
+    Resize-Image $srcImg 72 72 "$resRoot\mipmap-hdpi\ic_launcher_round.png"
+    Resize-Image $srcImg 96 96 "$resRoot\mipmap-xhdpi\ic_launcher.png"
+    Resize-Image $srcImg 96 96 "$resRoot\mipmap-xhdpi\ic_launcher_round.png"
+    Resize-Image $srcImg 144 144 "$resRoot\mipmap-xxhdpi\ic_launcher.png"
+    Resize-Image $srcImg 144 144 "$resRoot\mipmap-xxhdpi\ic_launcher_round.png"
+    Resize-Image $srcImg 192 192 "$resRoot\mipmap-xxxhdpi\ic_launcher.png"
+    Resize-Image $srcImg 192 192 "$resRoot\mipmap-xxxhdpi\ic_launcher_round.png"
+    Resize-Image $srcImg 432 432 "$resRoot\drawable\ic_launcher_foreground.png"
+}
 
 # 2. Web App / Laptop icons
-$webPublic = "d:\AndroidStudio\TestProject\EffectiveStreak\public"
+$webPublic = Join-Path $projectRoot "public"
 Resize-Image $srcImg 512 512 "$webPublic\app-icon.png"
 Resize-Image $srcImg 192 192 "$webPublic\icon-192.png"
 Resize-Image $srcImg 64 64 "$webPublic\favicon.png"
 Resize-Image $srcImg 32 32 "$webPublic\favicon-32x32.png"
-
-$assetsDir = "d:\AndroidStudio\TestProject\EffectiveStreak\android_wrapper\app\src\main\assets\images"
-Resize-Image $srcImg 512 512 "$assetsDir\app_icon.png"
 
 $srcImg.Dispose()
 Write-Host "All icons successfully generated!"

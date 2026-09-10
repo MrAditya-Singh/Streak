@@ -1,5 +1,3 @@
-import { db } from './src/config/firebase.js';
-
 async function runE2ETest() {
   console.log('🚀 Starting Full End-to-End Production Correctness Test...\n');
 

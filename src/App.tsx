@@ -11,10 +11,10 @@ import {
   getRankByLevel,
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
-import { syncFullStateToFirestore, subscribeToFirestoreFullState, deleteUserProfileDoc, isFirebaseConfigured } from './services/firebase';
+import { syncFullStateToSupabase, subscribeToSupabaseFullState, isSupabaseConfigured } from './services/supabase';
 import { BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, fetchFullStateFromBackend, pushFullStateToBackend } from './services/apiSync';
 import { pushStateToCloud, subscribeToCloudSync, DEVICE_ID } from './services/cloudSync';
-import { onAuthStateChange, logOutUser, getCurrentUserToken } from './services/firebaseAuth';
+import { onAuthStateChange, logOutUser, getCurrentUserToken } from './services/supabaseAuth';
 import { SyncSetupCard } from './components/SyncSetupCard';
 
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
@@ -394,7 +394,7 @@ export const App: React.FC = () => {
       // Update local timestamp guard immediately before write to ignore our own echo
       lastSyncTimestamp.current = writeTime;
       pushStateToCloud(syncKey, payload);
-      syncFullStateToFirestore(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload);
     }, 800);
   }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey, hasLoadedFromCloud]);
 
@@ -452,7 +452,7 @@ export const App: React.FC = () => {
             logs: logsRef.current,
             updatedAt: Date.now(),
           };
-          syncFullStateToFirestore(syncKey, existingPayload);
+          syncFullStateToSupabase(syncKey, existingPayload);
           pushFullStateToBackend(syncKey, existingPayload, userRef.current.email).catch(() => {});
           if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
           remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
@@ -496,7 +496,7 @@ export const App: React.FC = () => {
             logs: [],
             updatedAt: Date.now(),
           };
-          syncFullStateToFirestore(syncKey, initPayload);
+          syncFullStateToSupabase(syncKey, initPayload);
           pushFullStateToBackend(syncKey, initPayload, userRef.current.email).catch(() => {});
 
           if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
@@ -569,7 +569,7 @@ export const App: React.FC = () => {
     };
 
     const unsubscribeCloud = subscribeToCloudSync(syncKey, (state) => applyRemoteState(state, true), userRef.current.email);
-    const unsubscribeFirestore = subscribeToFirestoreFullState(syncKey, applyRemoteState, userRef.current.email);
+    const unsubscribeSupabase = subscribeToSupabaseFullState(syncKey, applyRemoteState);
 
     // Safeguard: If no response from Firestore/Cloud after 1.2 seconds,
     // allow local writes and load from backend admin SDK fallback.
@@ -588,7 +588,7 @@ export const App: React.FC = () => {
 
     return () => {
       unsubscribeCloud();
-      unsubscribeFirestore();
+      unsubscribeSupabase();
       clearTimeout(safeguardTimer);
       // Reset on key change so next identity switch re-loads from DB unconditionally
       initialRemoteLoaded.current = false;
@@ -620,9 +620,8 @@ export const App: React.FC = () => {
   // ⚡ 3. BACKEND SSE REAL-TIME LISTENER — receives instant HABIT_TOGGLED broadcasts from peer devices
   useEffect(() => {
     const syncKey = activeSyncKey;
-    // Firebase's Firestore listener is the authenticated realtime channel in production.
-    // Browser EventSource cannot send Authorization headers, so avoid unauthenticated SSE.
-    if (!syncKey || isFirebaseConfigured) return;
+    // Supabase listener is the authenticated realtime channel in production.
+    if (!syncKey || isSupabaseConfigured) return;
     const sseUrl = `${BACKEND_API_BASE}/sync/events?userId=${encodeURIComponent(syncKey)}`;
 
     let es: EventSource | null = null;
@@ -1376,7 +1375,7 @@ export const App: React.FC = () => {
 
     if (hasLoadedFromCloud) {
       pushStateToCloud(syncKey, payload);
-      syncFullStateToFirestore(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload);
     }
 
     fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
@@ -1410,7 +1409,7 @@ export const App: React.FC = () => {
 
     if (hasLoadedFromCloud) {
       pushStateToCloud(syncKey, payload);
-      syncFullStateToFirestore(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload);
     }
 
     fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
@@ -1512,11 +1511,8 @@ export const App: React.FC = () => {
         updatedAt: Date.now() + 10000,
       };
 
-      // Delete old document completely from Firestore
-      deleteUserProfileDoc(activeSyncKey);
-
       pushStateToCloud(activeSyncKey, resetPayload);
-      syncFullStateToFirestore(activeSyncKey, resetPayload);
+      syncFullStateToSupabase(activeSyncKey, resetPayload);
 
       // Sync force reset state to cloud backend & Firestore
       fetchBackend(`${BACKEND_API_BASE}/sync/reset`, {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { db, authAdmin, isFirebaseInitialized } from '../config/firebase.js';
+import { sqliteDb, saveUser, saveUserState } from '../config/sqlite.js';
+import { isSupabaseConfigured, syncUserToSupabase, syncStateToSupabase } from '../config/supabase.js';
 import {
   CANONICAL_MAPPING,
   fetchPlatformData,
@@ -10,12 +11,12 @@ import {
 } from '../services/activityNormalizer.js';
 import { evaluateHabitsAndStreaks } from '../services/streakEngine.js';
 import { encryptSecret } from '../utils/crypto.js';
-import { verifyFirebaseToken } from '../middleware/firebaseAuth.middleware.js';
+import { verifySupabaseToken } from '../middleware/supabaseAuth.middleware.js';
 
 const router = Router();
 const DEFAULT_USER_ID = 'local_authenticated_dev_user';
 
-router.use(verifyFirebaseToken);
+router.use(verifySupabaseToken);
 
 const memoryStore = {
   integrations: {},
@@ -26,23 +27,8 @@ const memoryStore = {
 
 async function resolveTargetUserId(req, fallbackId = 'local_authenticated_dev_user') {
   if (req.user?.uid) return req.user.uid;
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.split('Bearer ')[1]?.trim();
-      if (token && isFirebaseInitialized && authAdmin) {
-        const decoded = await authAdmin.verifyIdToken(token);
-        if (decoded.uid) {
-          return decoded.uid;
-        }
-      } else if (token) {
-        return token.length > 10 ? token : fallbackId;
-      }
-    } catch (err) {
-      console.warn('Token verification warning in integrations routes:', err.message);
-    }
-  }
-  return req.query.userId || req.body?.userId || fallbackId;
+  if (req.uid) return req.uid;
+  return req.query?.userId || req.body?.userId || fallbackId;
 }
 
 /**
@@ -52,30 +38,28 @@ async function resolveTargetUserId(req, fallbackId = 'local_authenticated_dev_us
 router.get('/', async (req, res) => {
   const userId = await resolveTargetUserId(req, DEFAULT_USER_ID);
 
-  if (isFirebaseInitialized && db) {
-    try {
-      const snapshot = await db.collection('integrations')
-        .where('userId', '==', userId)
-        .get();
-
+  try {
+    const rows = sqliteDb.prepare('SELECT * FROM integration_cache WHERE user_id = ?').all(userId);
+    if (rows && rows.length > 0) {
       const integrations = {};
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const safeData = { ...data };
-        delete safeData.encryptedToken;
-        integrations[data.platform] = safeData;
+      rows.forEach((row) => {
+        try {
+          const parsed = JSON.parse(row.data_json);
+          delete parsed.encryptedToken;
+          integrations[row.platform] = parsed;
+        } catch { /* ignore */ }
       });
-
       if (Object.keys(integrations).length > 0) {
         return res.status(200).json({
           success: true,
           data: integrations,
           canonicalMapping: CANONICAL_MAPPING,
+          source: 'sqlite',
         });
       }
-    } catch (err) {
-      console.warn('Firestore query fallback to memory cache:', err.message);
     }
+  } catch (err) {
+    console.warn('SQLite integration cache query notice:', err.message);
   }
 
   res.status(200).json({
@@ -91,7 +75,7 @@ router.get('/', async (req, res) => {
  * @desc    Verify and connect a new platform account
  */
 router.post('/connect', async (req, res) => {
-  const userId = await resolveTargetUserId(req, req.body.userId || DEFAULT_USER_ID);
+  const userId = await resolveTargetUserId(req, req.body?.userId || DEFAULT_USER_ID);
   const { platform, handleOrUrl, token } = req.body;
 
   if (!platform || !handleOrUrl) {
@@ -111,18 +95,17 @@ router.post('/connect', async (req, res) => {
     if (!memoryStore.integrations[userId]) memoryStore.integrations[userId] = {};
     memoryStore.integrations[userId][normalized.platform] = docData;
 
-    if (isFirebaseInitialized && db) {
-      const docId = `${userId}_${normalized.platform}`;
-      db.collection('integrations').doc(docId).set(docData, { merge: true }).catch((err) => {
-        console.warn(`Firestore saving warning: ${err.message}`);
-      });
-      db.collection('users').doc(userId).set({
-        [`platform_${normalized.platform}_username`]: handleOrUrl,
-        [`platform_${normalized.platform}_streak`]: normalized.streak?.currentStreak || 0,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true }).catch((err) => {
-        console.warn(`Firestore user saving warning: ${err.message}`);
-      });
+    // Save to SQLite
+    try {
+      sqliteDb.prepare(`
+        INSERT INTO integration_cache (user_id, platform, data_json, synced_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id, platform) DO UPDATE SET
+          data_json = excluded.data_json,
+          synced_at = excluded.synced_at
+      `).run(userId, normalized.platform, JSON.stringify(docData), new Date().toISOString());
+    } catch (err) {
+      console.warn('SQLite integration_cache save error:', err.message);
     }
 
     const safeResponse = { ...docData };
@@ -249,26 +232,22 @@ router.post('/sync', async (req, res) => {
       })(),
     ]);
 
-    // Fetch existing GitHub & GFG activity from Firestore to prevent data wiping
+    // Fetch existing GitHub & GFG activity from SQLite to prevent data wiping
     let existingGitHubActivity = {};
     let existingGFGActivity = {};
-    if (isFirebaseInitialized && db) {
-      try {
-        const fetchExistingDoc = (docId) => Promise.race([
-          db.collection('integrations').doc(docId).get(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 1200))
-        ]);
-        const ghDoc = await fetchExistingDoc(`${userId}_github`);
-        if (ghDoc && ghDoc.exists) {
-          existingGitHubActivity = ghDoc.data().activity || ghDoc.data().dailyActivity || {};
-        }
-        const gfgDoc = await fetchExistingDoc(`${userId}_gfg`);
-        if (gfgDoc && gfgDoc.exists) {
-          existingGFGActivity = gfgDoc.data().activity || gfgDoc.data().dailyActivity || {};
-        }
-      } catch (err) {
-        console.warn('Failed to load existing platform activity from Firestore:', err.message);
+    try {
+      const ghRow = sqliteDb.prepare('SELECT data_json FROM integration_cache WHERE user_id = ? AND platform = ?').get(userId, 'github');
+      if (ghRow) {
+        const parsed = JSON.parse(ghRow.data_json);
+        existingGitHubActivity = parsed.activity || parsed.dailyActivity || {};
       }
+      const gfgRow = sqliteDb.prepare('SELECT data_json FROM integration_cache WHERE user_id = ? AND platform = ?').get(userId, 'gfg');
+      if (gfgRow) {
+        const parsed = JSON.parse(gfgRow.data_json);
+        existingGFGActivity = parsed.activity || parsed.dailyActivity || {};
+      }
+    } catch (err) {
+      console.warn('Failed to load existing platform activity from SQLite:', err.message);
     }
 
     // 2. Parse Codolio profile JSON & connected platforms
@@ -449,19 +428,24 @@ router.post('/sync', async (req, res) => {
       ? normalizedPlatforms.filter(p => p.platform === specificPlatform)
       : normalizedPlatforms;
 
-    // 3. Persist all dynamically synced platforms to memory store and fire-and-forget Firestore
+    // 3. Persist all dynamically synced platforms to memory store and SQLite
     finalNormalized.forEach((normalized) => {
       const platform = normalized.platform;
-      const firestoreDoc = buildFirestoreIntegrationDoc(userId, normalized);
+      const integrationDoc = buildFirestoreIntegrationDoc(userId, normalized);
       
       if (!memoryStore.integrations[userId]) memoryStore.integrations[userId] = {};
-      memoryStore.integrations[userId][platform] = firestoreDoc;
+      memoryStore.integrations[userId][platform] = integrationDoc;
 
-      if (isFirebaseInitialized && db) {
-        const docId = `${userId}_${platform}`;
-        db.collection('integrations').doc(docId).set(firestoreDoc, { merge: true }).catch((fsErr) => {
-          console.warn(`Firestore write warning for ${platform}:`, fsErr.message);
-        });
+      try {
+        sqliteDb.prepare(`
+          INSERT INTO integration_cache (user_id, platform, data_json, synced_at)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(user_id, platform) DO UPDATE SET
+            data_json = excluded.data_json,
+            synced_at = excluded.synced_at
+        `).run(userId, platform, JSON.stringify(integrationDoc), new Date().toISOString());
+      } catch (e) {
+        console.warn(`SQLite integration write warning for ${platform}:`, e.message);
       }
     });
 
@@ -474,30 +458,28 @@ router.post('/sync', async (req, res) => {
       user,
     });
 
-    // Save to Firestore collections: users, matrix, activity_logs
-    if (isFirebaseInitialized && db) {
-      db.collection('users').doc(userId).set({
-        user: streakResult.user,
-        summary: streakResult.summary,
-        platformStreaks: streakResult.platformStreaks,
-        unifiedCodingStreak: streakResult.unifiedCodingStreak,
-        lastSyncedAt: new Date().toISOString(),
-      }, { merge: true }).catch((err) => console.warn('Firestore user sync write error:', err.message));
-
-      db.collection('matrix').doc(userId).set({
+    // Save to SQLite users & user_state
+    try {
+      const updatedState = {
+        activities: streakResult.habits,
         matrixState: streakResult.matrixState,
-        habits: streakResult.habits,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true }).catch((err) => console.warn('Firestore matrix sync write error:', err.message));
+        user: streakResult.user,
+        emergencyTasks: [],
+      };
+      saveUserState(userId, updatedState);
+      saveUser({
+        id: userId,
+        uid: userId,
+        ...streakResult.user,
+      });
 
-      if (streakResult.auditLogs && streakResult.auditLogs.length > 0) {
-        const batch = db.batch();
-        streakResult.auditLogs.forEach((log) => {
-          const logRef = db.collection('activity_logs').doc(log.logId);
-          batch.set(logRef, log);
-        });
-        batch.commit().catch((err) => console.warn('Firestore batch commit error:', err.message));
+      // Also sync to Supabase Cloud if connected
+      if (isSupabaseConfigured) {
+        syncStateToSupabase(userId, updatedState).catch(() => {});
+        syncUserToSupabase({ id: userId, uid: userId, ...streakResult.user }).catch(() => {});
       }
+    } catch (e) {
+      console.warn('SQLite user & state save error during sync:', e.message);
     }
 
     res.status(200).json({

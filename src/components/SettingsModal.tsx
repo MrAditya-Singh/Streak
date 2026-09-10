@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { ActivityItem, UserProfile, HistoricalDayRecord, ActivityLogEntry } from '../types';
 import { soundFx } from '../utils/audio';
-import { getCurrentUserToken, signInWithGoogle } from '../services/firebaseAuth';
+import { getCurrentUserToken, signInWithGoogle } from '../services/supabaseAuth';
 import { downloadJSONBackup, downloadCSVBackup } from '../services/exportService';
 import { 
   extractUsernameFromUrl, 

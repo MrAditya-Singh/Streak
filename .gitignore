@@ -10,9 +10,18 @@ lerna-debug.log*
 # Node dependencies & builds
 node_modules
 dist
+.dist
 dist-secondary
 dist-ssr
 *.local
+
+# SQLite local databases & WAL journal files
+backend/data/*.db
+backend/data/*.db-wal
+backend/data/*.db-shm
+*.db
+*.db-wal
+*.db-shm
 
 # Environment variables & secrets
 .env
@@ -52,6 +61,7 @@ local.properties
 
 # Temporary scratch & match files
 scratch/
+backend/scratch/
 scratch_matches.json
 scratch_view_chunks.json
 

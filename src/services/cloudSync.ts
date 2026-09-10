@@ -1,13 +1,13 @@
-// Universal Real-Time Multi-Device Cloud Sync Engine (Firebase Auth UID Isolated)
-// Guarantees Cloud Firestore as single source of truth across Mobile, Laptop, and Web.
+// Universal Real-Time Multi-Device Cloud Sync Engine (Supabase + SQLite Local Engine)
+// Guarantees Supabase Cloud Postgres & Local SQLite as single source of truth across Mobile, Laptop, and Web.
 
 import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry } from '../types';
-import { syncFullStateToFirestore, subscribeToFirestoreFullState, UserCloudState } from './firebase';
+import { syncFullStateToSupabase, subscribeToSupabaseFullState, UserCloudState } from './supabase';
 import { pushFullStateToBackend } from './apiSync';
 
 export interface CloudSyncState {
   version: number;
-  syncId: string; // Authenticated Firebase UID
+  syncId: string; // Authenticated Supabase UID or local ID
   updatedAt: number;
   deviceId: string;
   user: UserProfile;
@@ -39,7 +39,7 @@ let _lastLocalPushTimestamp = 0;
 let lastRemoteReceivedTimestamp = 0;
 
 /**
- * 📡 Push full state to Cloud Firestore (users/{uid}/data/state) & Local Broadcast
+ * 📡 Push full state to Supabase Cloud & Local SQLite Backend & Local Broadcast
  */
 export async function pushStateToCloud(
   uid: string,
@@ -77,11 +77,11 @@ export async function pushStateToCloud(
     }
   }
 
-  // 2. Dual-Channel Push: Cloud Firestore Client SDK + Backend Express Admin SDK
+  // 2. Dual-Channel Push: Local SQLite Backend API + Supabase Cloud PostgREST
   pushFullStateToBackend(uid, payload, state.user?.email).catch(() => {});
 
   try {
-    await syncFullStateToFirestore(uid, payload as UserCloudState);
+    await syncFullStateToSupabase(uid, payload as UserCloudState);
     return true;
   } catch (err) {
     console.warn('Cloud sync push warning (operating in local offline mode):', err);
@@ -90,13 +90,13 @@ export async function pushStateToCloud(
 }
 
 /**
- * ⚡ Real-Time Cloud Firestore Listener + Local Broadcast Hook
- * Automatically synchronizes Mobile and Laptop whenever data is modified in Firestore under users/{uid}.
+ * ⚡ Real-Time Cloud Supabase Listener + Local Broadcast Hook
+ * Automatically synchronizes Mobile and Laptop whenever data is modified in Supabase.
  */
 export function subscribeToCloudSync(
   uid: string,
   onRemoteStateReceived: (remoteState: CloudSyncState) => void,
-  userEmail?: string
+  _userEmail?: string
 ): () => void {
   if (!uid) return () => {};
 
@@ -118,8 +118,8 @@ export function subscribeToCloudSync(
     broadcastChannel.addEventListener('message', handleBroadcast);
   }
 
-  // 2. Real-Time Firestore Listener for users/{uid}/data/state
-  const unsubFirestore = subscribeToFirestoreFullState(uid, (data, exists) => {
+  // 2. Real-Time Supabase Listener
+  const unsubSupabase = subscribeToSupabaseFullState(uid, (data, exists) => {
     if (!isActive || !exists || !data) return;
 
     const remoteState = data as unknown as CloudSyncState;
@@ -127,11 +127,11 @@ export function subscribeToCloudSync(
       lastRemoteReceivedTimestamp = remoteState.updatedAt;
       onRemoteStateReceived(remoteState);
     }
-  }, userEmail);
+  });
 
   return () => {
     isActive = false;
-    unsubFirestore();
+    unsubSupabase();
     if (broadcastChannel) {
       broadcastChannel.removeEventListener('message', handleBroadcast);
     }

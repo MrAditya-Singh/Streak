@@ -1,70 +1,41 @@
 import { Router } from 'express';
-import { db, authAdmin, isFirebaseInitialized } from '../config/firebase.js';
+import { 
+  getUserState, 
+  saveUserState, 
+  resetUserData 
+} from '../config/sqlite.js';
+import { 
+  supabase, 
+  isSupabaseConfigured, 
+  syncStateToSupabase 
+} from '../config/supabase.js';
+import { verifySupabaseToken } from '../middleware/supabaseAuth.middleware.js';
 
 export const syncRouter = Router();
 
-const memoryState = new Map();
 const sseClients = new Map(); // userId (uid) -> Set of res objects
 
-function getOrCreateUserState(userId) {
-  if (!memoryState.has(userId)) {
-    memoryState.set(userId, {
-      userId,
-      activities: [],
-      matrix: {},
-      emergencyTasks: [],
-      user: {
-        currentXP: 0,
-        level: 0,
-        overallStreak: 0,
-        longestStreak: 0,
-        efficiencyPct: 0,
-      },
-      lastUpdated: new Date().toISOString(),
-    });
-  }
-  return memoryState.get(userId);
-}
-
-/**
- * 🛡️ Strict Firebase ID Token Verification Middleware
- * Extracts and verifies Bearer token, deriving UID from Firebase Auth.
- */
-async function verifyFirebaseToken(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // In local development without token, allow a default authenticated test user ID
-    if (!isFirebaseInitialized) {
-      req.uid = 'local_authenticated_dev_user';
-      return next();
+// -------------------------------------------------------------
+// Helper: Broadcast to Real-Time SSE Clients
+// -------------------------------------------------------------
+function broadcastToClients(userId, payload) {
+  if (sseClients.has(userId)) {
+    const data = `data: ${JSON.stringify(payload)}\n\n`;
+    for (const client of sseClients.get(userId)) {
+      try {
+        client.write(data);
+      } catch {
+        // Ignored
+      }
     }
-    return res.status(401).json({ success: false, error: 'Unauthorized: Missing or malformed Bearer token' });
-  }
-
-  const token = authHeader.split('Bearer ')[1]?.trim();
-  if (!token) {
-    return res.status(401).json({ success: false, error: 'Unauthorized: Empty token provided' });
-  }
-
-  if (isFirebaseInitialized && authAdmin) {
-    try {
-      const decoded = await authAdmin.verifyIdToken(token);
-      req.uid = decoded.uid;
-      return next();
-    } catch (err) {
-      return res.status(401).json({ success: false, error: `Unauthorized: Invalid Firebase ID token (${err.message})` });
-    }
-  } else {
-    req.uid = token.length > 10 ? token : 'local_authenticated_dev_user';
-    return next();
   }
 }
 
 // -------------------------------------------------------------
 // 1. Real-Time SSE Stream for Instant Push
 // -------------------------------------------------------------
-syncRouter.get('/events', verifyFirebaseToken, async (req, res) => {
-  const userId = req.uid;
+syncRouter.get('/events', verifySupabaseToken, async (req, res) => {
+  const userId = req.uid || 'local_authenticated_dev_user';
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -78,19 +49,27 @@ syncRouter.get('/events', verifyFirebaseToken, async (req, res) => {
   const clientSet = sseClients.get(userId);
   clientSet.add(res);
 
-  let currentState = getOrCreateUserState(userId);
-  if (db) {
+  // Fetch current state from local SQLite
+  const currentState = getUserState(userId);
+
+  // If Supabase is connected, check for newer cloud state
+  if (isSupabaseConfigured && supabase) {
     try {
-      const userDoc = await db.collection('users').doc(userId).collection('data').doc('state').get();
-      if (userDoc.exists) {
-        const persisted = userDoc.data();
-        if (persisted.activities) currentState.activities = persisted.activities;
-        if (persisted.matrixState) currentState.matrix = persisted.matrixState;
-        if (persisted.user) Object.assign(currentState.user, persisted.user);
-        if (persisted.emergencyTasks) currentState.emergencyTasks = persisted.emergencyTasks;
+      const { data: cloudState, error } = await supabase
+        .from('user_state')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!error && cloudState) {
+        if (cloudState.activities) currentState.activities = cloudState.activities;
+        if (cloudState.matrix_state) currentState.matrix = cloudState.matrix_state;
+        if (cloudState.emergency_tasks) currentState.emergencyTasks = cloudState.emergency_tasks;
+        saveUserState(userId, currentState);
       }
     } catch { /* ignore */ }
   }
+
   res.write(`data: ${JSON.stringify({ type: 'INIT_STATE', state: currentState })}\n\n`);
 
   const heartbeat = setInterval(() => {
@@ -107,77 +86,59 @@ syncRouter.get('/events', verifyFirebaseToken, async (req, res) => {
   });
 });
 
-function broadcastToClients(userId, payload) {
-  if (sseClients.has(userId)) {
-    const data = `data: ${JSON.stringify(payload)}\n\n`;
-    for (const client of sseClients.get(userId)) {
-      try {
-        client.write(data);
-      } catch {
-        // Ignored
-      }
-    }
-  }
-}
-
 // -------------------------------------------------------------
 // 2. Fetch Latest State (GET /api/sync/state)
 // -------------------------------------------------------------
-syncRouter.get('/state', verifyFirebaseToken, async (req, res) => {
-  const userId = req.query?.userId || req.user?.uid || req.uid || 'dev_local_uid';
-  const email = (req.query?.email || req.user?.email || '').trim().toLowerCase();
-  const cleanEmailKey = email && email.includes('@') && email !== 'user@example.com'
-    ? `user_email_${email.replace(/[^a-z0-9]/g, '_')}`
-    : '';
+syncRouter.get('/state', verifySupabaseToken, async (req, res) => {
+  const userId = req.query?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  let state = getUserState(userId);
 
-  const state = getOrCreateUserState(userId);
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data: cloudState, error } = await supabase
+        .from('user_state')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-  try {
-    if (db) {
-      let userDoc = await db.collection('users').doc(userId).collection('data').doc('state').get();
-
-      // If userDoc is empty or has no activities, attempt email-based document bridge
-      if ((!userDoc.exists || !userDoc.data()?.activities?.length) && cleanEmailKey && cleanEmailKey !== userId) {
-        const emailDoc = await db.collection('users').doc(cleanEmailKey).collection('data').doc('state').get();
-        if (emailDoc.exists && emailDoc.data()?.activities?.length) {
-          userDoc = emailDoc;
-          console.log(`✨ [Backend Sync Bridge] Successfully bridged state from ${cleanEmailKey} to ${userId}`);
-        }
+      if (!error && cloudState) {
+        state = {
+          userId,
+          activities: cloudState.activities || state.activities,
+          matrix: cloudState.matrix_state || state.matrix,
+          emergencyTasks: cloudState.emergency_tasks || state.emergencyTasks,
+          user: {
+            currentXP: cloudState.xp ?? state.user.currentXP,
+            level: cloudState.level ?? state.user.level,
+            overallStreak: cloudState.overall_streak ?? state.user.overallStreak,
+            longestStreak: cloudState.longest_streak ?? state.user.longestStreak,
+            efficiencyPct: cloudState.efficiency_pct ?? state.user.efficiencyPct,
+          },
+          lastUpdated: cloudState.updated_at || new Date().toISOString(),
+        };
+        // Keep SQLite synced
+        saveUserState(userId, state);
       }
-
-      if (userDoc.exists) {
-        const uData = userDoc.data();
-        if (uData.user) Object.assign(state.user, uData.user);
-        if (uData.activities) state.activities = uData.activities;
-        if (uData.matrixState) state.matrix = uData.matrixState;
-        if (uData.emergencyTasks) state.emergencyTasks = uData.emergencyTasks;
-        if (uData.logs) state.logs = uData.logs;
-      }
+    } catch (err) {
+      console.warn('Supabase state fetch notice:', err.message);
     }
-  } catch (err) {
-    console.warn('Firestore fetch warning:', err.message);
   }
 
-  res.json({ success: true, state });
+  res.json({ success: true, state, source: isSupabaseConfigured ? 'supabase+sqlite' : 'sqlite' });
 });
 
 // -------------------------------------------------------------
 // 3. Mobile / Laptop Toggle Action (POST /api/sync/toggle)
 // -------------------------------------------------------------
-syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'dev_local_uid';
-  const email = (req.body?.email || req.user?.email || '').trim().toLowerCase();
-  const cleanEmailKey = email && email.includes('@') && email !== 'user@example.com'
-    ? `user_email_${email.replace(/[^a-z0-9]/g, '_')}`
-    : '';
-
+syncRouter.post('/toggle', verifySupabaseToken, async (req, res) => {
+  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
   const { habitId, completed, date } = req.body;
   const targetDate = date || new Date().toISOString().split('T')[0];
-  const state = getOrCreateUserState(userId);
 
-  if (!state.matrix[habitId]) {
-    state.matrix[habitId] = {};
-  }
+  const state = getUserState(userId);
+
+  if (!state.matrix) state.matrix = {};
+  if (!state.matrix[habitId]) state.matrix[habitId] = {};
   state.matrix[habitId][targetDate] = completed;
 
   state.activities = (state.activities || []).map((act) => {
@@ -186,7 +147,7 @@ syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
       return {
         ...act,
         completed: nextCompleted,
-        streak: nextCompleted ? act.streak + 1 : Math.max(0, act.streak - 1),
+        streak: nextCompleted ? (act.streak || 0) + 1 : Math.max(0, (act.streak || 0) - 1),
       };
     }
     return act;
@@ -197,202 +158,94 @@ syncRouter.post('/toggle', verifyFirebaseToken, async (req, res) => {
   }
   state.lastUpdated = new Date().toISOString();
 
+  // 1. Save to Local SQLite
+  const savedState = saveUserState(userId, state);
+
+  // 2. Sync to Supabase Cloud
+  if (isSupabaseConfigured) {
+    syncStateToSupabase(userId, savedState).catch(() => {});
+  }
+
+  // 3. Broadcast to Real-Time SSE Listeners
   broadcastToClients(userId, {
     type: 'HABIT_TOGGLED',
     habitId,
     completed,
     date: targetDate,
-    state,
+    state: savedState,
     timestamp: Date.now(),
   });
-
-  if (cleanEmailKey && cleanEmailKey !== userId) {
-    broadcastToClients(cleanEmailKey, {
-      type: 'HABIT_TOGGLED',
-      habitId,
-      completed,
-      date: targetDate,
-      state,
-      timestamp: Date.now(),
-    });
-  }
-
-  if (db) {
-    try {
-      const docRef = db.collection('users').doc(userId).collection('data').doc('state');
-      const docSnap = await docRef.get();
-      let unifiedData = docSnap.exists ? docSnap.data() : null;
-
-      if (!unifiedData) {
-        unifiedData = {
-          activities: state.activities || [],
-          matrixState: {},
-          user: {
-            currentXP: state.user.currentXP || 0,
-            level: state.user.level || 0,
-            overallStreak: state.user.overallStreak || 0,
-            longestStreak: state.user.longestStreak || 0,
-          },
-          emergencyTasks: [],
-          logs: [],
-        };
-      }
-
-      unifiedData.activities = (unifiedData.activities || []).map((act) => {
-        if (act.id === habitId) {
-          const nextCompleted = completed ?? !act.completed;
-          return {
-            ...act,
-            completed: nextCompleted,
-            streak: nextCompleted ? act.streak + 1 : Math.max(0, act.streak - 1),
-          };
-        }
-        return act;
-      });
-
-      const dateParts = targetDate.split('-');
-      const dayNum = parseInt(dateParts[2], 10);
-      if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) {
-        const dayIndex = dayNum - 1;
-        if (!unifiedData.matrixState) {
-          unifiedData.matrixState = {};
-        }
-        if (!unifiedData.matrixState[habitId] || !Array.isArray(unifiedData.matrixState[habitId])) {
-          unifiedData.matrixState[habitId] = Array.from({ length: 31 }, () => false);
-        }
-        unifiedData.matrixState[habitId][dayIndex] = completed;
-      }
-
-      if (!unifiedData.user) {
-        unifiedData.user = {};
-      }
-      unifiedData.user.currentXP = state.user.currentXP;
-      unifiedData.user.overallStreak = state.user.overallStreak;
-      unifiedData.user.level = state.user.level;
-
-      unifiedData.updatedAt = Date.now();
-
-      await docRef.set(unifiedData, { merge: true });
-
-      if (cleanEmailKey && cleanEmailKey !== userId) {
-        await db.collection('users').doc(cleanEmailKey).collection('data').doc('state').set(unifiedData, { merge: true });
-      }
-    } catch (err) {
-      console.warn('Firestore toggle persistence warning:', err.message);
-    }
-  }
 
   res.json({
     success: true,
     message: `Toggled ${habitId} -> ${completed}`,
-    state,
+    state: savedState,
   });
 });
 
 // -------------------------------------------------------------
 // 4. Save Full State (POST /api/sync/state)
 // -------------------------------------------------------------
-syncRouter.post('/state', verifyFirebaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'dev_local_uid';
-  const { state: incomingState, email } = req.body;
+syncRouter.post('/state', verifySupabaseToken, async (req, res) => {
+  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
+  const { state: incomingState } = req.body;
   if (!incomingState) {
     return res.status(400).json({ success: false, error: 'Missing state object' });
   }
 
-  const userEmail = (email || incomingState.user?.email || req.user?.email || '').trim().toLowerCase();
-  const cleanEmailKey = userEmail && userEmail.includes('@') && userEmail !== 'user@example.com'
-    ? `user_email_${userEmail.replace(/[^a-z0-9]/g, '_')}`
-    : '';
+  // 1. Persist to Local SQLite
+  const savedState = saveUserState(userId, incomingState);
 
-  const state = getOrCreateUserState(userId);
-  Object.assign(state, incomingState, { lastUpdated: new Date().toISOString() });
+  // 2. Persist to Cloud Supabase
+  if (isSupabaseConfigured) {
+    syncStateToSupabase(userId, savedState).catch(() => {});
+  }
 
+  // 3. Broadcast to Live SSE Clients
   broadcastToClients(userId, {
     type: 'STATE_UPDATED',
-    state: {
-      ...incomingState,
-      activities: incomingState.activities || state.activities,
-      matrixState: incomingState.matrixState || incomingState.matrix || state.matrix,
-      user: incomingState.user || state.user,
-      emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks,
-      logs: incomingState.logs || state.logs,
-    },
+    state: savedState,
     timestamp: Date.now(),
   });
 
-  if (cleanEmailKey && cleanEmailKey !== userId) {
-    broadcastToClients(cleanEmailKey, {
-      type: 'STATE_UPDATED',
-      state: incomingState,
-      timestamp: Date.now(),
-    });
-  }
-
-  if (db) {
-    try {
-      const payloadToSave = {
-        activities: incomingState.activities || state.activities || [],
-        matrixState: incomingState.matrixState || state.matrix || {},
-        user: incomingState.user || state.user || {},
-        emergencyTasks: incomingState.emergencyTasks || state.emergencyTasks || [],
-        logs: incomingState.logs || state.logs || [],
-        updatedAt: Date.now(),
-      };
-
-      const docRef = db.collection('users').doc(userId).collection('data').doc('state');
-      await docRef.set(payloadToSave, { merge: true });
-
-      if (cleanEmailKey && cleanEmailKey !== userId) {
-        await db.collection('users').doc(cleanEmailKey).collection('data').doc('state').set(payloadToSave, { merge: true });
-      }
-    } catch (err) {
-      console.warn('Firestore full state save warning:', err.message);
-    }
-  }
-
-  res.json({ success: true, message: 'State synced & broadcast to all peer devices', state });
+  res.json({ success: true, message: 'State synced to SQLite & Supabase and broadcast to peer devices', state: savedState });
 });
 
 // -------------------------------------------------------------
 // 5. Force Reset Endpoint (POST /api/sync/reset)
 // -------------------------------------------------------------
-syncRouter.post('/reset', verifyFirebaseToken, async (req, res) => {
-  const userId = req.body?.userId || req.user?.uid || req.uid || 'dev_local_uid';
+syncRouter.post('/reset', verifySupabaseToken, async (req, res) => {
+  const userId = req.body?.userId || req.user?.uid || req.uid || 'local_authenticated_dev_user';
 
-  const cleanState = {
-    userId,
-    activities: [],
-    matrix: {},
-    emergencyTasks: [],
-    user: {
-      currentXP: 0,
-      level: 0,
-      overallStreak: 0,
-      longestStreak: 0,
-      efficiencyPct: 0,
-      hunterRank: 'E',
-      isActiveToday: false,
-    },
-    isReset: true,
-    lastUpdated: new Date().toISOString(),
-  };
+  // 1. Reset in Local SQLite
+  const cleanState = resetUserData(userId);
 
-  memoryState.set(userId, cleanState);
+  // 2. Reset in Supabase Cloud
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('user_state').upsert({
+        user_id: userId,
+        activities: [],
+        matrix_state: {},
+        emergency_tasks: [],
+        xp: 0,
+        level: 0,
+        overall_streak: 0,
+        longest_streak: 0,
+        efficiency_pct: 0,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Supabase reset error:', err.message);
+    }
+  }
 
+  // 3. Broadcast to SSE Clients
   broadcastToClients(userId, {
     type: 'FORCE_RESET',
     state: cleanState,
     timestamp: Date.now(),
   });
 
-  if (db) {
-    try {
-      const docRef = db.collection('users').doc(userId).collection('data').doc('state');
-      await docRef.set({ ...cleanState, updatedAt: Date.now() }, { merge: false });
-    } catch (err) {
-      console.warn('Firestore force reset error:', err.message);
-    }
-  }
-
-  res.json({ success: true, message: 'Data reset cleanly', state: cleanState });
+  res.json({ success: true, message: 'Data reset cleanly across SQLite & Supabase', state: cleanState });
 });

@@ -2,11 +2,12 @@
 
 [![Live App on Surge](https://img.shields.io/badge/Live_App-effstreak--tracker.surge.sh-58CC02?style=for-the-badge&logo=surge&logoColor=white)](https://effstreak-tracker.surge.sh)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github-actions)](https://github.com/MrAditya-Singh/Streak)
-[![Firebase Powered](https://img.shields.io/badge/Cloud-Firebase_UID-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
-[![React + Vite](https://img.shields.io/badge/Frontend-React_18_+_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Supabase Powered](https://img.shields.io/badge/Cloud-Supabase_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
+[![SQLite Engine](https://img.shields.io/badge/Local_DB-SQLite_WAL-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![React + Vite](https://img.shields.io/badge/Frontend-React_19_+_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)](LICENSE)
 
-> **EffStreak** is an enterprise-grade, gamified personal productivity and activity-tracking platform inspired by **Duolingo streaks** and **Solo Leveling RPG progression**. It aggregates coding practice (LeetCode, Codeforces, GFG, AtCoder, GitHub), learning, and daily habits into a real-time, cross-device cloud synchronization hub with central source-of-truth reliability.
+> **EffStreak** is an enterprise-grade, gamified personal productivity and activity-tracking platform inspired by **Duolingo streaks** and **Solo Leveling RPG progression**. It aggregates coding practice (LeetCode, Codeforces, GFG, AtCoder, GitHub), learning, and daily habits into a real-time, cross-device synchronization hub powered by **Supabase Cloud PostgreSQL** and an **Embedded SQLite Local Database Engine**.
 
 ---
 
@@ -20,30 +21,30 @@
 
 ## 🌟 Core Architecture & Principles
 
-EffStreak is built ground-up around 7 non-negotiable architectural principles:
+EffStreak utilizes a resilient dual-database architecture ensuring instant offline performance and real-time multi-device cloud synchronization:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    EFFSTREAK CLOUD ARCHITECTURE                         │
+│              EFFSTREAK SUPABASE & SQLITE ARCHITECTURE                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │    ┌─────────────────┐       ┌─────────────────┐       ┌──────────────┐ │
-│    │ Multiple Users  │       │ Multi-Device    │       │ Firebase     │ │
-│    │ (Infinite UIDs) │ ────► │ Real-Time Sync  │ ────► │ Cloud        │ │
-│    └─────────────────┘       └─────────────────┘       │ Firestore    │ │
+│    │ Multiple Users  │       │ Multi-Device    │       │ Supabase     │ │
+│    │ (UID / Google)  │ ────► │ Realtime Sync   │ ────► │ Cloud        │ │
+│    └─────────────────┘       └─────────────────┘       │ PostgreSQL   │ │
 │                                                        └──────┬───────┘ │
 │    ┌─────────────────┐       ┌─────────────────┐              │         │
-│    │ Production      │       │ Strict Data     │ ◄────────────┘         │
-│    │ Security Rules  │ ────► │ Isolation (UID) │                        │
+│    │ Embedded SQLite │       │ Local Offline   │ ◄────────────┘         │
+│    │ (effstreak.db)  │ ────► │ Persistence     │                        │
 │    └─────────────────┘       └─────────────────┘                        │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Central Cloud Database as Primary Source of Truth**: `users/{uid}/data/state` on Firebase Firestore stores all user attributes, habits, streaks, and monthly matrix states. Local storage acts purely as a secondary offline buffer.
-2. **Strict User Data Isolation**: Cloud security rules strictly enforce `request.auth != null && request.auth.uid == uid`, guaranteeing total data privacy across independent users.
-3. **No Accidental Data Overwrites**: Atomic `setDoc(..., { merge: true })` updates preserve user state even under simultaneous multi-device sync.
-4. **Real-time Live Synchronization**: Instant cross-device state propagation via Firestore snapshot listeners and client-side `BroadcastChannel`.
-5. **Multi-Platform Live API Integration**: Fast, direct integration with **LeetCode**, **Codeforces**, **GitHub**, **GeeksforGeeks**, **AtCoder**, **HackerRank**, and **YouTube** via Codolio & public APIs.
+1. **Embedded SQLite Local Database (`backend/data/effstreak.db`)**: High-performance, zero-latency relational storage running on disk in WAL mode. Guarantees 100% offline availability with transactional reliability for all habits, matrix states, and activity logs.
+2. **Supabase Cloud Database & Authentication**: Cloud PostgreSQL tables (`user_profiles`, `user_state`, `activity_logs`, `custom_platforms`) with Row-Level Security (RLS) policies, Realtime publication channels, and Google OAuth / Email authentication.
+3. **No Accidental Data Overwrites**: Atomic upserts and conflict resolution preserve user state during simultaneous multi-device sync.
+4. **Real-time Cross-Device Synchronization**: Instant state propagation via Supabase Realtime Channels and client-side `BroadcastChannel`.
+5. **Multi-Platform Live API Integration**: Fast, direct sync with **LeetCode**, **Codeforces**, **GitHub**, **GeeksforGeeks**, **AtCoder**, **HackerRank**, and **YouTube** via Codolio & platform APIs.
 
 ---
 
@@ -55,7 +56,7 @@ EffStreak is built ground-up around 7 non-negotiable architectural principles:
 - **Interactive Monthly Matrix Grid**: 31-day visual habit completion matrix with automatic date fill from live platform submission calendars.
 
 ### 2. ⚔️ Solo Leveling Hunter Progression System
-- **Hunter Ranks**: Advance from **E-Rank** to **D-Rank**, **C-Rank**, **B-Rank**, **A-Rank**, **S-Rank**, and **Shadow Monarch / National Level Hunter**.
+- **Hunter Ranks**: Advance from **E-Rank** to **D-Rank**, **C-Rank**, **B-Rank**, **A-Rank**, **S-Rank**, and **National Level Hunter**.
 - **Dynamic RPG Attributes**: Real-time attribute accumulation for *Strength*, *Intelligence*, *Discipline*, *Skill*, *Knowledge*, and *Professionalism*.
 - **Web Audio FX & Confetti**: Immersive audio chimes on task completion and level-up fanfares with particle celebrations.
 
@@ -66,8 +67,8 @@ EffStreak is built ground-up around 7 non-negotiable architectural principles:
 - **GeeksforGeeks**: Verified practice history, total solved count, and streak detection.
 - **AtCoder & HackerRank**: Live submission checks and contest activity sync.
 
-### 4. 🟩 GitHub-Style Activity Heatmap & Analytics
-- 30-day and 90-day interactive activity heatmaps with 5 levels of neon green intensity.
+### 4. 🟩 Activity Heatmap & Consistency Analytics
+- Interactive consistency overviews, completion metrics, and streak status across custom and predefined habits.
 - Focus time statistics, efficiency percentage calculation (planned vs completed minutes), and trend curves.
 
 ---
@@ -75,45 +76,59 @@ EffStreak is built ground-up around 7 non-negotiable architectural principles:
 ## 📂 Repository Structure
 
 ```
-EffectiveStreak/
-├── firestore.rules                      # Production Firestore Security Rules (UID isolated)
-├── public/                              # Static public assets & SPA routing fallback
-│   ├── 200.html                         # Surge CDN SPA fallback page
-│   └── favicon.svg
-├── src/                                 # Frontend Web Hub (React + Vite + TypeScript)
-│   ├── components/                      # UI Components & Modals
-│   │   ├── AuthModal.tsx                # Firebase Authentication Modal (Google & Email)
-│   │   ├── LiveSyncModal.tsx            # Multi-Platform Parallel Live Sync Modal
-│   │   ├── MasterMonthlyHabitGrid.tsx   # 31-Day Monthly Habit Checkbox Matrix
-│   │   ├── LivePerformanceDeck.tsx      # Solo Leveling RPG Deck & Efficiency Gauges
-│   │   ├── PlatformCardsGrid.tsx        # Platform Flame Cards with Weekly Themes
-│   │   ├── AestheticHeaderTracker.tsx   # Header Progress Bar & Hunter Rank Banner
-│   │   └── ...
-│   ├── services/                        # Cloud & API Services
-│   │   ├── firebase.ts                  # Firebase Initializer & Firestore CRUD Operations
-│   │   ├── firebaseAuth.ts              # Firebase Auth Helpers & Bearer Token Provider
-│   │   ├── cloudSync.ts                 # Realtime Firestore Listener & Sync Engine
-│   │   └── apiSync.ts                   # Multi-Platform Fast API Integration Engine
-│   ├── utils/                           # Engine Utilities
-│   │   ├── streakEngine.ts              # Streak Math, Levels, and Default State
-│   │   └── audio.ts                     # Web Audio API Sound Synthesizer
-│   ├── types/                           # TypeScript Interface & Type Definitions
-│   ├── App.tsx                          # Core Application Lifecycle & Auth Bindings
-│   ├── main.tsx                         # ErrorBoundary & React Root Entry
-│   └── index.css                        # Glassmorphism Design System & Cyber Aesthetics
-├── backend/                             # Express.js Proxy Backend (Render Free Tier Ready)
+Streak/
+├── .github/                            # CI/CD GitHub Actions Workflows
+├── dist/                               # Production Web Build
+├── electron/                           # Desktop Electron Shell
+│   └── main.cjs
+├── public/                             # Public static assets & web manifest
+├── src/                                # Frontend Application (React 19 + TypeScript + Vite)
+│   ├── components/                     # Modular UI Components & Modals
+│   │   ├── AddHabitModal.tsx           # Add Custom Habit & Platform Modal
+│   │   ├── AestheticHeaderTracker.tsx  # Header Progress Bar & Hunter Rank Banner
+│   │   ├── AuthModal.tsx               # Supabase Authentication Modal (Google & Email)
+│   │   ├── EfficiencyAnalyticsModal.tsx# Analytics & Completion Gauges
+│   │   ├── LivePerformanceDeck.tsx     # Solo Leveling RPG Deck & Quick Stats
+│   │   ├── LiveSyncModal.tsx           # Multi-Platform Parallel Live Sync Modal
+│   │   ├── MasterMonthlyHabitGrid.tsx  # 31-Day Monthly Habit Checkbox Matrix
+│   │   ├── SettingsModal.tsx           # Profile, Integrations & Platform Settings
+│   │   ├── SoloLevelingModal.tsx       # RPG Stats, Quests & Hunter Rank Modal
+│   │   ├── SyncSetupCard.tsx           # Cross-Device Sync Identity Setup Card
+│   │   ├── TodayActivityModal.tsx      # Today's Action Items & Directives
+│   │   ├── WeeklyConsistencyOverview.tsx # Weekly Habit Consistency Cards
+│   │   └── WidgetSimulatorModal.tsx    # Desktop & Phone Widget Simulator
+│   ├── services/                       # Data & Cloud Services
+│   │   ├── apiSync.ts                  # Multi-Platform Fast API Integration Engine
+│   │   ├── authService.ts              # Authentication & Guest Mode Helper
+│   │   ├── cloudSync.ts                # Real-Time Cloud & Cross-Tab Sync Engine
+│   │   ├── exportService.ts            # JSON & CSV Data Export Utilities
+│   │   ├── supabase.ts                 # Supabase Web Client & Cloud Database Sync
+│   │   └── supabaseAuth.ts             # Supabase Auth Provider & Session Tokens
+│   ├── types/                          # TypeScript Interfaces & Types
+│   ├── utils/                          # Engine Utilities & Synthesizer
+│   │   ├── audio.ts                    # Web Audio API Sound FX
+│   │   └── streakEngine.ts             # Streak Calculations & Progression Logic
+│   ├── App.tsx                         # Core Application Lifecycle & State Management
+│   ├── index.css                       # Tailwind CSS & Cyber Glassmorphism Design
+│   └── main.tsx                        # Error Boundary & React Root Entry
+├── backend/                            # Node.js / Express Backend Engine
+│   ├── data/                           # effstreak.db (SQLite Database in WAL Mode)
 │   ├── src/
-│   │   ├── config/firebase.js           # Firebase Admin SDK Initializer
-│   │   ├── routes/sync.routes.js        # Auth-Verified Cloud Sync Endpoints
-│   │   └── routes/integrations.routes.js# Auth-Verified Platform Proxy Routes
-│   ├── package.json
-│   └── server.js
-├── android/                             # Android Companion App & Jetpack Glance Widgets
-├── windows/                             # Windows Rainmeter Desktop Skin & Lua Scripts
-├── package.json                         # Vite Build Configuration & NPM Dependencies
-├── tsconfig.json
-├── vite.config.ts
-└── README.md                            # Comprehensive Developer Documentation
+│   │   ├── config/                     # Database Configurations (sqlite.js, supabase.js)
+│   │   ├── integrations/               # Platform Adapters (GitHub, LeetCode, Codeforces, etc.)
+│   │   ├── middleware/                 # Supabase Auth JWT Middleware
+│   │   ├── routes/                     # REST API Routes (auth, health, integrations, sync)
+│   │   ├── services/                   # Backend Streak Engine & Cron Auto-Sync
+│   │   ├── utils/                      # Encryption & Helper Utilities
+│   │   ├── app.js                      # Express App Configuration & CORS
+│   │   └── server.js                   # Backend Server Entrypoint
+│   └── package.json
+├── windows/                            # Rainmeter Desktop Widgets & Sync Bridge
+├── android/ & android_wrapper/         # Android Companion App & Native Project
+├── supabase_schema.sql                 # Supabase Database Migration & RLS Script
+├── package.json                        # Frontend NPM Dependencies & Scripts
+├── tailwind.config.js                  # Tailwind Configuration
+└── tsconfig.json                       # TypeScript Configuration
 ```
 
 ---
@@ -132,34 +147,45 @@ EffectiveStreak/
    cd Streak
    ```
 
-2. **Install Dependencies**:
+2. **Install Frontend & Backend Dependencies**:
    ```bash
    npm install
+   cd backend && npm install && cd ..
    ```
 
-3. **Start Local Development Server**:
+3. **Configure Environment Variables (Optional)**:
+   Copy `.env.example` to `.env` and add your Supabase credentials:
+   ```env
+   VITE_SUPABASE_URL=https://your-project-id.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key-here
+   ```
+
+4. **Start Local Development Server**:
    ```bash
    npm run dev
    ```
    Open `http://localhost:5173` in your browser.
 
-4. **Build Production Dist Bundle**:
+5. **Start Backend Server & Embedded SQLite Engine**:
+   ```bash
+   cd backend
+   npm start
+   ```
+   The backend API will run on `http://localhost:5000` with the SQLite database active at `backend/data/effstreak.db`.
+
+6. **Build Production Bundle**:
    ```bash
    npm run build
-   ```
-
-5. **Deploy to Surge CDN**:
-   ```bash
-   npx -y surge dist --domain effstreak-tracker.surge.sh
    ```
 
 ---
 
 ## 🔒 Security & Data Isolation
 
-- **Firebase Security Rules**: All user document reads/writes require verified Firebase ID tokens and are restricted to `/users/{uid}/*`.
-- **Zero Accidental Wipes**: Local state parsing includes `try / catch` fallback shields, preventing broken cache states from corrupting user profiles.
-- **Client Shield**: Network or API failures fallback gracefully to direct aggregator APIs without clearing existing habit completion history.
+- **Row-Level Security (RLS)**: Cloud database access is protected via Supabase security policies.
+- **Embedded Local SQLite Database**: Data is stored securely on your local disk with WAL journaling.
+- **Zero Accidental Wipes**: Client-side state hydration includes safe `try / catch` fallback shields, preventing broken cache states from corrupting user profiles.
+- **Client Shield**: Network failures fallback gracefully to local offline storage without clearing habit completion history.
 
 ---
 

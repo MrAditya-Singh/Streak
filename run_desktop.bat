@@ -1,3 +1,4 @@
 @echo off
-start "" "d:\AndroidStudio\TestProject\EffectiveStreak\node_modules\electron\dist\electron.exe" "d:\AndroidStudio\TestProject\EffectiveStreak\electron\main.cjs"
+set "SCRIPT_DIR=%~dp0"
+start "" "%SCRIPT_DIR%node_modules\electron\dist\electron.exe" "%SCRIPT_DIR%electron\main.cjs"
 exit

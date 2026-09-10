@@ -1,13 +1,13 @@
 Add-Type -AssemblyName System.Drawing
 
-$projectRoot = "d:\AndroidStudio\TestProject\EffectiveStreak"
-$pngPath = "$projectRoot\public\app-icon.png"
-$icoPath = "$projectRoot\public\app_icon.ico"
-$electronExe = "$projectRoot\node_modules\electron\dist\electron.exe"
-$mainCjs = "$projectRoot\electron\main.cjs"
+$projectRoot = $PSScriptRoot
+$pngPath = Join-Path $projectRoot "public\app-icon.png"
+$icoPath = Join-Path $projectRoot "public\app_icon.ico"
+$electronExe = Join-Path $projectRoot "node_modules\electron\dist\electron.exe"
+$mainCjs = Join-Path $projectRoot "electron\main.cjs"
 
 Write-Host ">>> [1/2] Generating High-Resolution Application Icon (.ico)..." -ForegroundColor Cyan
-if (Test-Path $pngPath) {
+if ((Test-Path $pngPath) -and (-not (Test-Path $icoPath))) {
     try {
         $bmp = [System.Drawing.Bitmap]::FromFile($pngPath)
         $thumb = New-Object System.Drawing.Bitmap($bmp, 256, 256)
@@ -38,31 +38,31 @@ try {
     if (Test-Path $icoPath) {
         $Shortcut.IconLocation = "$icoPath,0"
     }
-    $Shortcut.Description = "EffStreak - Solo Leveling Habit and Streak System (Desktop App)"
+    $Shortcut.Description = "EffStreak - Solo Leveling Habit & Streak System"
     $Shortcut.Save()
-    Write-Host "Desktop Shortcut created: $desktopShortcutPath" -ForegroundColor Green
+    Write-Host "Desktop Shortcut: $desktopShortcutPath" -ForegroundColor Green
 } catch {
-    Write-Host "Error creating desktop shortcut: $_" -ForegroundColor Red
+    Write-Host "Desktop shortcut note: $_" -ForegroundColor Yellow
 }
 
 # Start Menu Shortcut
 try {
     $programsPath = [Environment]::GetFolderPath("Programs")
     $startMenuShortcutPath = Join-Path $programsPath "EffStreak.lnk"
-    $ShortcutSm = $WshShell.CreateShortcut($startMenuShortcutPath)
-    $ShortcutSm.TargetPath = $electronExe
-    $ShortcutSm.Arguments = "`"$mainCjs`""
-    $ShortcutSm.WorkingDirectory = $projectRoot
+    $Shortcut = $WshShell.CreateShortcut($startMenuShortcutPath)
+    $Shortcut.TargetPath = $electronExe
+    $Shortcut.Arguments = "`"$mainCjs`""
+    $Shortcut.WorkingDirectory = $projectRoot
     if (Test-Path $icoPath) {
-        $ShortcutSm.IconLocation = "$icoPath,0"
+        $Shortcut.IconLocation = "$icoPath,0"
     }
-    $ShortcutSm.Description = "EffStreak - Solo Leveling Habit and Streak System (Desktop App)"
-    $ShortcutSm.Save()
-    Write-Host "Start Menu Shortcut created: $startMenuShortcutPath" -ForegroundColor Green
+    $Shortcut.Description = "EffStreak - Solo Leveling Habit & Streak System"
+    $Shortcut.Save()
+    Write-Host "Start Menu Shortcut: $startMenuShortcutPath" -ForegroundColor Green
 } catch {
-    Write-Host "Start Menu shortcut note: $_" -ForegroundColor Yellow
+    Write-Host "Start menu shortcut note: $_" -ForegroundColor Yellow
 }
 
-Write-Host "`n========================================================" -ForegroundColor Magenta
-Write-Host "EffStreak Laptop Desktop App Installed Successfully!" -ForegroundColor Green
-Write-Host "========================================================" -ForegroundColor Magenta
+Write-Host "`n========================================================" -ForegroundColor Green
+Write-Host "   EffStreak Desktop Application Installed Successfully!" -ForegroundColor Green
+Write-Host "========================================================" -ForegroundColor Green

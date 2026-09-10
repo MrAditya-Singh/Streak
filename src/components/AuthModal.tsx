@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { soundFx } from '../utils/audio';
-import { signInWithGoogle, signInWithEmail, registerWithEmail, logOutUser } from '../services/firebaseAuth';
+import { signInWithGoogle, signInWithEmail, registerWithEmail, logOutUser } from '../services/supabaseAuth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -42,7 +42,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Google OAuth Sign-In & Firebase UID identity
+  // Google OAuth Sign-In & Supabase UID identity
   const handleGoogleSignIn = async () => {
     soundFx.playClick();
     setIsAuthLoading(true);
@@ -57,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           avatarUrl: user.photoURL || '/images/char_hero.jpg',
         };
         onSelectUser(googleProfile);
-        showNotification(`⚡ Signed in via Firebase Google Auth! UID: ${user.uid.substring(0, 10)}...`);
+        showNotification(`⚡ Signed in via Supabase Google Auth! UID: ${user.uid.substring(0, 10)}...`);
         setTimeout(onClose, 1200);
       }
     } catch (err: any) {
@@ -100,23 +100,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSignOutClick = async () => {
     soundFx.playClick();
-    try {
-      await logOutUser();
-      if (onLogout) onLogout();
-      showNotification('Logged out successfully.');
-      setTimeout(onClose, 800);
-    } catch (err: any) {
-      showNotification(`Sign out failed: ${err.message}`);
-    }
+    await logOutUser();
+    if (onLogout) onLogout();
+    showNotification('Logged out successfully.');
   };
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-      isDarkMode ? 'bg-black/80 backdrop-blur-md' : 'bg-slate-900/50 backdrop-blur-md'
-    }`}>
-      <div className={`rounded-3xl w-full max-w-md shadow-2xl border overflow-hidden flex flex-col animate-fade-in transition-all duration-300 ${
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in font-sans">
+      <div className={`w-full max-w-md rounded-3xl border overflow-hidden shadow-2xl transition-all ${
         isDarkMode 
-          ? 'bg-[#121622] text-white border-white/10 shadow-purple-950/20' 
+          ? 'bg-[#121622] text-white border-white/10 shadow-black/80' 
           : 'bg-white text-slate-900 border-slate-200 shadow-2xl shadow-slate-900/10'
       }`}>
         
@@ -125,15 +118,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <h2 className={`text-base font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                Firebase Authentication
+                Supabase & SQLite Auth
               </h2>
               <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500 font-medium'}`}>
-                Secure Multi-Device UID Account Isolation
+                Secure Multi-Device UID & Cloud Database Isolation
               </p>
             </div>
           </div>
@@ -168,11 +161,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Currently Authenticated User Card */}
           <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-md transition-all ${
             isDarkMode 
-              ? 'bg-gradient-to-r from-blue-950/50 via-indigo-950/50 to-purple-950/50 border-blue-500/30' 
-              : 'bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-purple-50/90 border-blue-200/80 shadow-sm'
+              ? 'bg-gradient-to-r from-emerald-950/50 via-teal-950/50 to-blue-950/50 border-emerald-500/30' 
+              : 'bg-gradient-to-r from-emerald-50/90 via-teal-50/90 to-blue-50/90 border-emerald-200/80 shadow-sm'
           }`}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white border border-blue-400 overflow-hidden p-0.5 shadow-md flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-white border border-emerald-400 overflow-hidden p-0.5 shadow-md flex items-center justify-center shrink-0">
                 <img src={currentUser.avatarUrl || '/images/char_hero.jpg'} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
               </div>
               <div className="overflow-hidden">
@@ -182,14 +175,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </span>
                   <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
                     isDarkMode 
-                      ? 'bg-purple-500/20 text-purple-300' 
-                      : 'bg-purple-100 text-purple-800'
+                      ? 'bg-emerald-500/20 text-emerald-300' 
+                      : 'bg-emerald-100 text-emerald-800'
                   }`}>
                     {currentUser.hunterRank || 'E'}-Rank
                   </span>
                 </div>
                 <div className="text-[10px] font-mono text-slate-400 truncate">
-                  UID: {currentUser.uid || 'Anonymous'}
+                  UID: {currentUser.uid || 'Local SQLite Profile'}
                 </div>
               </div>
             </div>
@@ -222,7 +215,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
             </svg>
-            <span>{isAuthLoading ? 'Authenticating with Google...' : 'Sign In with Google Account'}</span>
+            <span>{isAuthLoading ? 'Authenticating with Google...' : 'Sign In with Google (Supabase)'}</span>
           </button>
 
           {/* Divider */}
@@ -244,8 +237,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition-all focus:outline-none ${
                   isDarkMode 
-                    ? 'bg-slate-900 border border-slate-700 text-white focus:border-blue-500' 
-                    : 'bg-white border border-slate-300 text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 font-semibold'
+                    ? 'bg-slate-900 border border-slate-700 text-white focus:border-emerald-500' 
+                    : 'bg-white border border-slate-300 text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 font-semibold'
                 }`}
               />
             </div>
@@ -260,8 +253,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl text-xs font-mono transition-all focus:outline-none ${
                   isDarkMode 
-                    ? 'bg-slate-900 border border-slate-700 text-white focus:border-blue-500' 
-                    : 'bg-white border border-slate-300 text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 font-semibold'
+                    ? 'bg-slate-900 border border-slate-700 text-white focus:border-emerald-500' 
+                    : 'bg-white border border-slate-300 text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 font-semibold'
                 }`}
               />
             </div>
@@ -269,16 +262,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="submit"
               disabled={isAuthLoading}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition-all active:scale-[0.99] disabled:opacity-50"
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer transition-all active:scale-[0.99] disabled:opacity-50"
             >
-              {isAuthLoading ? 'Processing...' : isRegisterMode ? 'Create Firebase Account' : 'Sign In with Email'}
+              {isAuthLoading ? 'Processing...' : isRegisterMode ? 'Create Account' : 'Sign In with Email'}
             </button>
 
             <div className="text-center pt-1">
               <button
                 type="button"
                 onClick={() => setIsRegisterMode(!isRegisterMode)}
-                className="text-[11px] font-bold text-blue-500 hover:underline cursor-pointer"
+                className="text-[11px] font-bold text-emerald-500 hover:underline cursor-pointer"
               >
                 {isRegisterMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
               </button>
@@ -292,7 +285,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               : 'bg-emerald-50/90 border-emerald-200 text-emerald-900 shadow-2xs font-medium'
           }`}>
             <Globe className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Cloud Source of Truth: <strong>Firestore `users/&#123;uid&#125;`</strong></span>
+            <span>Database Engines: <strong>Supabase (Cloud) + SQLite (Local)</strong></span>
           </div>
         </div>
 
