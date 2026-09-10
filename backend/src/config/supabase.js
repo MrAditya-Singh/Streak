@@ -82,7 +82,9 @@ export async function syncStateToSupabase(userId, state) {
       user_id: userId,
       activities: state.activities || [],
       matrix_state: state.matrixState || state.matrix || {},
+      yearly_matrix: state.yearlyMatrixState || state.yearlyMatrix || {},
       emergency_tasks: state.emergencyTasks || [],
+      thoughts: state.thoughts || [],
       xp: state.user?.currentXP ?? state.user?.xp ?? 0,
       level: state.user?.level ?? 0,
       overall_streak: state.user?.overallStreak ?? 0,
@@ -95,7 +97,7 @@ export async function syncStateToSupabase(userId, state) {
       .from('user_state')
       .upsert(payload, { onConflict: 'user_id' })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -104,3 +106,146 @@ export async function syncStateToSupabase(userId, state) {
     return null;
   }
 }
+
+/**
+ * ⚡ Sync Habit to Supabase habits table
+ */
+export async function syncHabitToSupabase(userId, habit) {
+  if (!supabase || !isSupabaseConfigured) return null;
+  try {
+    const payload = {
+      id: habit.id,
+      user_id: userId,
+      name: habit.name,
+      category: habit.category || 'Focus',
+      icon_name: habit.iconName || habit.icon || 'Activity',
+      planned_minutes: habit.plannedMinutes || habit.duration || 30,
+      color: habit.color || '#3B82F6',
+      streak: habit.streak || 0,
+      completed: habit.completed ? true : false,
+      target_count: habit.targetCount || 1,
+      unit: habit.unit || 'times',
+      source: habit.source || 'Manual',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('habits')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn('Supabase habit sync warning:', err.message);
+    return null;
+  }
+}
+
+/**
+ * ⚡ Delete Habit from Supabase habits table
+ */
+export async function deleteHabitFromSupabase(userId, habitId) {
+  if (!supabase || !isSupabaseConfigured) return null;
+  try {
+    const { error } = await supabase
+      .from('habits')
+      .delete()
+      .eq('id', habitId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn('Supabase habit deletion warning:', err.message);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Sync Habit Tick to Supabase habit_ticks table (status: 'done')
+ */
+export async function syncHabitTickToSupabase(userId, { habitId, date, status = 'done', timestamp = Date.now(), xpEarned = 20 }) {
+  if (!supabase || !isSupabaseConfigured) return null;
+  try {
+    const tickId = `${userId}_${habitId}_${date}`;
+    const payload = {
+      id: tickId,
+      user_id: userId,
+      habit_id: habitId,
+      date,
+      status: status || 'done',
+      timestamp,
+      xp_earned: xpEarned,
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('habit_ticks')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn('Supabase habit_tick sync warning:', err.message);
+    return null;
+  }
+}
+
+/**
+ * ⚡ Sync Thought to Supabase thoughts table
+ */
+export async function syncThoughtToSupabase(userId, thought) {
+  if (!supabase || !isSupabaseConfigured) return null;
+  try {
+    const now = Date.now();
+    const payload = {
+      id: thought.id || `thought_${now}_${Math.random().toString(36).slice(2, 6)}`,
+      user_id: userId,
+      category: thought.category || 'personal',
+      title: thought.title || 'Untitled Thought',
+      content: thought.content || '',
+      tags: thought.tags || [],
+      priority: thought.priority || 'medium',
+      is_starred: Boolean(thought.isStarred),
+      created_at: thought.createdAt || now,
+      updated_at: thought.updatedAt || now,
+    };
+
+    const { data, error } = await supabase
+      .from('thoughts')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn('Supabase thought sync warning:', err.message);
+    return null;
+  }
+}
+
+/**
+ * ⚡ Delete Thought from Supabase thoughts table
+ */
+export async function deleteThoughtFromSupabase(userId, thoughtId) {
+  if (!supabase || !isSupabaseConfigured) return null;
+  try {
+    const { error } = await supabase
+      .from('thoughts')
+      .delete()
+      .eq('id', thoughtId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn('Supabase thought deletion warning:', err.message);
+    return false;
+  }
+}
+

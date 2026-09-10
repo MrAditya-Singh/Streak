@@ -52,17 +52,7 @@ router.get('/users', verifySupabaseToken, async (req, res) => {
   const localUsers = getAllUsers();
   res.status(200).json({
     success: true,
-    users: localUsers.length > 0 ? localUsers : [
-      {
-        id: 'local_authenticated_dev_user',
-        uid: 'local_authenticated_dev_user',
-        name: 'Local User',
-        email: 'user@example.com',
-        hunterRank: 'A',
-        level: 18,
-        avatarUrl: '/images/char_hero.jpg',
-      },
-    ],
+    users: localUsers,
     source: 'sqlite',
   });
 });

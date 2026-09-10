@@ -39,6 +39,10 @@ sqliteDb.exec(`
     resident TEXT,
     phone_number TEXT,
     bio TEXT,
+    header_image TEXT,
+    daily_mantra_image TEXT,
+    mantra_reel_json TEXT DEFAULT '[]',
+    header_reel_json TEXT DEFAULT '[]',
     last_active_date TEXT,
     updated_at TEXT
   );
@@ -47,13 +51,59 @@ sqliteDb.exec(`
     user_id TEXT PRIMARY KEY,
     activities_json TEXT DEFAULT '[]',
     matrix_json TEXT DEFAULT '{}',
+    yearly_matrix_json TEXT DEFAULT '{}',
     emergency_tasks_json TEXT DEFAULT '[]',
+    thoughts_json TEXT DEFAULT '[]',
     xp INTEGER DEFAULT 0,
     level INTEGER DEFAULT 0,
     overall_streak INTEGER DEFAULT 0,
     longest_streak INTEGER DEFAULT 0,
     efficiency_pct REAL DEFAULT 0,
     updated_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS habits (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    icon_name TEXT DEFAULT 'Activity',
+    planned_minutes INTEGER DEFAULT 30,
+    color TEXT DEFAULT '#3B82F6',
+    streak INTEGER DEFAULT 0,
+    completed INTEGER DEFAULT 0,
+    target_count INTEGER DEFAULT 1,
+    unit TEXT DEFAULT 'times',
+    source TEXT DEFAULT 'Manual',
+    created_at TEXT,
+    updated_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS habit_ticks (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    habit_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    status TEXT DEFAULT 'done',
+    timestamp INTEGER NOT NULL,
+    xp_earned INTEGER DEFAULT 20,
+    created_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS thoughts (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    category TEXT NOT NULL, -- 'personal' | 'financial' | 'technical'
+    title TEXT NOT NULL,
+    content TEXT,
+    tags_json TEXT DEFAULT '[]',
+    priority TEXT DEFAULT 'medium',
+    is_starred INTEGER DEFAULT 0,
+    created_at INTEGER,
+    updated_at INTEGER,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -92,12 +142,26 @@ sqliteDb.exec(`
 
 console.log(`🗄️ SQLite database initialized successfully at: ${dbPath}`);
 
+// Safe migrations for newly added columns across tables
+try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN header_image TEXT`); } catch {}
+try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN daily_mantra_image TEXT`); } catch {}
+try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN mantra_reel_json TEXT DEFAULT '[]'`); } catch {}
+try { sqliteDb.exec(`ALTER TABLE users ADD COLUMN header_reel_json TEXT DEFAULT '[]'`); } catch {}
+try { sqliteDb.exec(`ALTER TABLE user_state ADD COLUMN thoughts_json TEXT DEFAULT '[]'`); } catch {}
+try { sqliteDb.exec(`ALTER TABLE user_state ADD COLUMN yearly_matrix_json TEXT DEFAULT '{}'`); } catch {}
+
 // Prepared Statements & Helper APIs
 
 export function getUser(userId) {
   const stmt = sqliteDb.prepare('SELECT * FROM users WHERE id = ? OR uid = ? OR email = ?');
   const row = stmt.get(userId, userId, userId);
   if (!row) return null;
+
+  let mantraReel = [];
+  let headerReel = [];
+  try { mantraReel = JSON.parse(row.mantra_reel_json || '[]'); } catch {}
+  try { headerReel = JSON.parse(row.header_reel_json || '[]'); } catch {}
+
   return {
     id: row.id,
     uid: row.uid || row.id,
@@ -117,6 +181,10 @@ export function getUser(userId) {
     resident: row.resident,
     phoneNumber: row.phone_number,
     bio: row.bio,
+    headerImage: row.header_image,
+    dailyMantraImage: row.daily_mantra_image,
+    mantraReel,
+    headerReel,
     lastActiveDate: row.last_active_date,
     updatedAt: row.updated_at,
   };
@@ -124,15 +192,20 @@ export function getUser(userId) {
 
 export function saveUser(profile) {
   const targetId = profile.id || profile.uid || 'local_authenticated_dev_user';
+  const mantraReelJson = profile.mantraReel ? JSON.stringify(profile.mantraReel) : undefined;
+  const headerReelJson = profile.headerReel ? JSON.stringify(profile.headerReel) : undefined;
+
   const stmt = sqliteDb.prepare(`
     INSERT INTO users (
       id, uid, email, name, avatar_url, hunter_rank, level, current_xp,
       overall_streak, longest_streak, efficiency_pct, age, blood_group,
-      height, weight, resident, phone_number, bio, last_active_date, updated_at
+      height, weight, resident, phone_number, bio, header_image, daily_mantra_image,
+      mantra_reel_json, header_reel_json, last_active_date, updated_at
     ) VALUES (
       @id, @uid, @email, @name, @avatar_url, @hunter_rank, @level, @current_xp,
       @overall_streak, @longest_streak, @efficiency_pct, @age, @blood_group,
-      @height, @weight, @resident, @phone_number, @bio, @last_active_date, @updated_at
+      @height, @weight, @resident, @phone_number, @bio, @header_image, @daily_mantra_image,
+      @mantra_reel_json, @header_reel_json, @last_active_date, @updated_at
     )
     ON CONFLICT(id) DO UPDATE SET
       email = COALESCE(@email, users.email),
@@ -151,6 +224,10 @@ export function saveUser(profile) {
       resident = COALESCE(@resident, users.resident),
       phone_number = COALESCE(@phone_number, users.phone_number),
       bio = COALESCE(@bio, users.bio),
+      header_image = COALESCE(@header_image, users.header_image),
+      daily_mantra_image = COALESCE(@daily_mantra_image, users.daily_mantra_image),
+      mantra_reel_json = COALESCE(@mantra_reel_json, users.mantra_reel_json),
+      header_reel_json = COALESCE(@header_reel_json, users.header_reel_json),
       last_active_date = COALESCE(@last_active_date, users.last_active_date),
       updated_at = @updated_at
   `);
@@ -174,6 +251,10 @@ export function saveUser(profile) {
     resident: profile.resident ?? null,
     phone_number: profile.phoneNumber ?? null,
     bio: profile.bio ?? null,
+    header_image: profile.headerImage ?? null,
+    daily_mantra_image: profile.dailyMantraImage ?? null,
+    mantra_reel_json: mantraReelJson ?? null,
+    header_reel_json: headerReelJson ?? null,
     last_active_date: profile.lastActiveDate ?? new Date().toISOString().split('T')[0],
     updated_at: new Date().toISOString(),
   });
@@ -202,55 +283,320 @@ export function getAllUsers() {
     resident: row.resident,
     phoneNumber: row.phone_number,
     bio: row.bio,
+    headerImage: row.header_image,
+    dailyMantraImage: row.daily_mantra_image,
     lastActiveDate: row.last_active_date,
     updatedAt: row.updated_at,
   }));
 }
 
-export function getUserState(userId) {
+// -------------------------------------------------------------
+// Habits Relational Model CRUD
+// -------------------------------------------------------------
+export function saveHabit(userId, habit) {
   const targetId = userId || 'local_authenticated_dev_user';
-  // Ensure user row exists
   if (!getUser(targetId)) {
     saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
   }
 
-  const row = sqliteDb.prepare('SELECT * FROM user_state WHERE user_id = ?').get(targetId);
+  const now = new Date().toISOString();
+  const stmt = sqliteDb.prepare(`
+    INSERT INTO habits (
+      id, user_id, name, category, icon_name, planned_minutes, color,
+      streak, completed, target_count, unit, source, created_at, updated_at
+    ) VALUES (
+      @id, @user_id, @name, @category, @icon_name, @planned_minutes, @color,
+      @streak, @completed, @target_count, @unit, @source, @created_at, @updated_at
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      name = @name,
+      category = @category,
+      icon_name = @icon_name,
+      planned_minutes = @planned_minutes,
+      color = @color,
+      streak = @streak,
+      completed = @completed,
+      target_count = @target_count,
+      unit = @unit,
+      source = @source,
+      updated_at = @updated_at
+  `);
+
+  stmt.run({
+    id: habit.id,
+    user_id: targetId,
+    name: habit.name,
+    category: habit.category || 'Focus',
+    icon_name: habit.iconName || habit.icon || 'Activity',
+    planned_minutes: habit.plannedMinutes || habit.duration || 30,
+    color: habit.color || '#3B82F6',
+    streak: habit.streak || 0,
+    completed: habit.completed ? 1 : 0,
+    target_count: habit.targetCount || 1,
+    unit: habit.unit || 'times',
+    source: habit.source || 'Manual',
+    created_at: habit.createdAt || now,
+    updated_at: now,
+  });
+
+  return getHabit(habit.id);
+}
+
+export function getHabit(habitId) {
+  const row = sqliteDb.prepare('SELECT * FROM habits WHERE id = ?').get(habitId);
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    category: row.category,
+    iconName: row.icon_name,
+    icon: row.icon_name,
+    plannedMinutes: row.planned_minutes,
+    duration: row.planned_minutes,
+    color: row.color,
+    streak: row.streak,
+    completed: Boolean(row.completed),
+    targetCount: row.target_count,
+    unit: row.unit,
+    source: row.source,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function getHabits(userId) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  const rows = sqliteDb.prepare('SELECT * FROM habits WHERE user_id = ? ORDER BY created_at ASC').all(targetId);
+  return rows.map((row) => ({
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    category: row.category,
+    iconName: row.icon_name,
+    icon: row.icon_name,
+    plannedMinutes: row.planned_minutes,
+    duration: row.planned_minutes,
+    color: row.color,
+    streak: row.streak,
+    completed: Boolean(row.completed),
+    targetCount: row.target_count,
+    unit: row.unit,
+    source: row.source,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export function deleteHabit(userId, habitId) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  sqliteDb.prepare('DELETE FROM habits WHERE id = ? AND (user_id = ? OR user_id = "local_authenticated_dev_user")').run(habitId, targetId);
+  sqliteDb.prepare('DELETE FROM habit_ticks WHERE habit_id = ?').run(habitId);
+  return { success: true, deletedHabitId: habitId };
+}
+
+// -------------------------------------------------------------
+// Habit Ticks ('done' status logging)
+// -------------------------------------------------------------
+export function saveHabitTick(userId, { habitId, date, status = 'done', timestamp = Date.now(), xpEarned = 20 }) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  const tickId = `${targetId}_${habitId}_${date}`;
+  const now = new Date().toISOString();
+
+  const stmt = sqliteDb.prepare(`
+    INSERT INTO habit_ticks (id, user_id, habit_id, date, status, timestamp, xp_earned, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      status = excluded.status,
+      timestamp = excluded.timestamp,
+      xp_earned = excluded.xp_earned
+  `);
+
+  stmt.run(tickId, targetId, habitId, date, status, timestamp, xpEarned, now);
+  return { id: tickId, userId: targetId, habitId, date, status, timestamp, xpEarned };
+}
+
+export function getHabitTicks(userId, dateOrMonth) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  let query = 'SELECT * FROM habit_ticks WHERE user_id = ?';
+  const params = [targetId];
+
+  if (dateOrMonth) {
+    query += ' AND date LIKE ?';
+    params.push(`${dateOrMonth}%`);
+  }
+  query += ' ORDER BY timestamp DESC';
+
+  return sqliteDb.prepare(query).all(...params);
+}
+
+// -------------------------------------------------------------
+// Thoughts Relational Model CRUD
+// -------------------------------------------------------------
+export function saveSingleThought(userId, thought) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  if (!getUser(targetId)) {
+    saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
+  }
+
+  const now = Date.now();
+  const stmt = sqliteDb.prepare(`
+    INSERT INTO thoughts (id, user_id, category, title, content, tags_json, priority, is_starred, created_at, updated_at)
+    VALUES (@id, @user_id, @category, @title, @content, @tags_json, @priority, @is_starred, @created_at, @updated_at)
+    ON CONFLICT(id) DO UPDATE SET
+      category = excluded.category,
+      title = excluded.title,
+      content = excluded.content,
+      tags_json = excluded.tags_json,
+      priority = excluded.priority,
+      is_starred = excluded.is_starred,
+      updated_at = excluded.updated_at
+  `);
+
+  stmt.run({
+    id: thought.id || `thought_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    user_id: targetId,
+    category: thought.category || 'personal',
+    title: thought.title || 'Untitled Thought',
+    content: thought.content || '',
+    tags_json: JSON.stringify(thought.tags || []),
+    priority: thought.priority || 'medium',
+    is_starred: thought.isStarred ? 1 : 0,
+    created_at: thought.createdAt || now,
+    updated_at: thought.updatedAt || now,
+  });
+
+  return getThoughts(targetId);
+}
+
+export function saveThoughts(userId, thoughts) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  if (!Array.isArray(thoughts)) return [];
+
+  const deleteTx = sqliteDb.transaction((items) => {
+    sqliteDb.prepare('DELETE FROM thoughts WHERE user_id = ?').run(targetId);
+    const stmt = sqliteDb.prepare(`
+      INSERT INTO thoughts (id, user_id, category, title, content, tags_json, priority, is_starred, created_at, updated_at)
+      VALUES (@id, @user_id, @category, @title, @content, @tags_json, @priority, @is_starred, @created_at, @updated_at)
+    `);
+    const now = Date.now();
+    for (const item of items) {
+      stmt.run({
+        id: item.id || `thought_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        user_id: targetId,
+        category: item.category || 'personal',
+        title: item.title || 'Untitled Thought',
+        content: item.content || '',
+        tags_json: JSON.stringify(item.tags || []),
+        priority: item.priority || 'medium',
+        is_starred: item.isStarred ? 1 : 0,
+        created_at: item.createdAt || now,
+        updated_at: item.updatedAt || now,
+      });
+    }
+  });
+
+  deleteTx(thoughts);
+  return getThoughts(targetId);
+}
+
+export function deleteThought(userId, thoughtId) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  sqliteDb.prepare('DELETE FROM thoughts WHERE id = ? AND user_id = ?').run(thoughtId, targetId);
+  return getThoughts(targetId);
+}
+
+export function getThoughts(userId) {
+  const targetId = userId || 'local_authenticated_dev_user';
+  const rows = sqliteDb.prepare('SELECT * FROM thoughts WHERE user_id = ? ORDER BY updated_at DESC').all(targetId);
+  return rows.map((row) => {
+    let tags = [];
+    try { tags = JSON.parse(row.tags_json || '[]'); } catch {}
+    return {
+      id: row.id,
+      category: row.category,
+      title: row.title,
+      content: row.content,
+      tags,
+      priority: row.priority,
+      isStarred: Boolean(row.is_starred),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  });
+}
+
+// -------------------------------------------------------------
+// User State Sync & Retrieval
+// -------------------------------------------------------------
+export function getUserState(userId) {
+  const targetUser = getUser(userId);
+  const targetId = targetUser?.id || targetUser?.uid || userId || 'local_authenticated_dev_user';
+  
+  if (!targetUser) {
+    saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
+  }
+
+  const row = sqliteDb.prepare(`
+    SELECT * FROM user_state 
+    WHERE user_id = ? OR user_id = ? OR user_id = ?
+    ORDER BY updated_at DESC LIMIT 1
+  `).get(targetId, targetUser?.uid || targetId, userId || targetId);
+
+  let activities = getHabits(targetId);
+  let thoughts = getThoughts(targetId);
+
   if (!row) {
     return {
       userId: targetId,
-      activities: [],
+      activities,
       matrix: {},
+      yearlyMatrix: {},
       emergencyTasks: [],
+      thoughts,
       user: {
-        currentXP: 0,
-        level: 0,
-        overallStreak: 0,
-        longestStreak: 0,
-        efficiencyPct: 0,
+        currentXP: targetUser?.currentXP || 0,
+        level: targetUser?.level || 0,
+        overallStreak: targetUser?.overallStreak || 0,
+        longestStreak: targetUser?.longestStreak || 0,
+        efficiencyPct: targetUser?.efficiencyPct || 0,
       },
       lastUpdated: new Date().toISOString(),
     };
   }
 
-  let activities = [];
   let matrix = {};
+  let yearlyMatrix = {};
   let emergencyTasks = [];
 
-  try { activities = JSON.parse(row.activities_json || '[]'); } catch { /* ignore */ }
-  try { matrix = JSON.parse(row.matrix_json || '{}'); } catch { /* ignore */ }
-  try { emergencyTasks = JSON.parse(row.emergency_tasks_json || '[]'); } catch { /* ignore */ }
+  try { 
+    if (activities.length === 0 && row.activities_json) {
+      activities = JSON.parse(row.activities_json);
+    }
+  } catch {}
+  try { matrix = JSON.parse(row.matrix_json || '{}'); } catch {}
+  try { yearlyMatrix = JSON.parse(row.yearly_matrix_json || '{}'); } catch {}
+  try { emergencyTasks = JSON.parse(row.emergency_tasks_json || '[]'); } catch {}
+  try {
+    if (thoughts.length === 0 && row.thoughts_json) {
+      thoughts = JSON.parse(row.thoughts_json);
+    }
+  } catch {}
 
   return {
     userId: targetId,
     activities,
     matrix,
+    yearlyMatrix,
+    yearlyMatrixState: yearlyMatrix,
     emergencyTasks,
+    thoughts,
     user: {
-      currentXP: row.xp || 0,
-      level: row.level || 0,
-      overallStreak: row.overall_streak || 0,
-      longestStreak: row.longest_streak || 0,
-      efficiencyPct: row.efficiency_pct || 0,
+      currentXP: row.xp || targetUser?.currentXP || 0,
+      level: row.level || targetUser?.level || 0,
+      overallStreak: row.overall_streak || targetUser?.overallStreak || 0,
+      longestStreak: row.longest_streak || targetUser?.longestStreak || 0,
+      efficiencyPct: row.efficiency_pct || targetUser?.efficiencyPct || 0,
     },
     lastUpdated: row.updated_at || new Date().toISOString(),
   };
@@ -262,9 +608,23 @@ export function saveUserState(userId, state) {
     saveUser({ id: targetId, uid: targetId, name: 'Local Hunter' });
   }
 
+  // Also sync habits table if activities provided
+  if (Array.isArray(state.activities) && state.activities.length > 0) {
+    for (const act of state.activities) {
+      saveHabit(targetId, act);
+    }
+  }
+
+  // Also sync thoughts table if thoughts provided
+  if (Array.isArray(state.thoughts) && state.thoughts.length > 0) {
+    saveThoughts(targetId, state.thoughts);
+  }
+
   const activitiesJson = JSON.stringify(state.activities || []);
   const matrixJson = JSON.stringify(state.matrixState || state.matrix || {});
+  const yearlyMatrixJson = JSON.stringify(state.yearlyMatrixState || state.yearlyMatrix || {});
   const emergencyTasksJson = JSON.stringify(state.emergencyTasks || []);
+  const thoughtsJson = JSON.stringify(state.thoughts || []);
   const xp = state.user?.currentXP ?? state.user?.xp ?? 0;
   const level = state.user?.level ?? 0;
   const overallStreak = state.user?.overallStreak ?? 0;
@@ -274,16 +634,18 @@ export function saveUserState(userId, state) {
 
   const stmt = sqliteDb.prepare(`
     INSERT INTO user_state (
-      user_id, activities_json, matrix_json, emergency_tasks_json,
+      user_id, activities_json, matrix_json, yearly_matrix_json, emergency_tasks_json, thoughts_json,
       xp, level, overall_streak, longest_streak, efficiency_pct, updated_at
     ) VALUES (
-      ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?
     )
     ON CONFLICT(user_id) DO UPDATE SET
       activities_json = excluded.activities_json,
       matrix_json = excluded.matrix_json,
+      yearly_matrix_json = excluded.yearly_matrix_json,
       emergency_tasks_json = excluded.emergency_tasks_json,
+      thoughts_json = excluded.thoughts_json,
       xp = excluded.xp,
       level = excluded.level,
       overall_streak = excluded.overall_streak,
@@ -293,7 +655,7 @@ export function saveUserState(userId, state) {
   `);
 
   stmt.run(
-    targetId, activitiesJson, matrixJson, emergencyTasksJson,
+    targetId, activitiesJson, matrixJson, yearlyMatrixJson, emergencyTasksJson, thoughtsJson,
     xp, level, overallStreak, longestStreak, efficiencyPct, updatedAt
   );
 
@@ -302,11 +664,17 @@ export function saveUserState(userId, state) {
 
 export function resetUserData(userId) {
   const targetId = userId || 'local_authenticated_dev_user';
+  sqliteDb.prepare('DELETE FROM habits WHERE user_id = ?').run(targetId);
+  sqliteDb.prepare('DELETE FROM habit_ticks WHERE user_id = ?').run(targetId);
+  sqliteDb.prepare('DELETE FROM thoughts WHERE user_id = ?').run(targetId);
+
   sqliteDb.prepare(`
     UPDATE user_state SET
       activities_json = '[]',
       matrix_json = '{}',
+      yearly_matrix_json = '{}',
       emergency_tasks_json = '[]',
+      thoughts_json = '[]',
       xp = 0,
       level = 0,
       overall_streak = 0,

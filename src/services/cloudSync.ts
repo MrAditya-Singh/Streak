@@ -1,7 +1,7 @@
 // Universal Real-Time Multi-Device Cloud Sync Engine (Supabase + SQLite Local Engine)
 // Guarantees Supabase Cloud Postgres & Local SQLite as single source of truth across Mobile, Laptop, and Web.
 
-import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry } from '../types';
+import { UserProfile, ActivityItem, EmergencyTask, ActivityLogEntry, ThoughtItem } from '../types';
 import { syncFullStateToSupabase, subscribeToSupabaseFullState, UserCloudState } from './supabase';
 import { pushFullStateToBackend } from './apiSync';
 
@@ -13,7 +13,9 @@ export interface CloudSyncState {
   user: UserProfile;
   activities: ActivityItem[];
   matrixState: Record<string, boolean[]>;
+  yearlyMatrixState?: Record<string, Record<string, boolean[]>>;
   emergencyTasks: EmergencyTask[];
+  thoughts?: ThoughtItem[];
   logs?: ActivityLogEntry[];
 }
 
@@ -47,7 +49,9 @@ export async function pushStateToCloud(
     user: UserProfile;
     activities: ActivityItem[];
     matrixState: Record<string, boolean[]>;
+    yearlyMatrixState?: Record<string, Record<string, boolean[]>>;
     emergencyTasks: EmergencyTask[];
+    thoughts?: ThoughtItem[];
     logs?: ActivityLogEntry[];
   }
 ): Promise<boolean> {
@@ -64,7 +68,9 @@ export async function pushStateToCloud(
     user: { ...state.user, uid },
     activities: state.activities,
     matrixState: state.matrixState,
+    yearlyMatrixState: state.yearlyMatrixState,
     emergencyTasks: state.emergencyTasks,
+    thoughts: state.thoughts || [],
     logs: state.logs || [],
   };
 

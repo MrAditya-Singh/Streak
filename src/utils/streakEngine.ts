@@ -12,8 +12,8 @@ import {
 
 export const INITIAL_USER: UserProfile = {
   uid: 'guest_user_local',
-  email: 'user@example.com',
-  name: 'Local User',
+  email: '',
+  name: 'Hunter',
   overallStreak: 0,
   longestStreak: 0,
   lastActiveDate: '',

@@ -1043,6 +1043,157 @@ export async function fetchFullStateFromBackend(userId: string, email?: string):
   return null;
 }
 
+/**
+ * ⚡ Upload and convert image to .jpg file stored on backend
+ */
+export async function uploadImageToBackend(
+  dataUrlOrBase64: string,
+  customFilename?: string,
+  type = 'reel_photo',
+  userId?: string
+): Promise<{ success: boolean; url: string; filename?: string }> {
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/upload/image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: dataUrlOrBase64,
+        filename: customFilename,
+        type,
+        userId: userId || 'local_authenticated_dev_user',
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.url) {
+        // Return full URL so it works seamlessly in frontend
+        const fullUrl = data.url.startsWith('http') ? data.url : `${BACKEND_API_URL}${data.url}`;
+        return { success: true, url: fullUrl, filename: data.filename };
+      }
+    }
+  } catch (err) {
+    console.warn('Backend image upload notice:', err);
+  }
+  // Fallback to local data URL if offline/backend error
+  return { success: false, url: dataUrlOrBase64 };
+}
+
+/**
+ * ⚡ Save or create habit in relational database backend
+ */
+export async function syncHabitToBackend(userId: string, habit: ActivityItem): Promise<boolean> {
+  if (!userId || !habit) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/habit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, habit }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend habit sync notice:', err);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Delete habit from relational database backend
+ */
+export async function deleteHabitFromBackend(userId: string, habitId: string): Promise<boolean> {
+  if (!userId || !habitId) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/habit/${encodeURIComponent(habitId)}?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend habit delete notice:', err);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Record habit tick with status 'done' in relational database backend
+ */
+export async function syncHabitTickToBackend(
+  userId: string,
+  payload: { habitId: string; date: string; status?: string; xpEarned?: number; completed?: boolean }
+): Promise<boolean> {
+  if (!userId || !payload.habitId) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/habit-tick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, status: 'done', ...payload }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend habit tick notice:', err);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Sync thoughts in relational database backend
+ */
+export async function syncThoughtsToBackend(userId: string, thoughts: any[]): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/thoughts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, thoughts }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend thoughts sync notice:', err);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Delete thought from database backend
+ */
+export async function deleteThoughtFromBackend(userId: string, thoughtId: string): Promise<boolean> {
+  if (!userId || !thoughtId) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/thought/${encodeURIComponent(thoughtId)}?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend thought delete notice:', err);
+    return false;
+  }
+}
+
+/**
+ * ⚡ Save User Photos & Reel Dials in profile
+ */
+export async function syncUserPhotosToBackend(
+  userId: string,
+  payload: {
+    headerImage?: string;
+    dailyMantraImage?: string;
+    mantraReel?: string[];
+    headerReel?: string[];
+    avatarUrl?: string;
+  }
+): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const res = await fetchBackend(`${BACKEND_API_BASE}/sync/user-photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, ...payload }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Backend user photos sync notice:', err);
+    return false;
+  }
+}
+
 export { fetchBackend };
 
 

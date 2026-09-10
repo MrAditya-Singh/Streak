@@ -26,6 +26,20 @@ export interface HunterAttributes {
   professional: number; // PROF (Internship, Earn)
 }
 
+export type ThoughtCategory = 'personal' | 'financial' | 'technical';
+
+export interface ThoughtItem {
+  id: string;
+  category: ThoughtCategory; // 'personal' | 'financial' | 'technical'
+  title: string;
+  content: string;
+  tags?: string[];
+  priority?: 'low' | 'medium' | 'high';
+  isStarred?: boolean;
+  createdAt: number; // timestamp in ms
+  updatedAt?: number;
+}
+
 export interface EmergencyTask {
   id: string;
   title: string;
@@ -100,6 +114,10 @@ export interface UserProfile {
   interviewbitUsername?: string;
   codechefUsername?: string;
   hackerrankUsername?: string;
+  headerImage?: string;
+  dailyMantraImage?: string;
+  lastSyncedAt?: string;
+  syncStatus?: 'idle' | 'syncing' | 'synced' | 'error';
   platformUrls?: Record<string, string>;
   platformVerified?: Record<string, boolean>;
   platformStats?: Record<string, { solved?: number; rating?: number; rank?: string; lastFetched?: string }>;
@@ -180,4 +198,32 @@ export interface AnalyticsSummary {
     avgEfficiency: number;
     totalFocusHours: number;
   };
+}
+
+export type YearlyMatrixState = Record<string, Record<string, boolean[]>>;
+
+export interface MonthlyHabitProgress {
+  habitId: string;
+  habitName: string;
+  monthName: string;
+  year: number;
+  completedDays: number;
+  totalDays: number;
+  completionRatePct: number;
+}
+
+export interface YearlyHabitSummary {
+  habitId: string;
+  habitName: string;
+  year: number;
+  monthlyBreakdown: Array<{
+    monthName: string;
+    monthIndex: number;
+    completedDays: number;
+    totalDays: number;
+    completionRatePct: number;
+  }>;
+  totalCompletedDaysInYear: number;
+  totalDaysInYear: number;
+  yearlyCompletionRatePct: number;
 }

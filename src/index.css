@@ -60,8 +60,201 @@ body {
 }
 
 html.dark body {
-  background-color: #0b0e14;
+  background-color: #080c14;
   color: #f1f5f9;
+}
+
+/* =========================================================================
+   🎨 THEME 1: SOLO LEVELING OBSIDIAN (Cyber Abyss & Mana Blue)
+   ========================================================================= */
+html[data-theme="cyber-obsidian"] body {
+  background-color: #060a12 !important;
+  color: #F8FAFC !important;
+  background-image: 
+    linear-gradient(to right, rgba(56, 189, 248, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.14) 0%, transparent 50%),
+    radial-gradient(circle at 85% 25%, rgba(129, 140, 248, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 55%) !important;
+  background-size: 36px 36px, 36px 36px, 100% 100%, 100% 100%, 100% 100% !important;
+}
+
+html[data-theme="cyber-obsidian"] .glass-card {
+  background: linear-gradient(135deg, rgba(12, 20, 36, 0.92) 0%, rgba(6, 10, 18, 0.88) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.28) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 20px -5px rgba(56, 189, 248, 0.15) !important;
+}
+
+html[data-theme="cyber-obsidian"] .glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.7), 0 0 28px -2px rgba(56, 189, 248, 0.3) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 2: TOKYO SYNTHWAVE (Shibuya Neon 1984 & Hot Magenta)
+   ========================================================================= */
+html[data-theme="tokyo-synthwave"] body {
+  background-color: #0d061f !important;
+  color: #FDF2F8 !important;
+  background-image: 
+    linear-gradient(rgba(244, 63, 94, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 0%, rgba(244, 63, 94, 0.16) 0%, transparent 55%),
+    radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(6, 182, 212, 0.09) 0%, transparent 50%) !important;
+  background-size: 100% 4px, 100% 100%, 100% 100%, 100% 100% !important;
+}
+
+html[data-theme="tokyo-synthwave"] .glass-card {
+  background: linear-gradient(135deg, rgba(24, 11, 51, 0.92) 0%, rgba(13, 6, 31, 0.88) 100%) !important;
+  border-color: rgba(244, 63, 94, 0.32) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65), 0 0 22px -5px rgba(244, 63, 94, 0.2) !important;
+}
+
+html[data-theme="tokyo-synthwave"] .glass-card:hover {
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.75), 0 0 30px -2px rgba(244, 63, 94, 0.35) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 3: EMERALD MATRIX ZEN (Cyber Grove & Luminous Jade)
+   ========================================================================= */
+html[data-theme="emerald-matrix"] body {
+  background-color: #02150e !important;
+  color: #ECFDF5 !important;
+  background-image: 
+    linear-gradient(to right, rgba(52, 211, 153, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 20% 15%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(52, 211, 153, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(5, 150, 105, 0.08) 0%, transparent 50%) !important;
+  background-size: 28px 100%, 100% 100%, 100% 100%, 100% 100% !important;
+}
+
+html[data-theme="emerald-matrix"] .glass-card {
+  background: linear-gradient(135deg, rgba(6, 38, 25, 0.92) 0%, rgba(2, 21, 14, 0.88) 100%) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 20px -5px rgba(16, 185, 129, 0.18) !important;
+}
+
+html[data-theme="emerald-matrix"] .glass-card:hover {
+  border-color: rgba(52, 211, 153, 0.55) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.7), 0 0 28px -2px rgba(16, 185, 129, 0.32) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 4: SOLAR FLARE ROYALE (Volcanic Stellar Core & Molten Amber)
+   ========================================================================= */
+html[data-theme="solar-flare"] body {
+  background-color: #15060d !important;
+  color: #FFFBEB !important;
+  background-image: 
+    radial-gradient(circle at 50% 10%, rgba(245, 158, 11, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 85% 40%, rgba(249, 115, 22, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 15% 80%, rgba(225, 29, 72, 0.11) 0%, transparent 50%) !important;
+}
+
+html[data-theme="solar-flare"] .glass-card {
+  background: linear-gradient(135deg, rgba(37, 11, 24, 0.92) 0%, rgba(21, 6, 13, 0.88) 100%) !important;
+  border-color: rgba(245, 158, 11, 0.32) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.65), 0 0 22px -5px rgba(245, 158, 11, 0.18) !important;
+}
+
+html[data-theme="solar-flare"] .glass-card:hover {
+  border-color: rgba(245, 158, 11, 0.6) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.75), 0 0 30px -2px rgba(249, 115, 22, 0.35) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 5: ARCTIC GLACIER FROST (Sub-Zero Cryo & Aurora Borealis)
+   ========================================================================= */
+html[data-theme="arctic-frost"] body {
+  background-color: #040e1b !important;
+  color: #F0F9FF !important;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(56, 189, 248, 0.16) 0%, transparent 55%),
+    radial-gradient(circle at 85% 35%, rgba(45, 212, 191, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 20% 85%, rgba(99, 102, 241, 0.10) 0%, transparent 50%) !important;
+}
+
+html[data-theme="arctic-frost"] .glass-card {
+  background: linear-gradient(135deg, rgba(9, 28, 52, 0.92) 0%, rgba(4, 14, 27, 0.88) 100%) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 0 20px -5px rgba(56, 189, 248, 0.18) !important;
+}
+
+html[data-theme="arctic-frost"] .glass-card:hover {
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.7), 0 0 28px -2px rgba(45, 212, 191, 0.3) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 6: SHADOW MONARCH CRIMSON (Gothic Crypt & Vampire Eclipse)
+   ========================================================================= */
+html[data-theme="shadow-monarch"] body {
+  background-color: #0d0411 !important;
+  color: #FEF2F2 !important;
+  background-image: 
+    radial-gradient(circle at 20% 15%, rgba(239, 68, 68, 0.18) 0%, transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(147, 51, 234, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(225, 29, 72, 0.10) 0%, transparent 55%) !important;
+}
+
+html[data-theme="shadow-monarch"] .glass-card {
+  background: linear-gradient(135deg, rgba(28, 9, 36, 0.92) 0%, rgba(13, 4, 17, 0.88) 100%) !important;
+  border-color: rgba(239, 68, 68, 0.32) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 24px -5px rgba(239, 68, 68, 0.22) !important;
+}
+
+html[data-theme="shadow-monarch"] .glass-card:hover {
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.8), 0 0 32px -2px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 7: 24K GOLDEN PRESTIGE (Haute Horlogerie & Carbon Titanium)
+   ========================================================================= */
+html[data-theme="golden-luxury"] body {
+  background-color: #08080a !important;
+  color: #FFFBEB !important;
+  background-image: 
+    linear-gradient(to right, rgba(251, 191, 36, 0.02) 1px, transparent 1px),
+    radial-gradient(circle at 50% 15%, rgba(251, 191, 36, 0.16) 0%, transparent 55%),
+    radial-gradient(circle at 85% 35%, rgba(217, 119, 6, 0.11) 0%, transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(245, 158, 11, 0.08) 0%, transparent 50%) !important;
+  background-size: 40px 100%, 100% 100%, 100% 100%, 100% 100% !important;
+}
+
+html[data-theme="golden-luxury"] .glass-card {
+  background: linear-gradient(135deg, rgba(20, 20, 24, 0.94) 0%, rgba(8, 8, 10, 0.90) 100%) !important;
+  border-color: rgba(251, 191, 36, 0.32) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 22px -5px rgba(251, 191, 36, 0.2) !important;
+}
+
+html[data-theme="golden-luxury"] .glass-card:hover {
+  border-color: rgba(251, 191, 36, 0.65) !important;
+  box-shadow: 0 14px 35px -5px rgba(0, 0, 0, 0.8), 0 0 32px -2px rgba(251, 191, 36, 0.38) !important;
+}
+
+/* =========================================================================
+   🎨 THEME 8: RENAISSANCE PARCHMENT (Italian Vellum & Editorial Espresso)
+   ========================================================================= */
+html[data-theme="warm-parchment"] body {
+  background-color: #F4EFE6 !important;
+  color: #0F172A !important;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(180, 83, 9, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(217, 119, 6, 0.05) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(30, 58, 138, 0.03) 0%, transparent 50%) !important;
+}
+
+html[data-theme="warm-parchment"] .glass-card {
+  background: #FCFBF8 !important;
+  border-color: rgba(180, 83, 9, 0.22) !important;
+  box-shadow: 0 4px 14px -2px rgba(45, 36, 30, 0.07), 0 1px 3px 0 rgba(45, 36, 30, 0.04) !important;
+}
+
+html[data-theme="warm-parchment"] .glass-card:hover {
+  border-color: rgba(180, 83, 9, 0.45) !important;
+  box-shadow: 0 8px 22px -3px rgba(45, 36, 30, 0.12) !important;
 }
 
 #root {

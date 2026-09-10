@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { ActivityItem } from '../types';
 import { soundFx } from '../utils/audio';
-import { Check, Plus, Trash2, Flame, Calendar } from 'lucide-react';
+import { Check, Plus, Trash2, Pencil, X, Flame, Calendar } from 'lucide-react';
 
 interface HabitMonthlyMatrixProps {
   activities: ActivityItem[];
   matrixState: Record<string, boolean[]>; // habitId -> boolean array for 30 days
   onToggleMatrixCell: (habitId: string, dayIndex: number) => void;
   onAddHabit?: () => void;
+  onEditHabit?: (id: string, newName: string) => void;
   onDeleteHabit?: (id: string) => void;
   isDarkMode: boolean;
   daysInMonth?: number;
   todayDayNumber?: number;
+  selectedMonth?: string;
+  selectedYear?: number;
 }
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -21,11 +24,16 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
   matrixState,
   onToggleMatrixCell,
   onAddHabit,
+  onEditHabit,
   onDeleteHabit,
   isDarkMode,
   daysInMonth = 31,
   todayDayNumber = 18,
+  selectedMonth,
+  selectedYear,
 }) => {
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
   // Phase state: 1 (Days 1-15), 2 (Days 16-31), or 'all' (Days 1-31)
   const [phase, setPhase] = useState<1 | 2 | 'all'>(() => {
     return todayDayNumber <= 15 ? 1 : 2;
@@ -140,12 +148,12 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
           <h3 className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             Monthly Habit Consistency Matrix
           </h3>
-          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+          <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black border font-mono ${
             isDarkMode 
               ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' 
               : 'bg-purple-100 text-purple-800 border-purple-200'
           }`}>
-            August 2026
+            {selectedMonth || 'Current Month'} {selectedYear || ''}
           </span>
         </div>
 
@@ -263,32 +271,99 @@ export const MasterMonthlyHabitGrid: React.FC<HabitMonthlyMatrixProps> = ({
               activities.map((act, idx) => (
                 <div
                   key={act.id}
-                  className={`h-8 flex items-center justify-between px-3 rounded-lg border transition-all group ${
+                  className={`h-8 flex items-center justify-between px-2.5 rounded-lg border transition-all group ${
                     isDarkMode 
                       ? 'bg-[#121826] border-slate-800 text-white hover:border-slate-700 hover:bg-[#1a2234]' 
                       : 'bg-white border-slate-300 text-[#0f172a] hover:border-slate-400 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2 truncate pr-1">
-                    <span className={`font-cold-mono text-[10px] font-black w-4 shrink-0 ${
-                      isDarkMode ? 'text-slate-400' : 'text-slate-500'
-                    }`}>
-                      {String(idx + 1).padStart(2, '0')}
-                    </span>
-                    <span className={`truncate font-cold font-bold text-xs tracking-tight ${
-                      isDarkMode ? 'text-slate-100' : 'text-[#0f172a]'
-                    }`}>
-                      {act.name}
-                    </span>
-                  </div>
-                  {onDeleteHabit && (
-                    <button
-                      onClick={() => onDeleteHabit(act.id)}
-                      title="Delete habit"
-                      className={`opacity-0 group-hover:opacity-100 p-1 rounded-md transition-all hover:bg-red-500/20 text-red-400 shrink-0`}
+                  {editingHabitId === act.id ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const trimmed = editingName.trim();
+                        if (trimmed && onEditHabit) {
+                          onEditHabit(act.id, trimmed);
+                        }
+                        setEditingHabitId(null);
+                      }}
+                      className="flex items-center gap-1.5 w-full"
                     >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                      <span className={`font-cold-mono text-[10px] font-black w-4 shrink-0 ${
+                        isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                      }`}>
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditingHabitId(null);
+                        }}
+                        className={`h-6 px-1.5 py-0 text-xs font-bold rounded border focus:outline-none flex-1 min-w-0 ${
+                          isDarkMode 
+                            ? 'bg-slate-900 border-blue-500 text-white' 
+                            : 'bg-white border-blue-500 text-slate-900'
+                        }`}
+                      />
+                      <button
+                        type="submit"
+                        title="Save name"
+                        className="p-1 rounded text-emerald-400 hover:bg-emerald-500/20 shrink-0 cursor-pointer"
+                      >
+                        <Check className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingHabitId(null)}
+                        title="Cancel"
+                        className="p-1 rounded text-slate-400 hover:bg-slate-500/20 shrink-0 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 truncate pr-1">
+                        <span className={`font-cold-mono text-[10px] font-black w-4 shrink-0 ${
+                          isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                        }`}>
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <span className={`truncate font-cold font-bold text-xs tracking-tight ${
+                          isDarkMode ? 'text-slate-100' : 'text-[#0f172a]'
+                        }`}>
+                          {act.name}
+                        </span>
+                      </div>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingHabitId(act.id);
+                            setEditingName(act.name);
+                          }}
+                          title="Edit habit name"
+                          className="p-1 rounded-md transition-all hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 cursor-pointer"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        {onDeleteHabit && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteHabit(act.id);
+                            }}
+                            title="Delete habit"
+                            className="p-1 rounded-md transition-all hover:bg-red-500/20 text-red-400 hover:text-red-300 cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               ))

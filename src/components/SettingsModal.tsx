@@ -199,8 +199,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Comprehensive Personal Profile Form State
   // These update whenever the user prop changes (e.g., from Firestore remote load)
-  const [profileName, setProfileName] = useState(user.name || 'Local User');
-  const [profileEmail, setProfileEmail] = useState(user.email || 'user@example.com');
+  const [profileName, setProfileName] = useState(user.name || 'Hunter');
+  const [profileEmail, setProfileEmail] = useState(user.email || '');
   const [profileAge, setProfileAge] = useState<number | string>(user.age || '');
   const [profileBloodGroup, setProfileBloodGroup] = useState(user.bloodGroup || '');
   const [profileHeight, setProfileHeight] = useState(user.height || '');

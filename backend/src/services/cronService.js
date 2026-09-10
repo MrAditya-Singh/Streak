@@ -24,9 +24,9 @@ export function startCronService(scheduleExpression = '*/30 * * * *') {
 
     try {
       // 1. Fetch user list from SQLite
-      let users = getAllUsers();
+      const users = getAllUsers();
       if (!users || users.length === 0) {
-        users = [{ id: 'local_authenticated_dev_user', uid: 'local_authenticated_dev_user', name: 'Hunter' }];
+        return;
       }
 
       // 2. Execute pipeline per user

@@ -7,11 +7,18 @@ import healthRoutes from './routes/health.routes.js';
 import integrationsRoutes from './routes/integrations.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import { syncRouter } from './routes/sync.routes.js';
+import { uploadRouter } from './routes/upload.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Ensure data/uploads directory exists
+const uploadsPath = path.resolve(__dirname, '../../data/uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
 
 // ==========================================
 // Middleware Configuration
@@ -42,8 +49,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Static file hosting for uploaded photos (.jpg)
+app.use('/uploads', express.static(uploadsPath));
 
 // Request Logging Middleware
 app.use((req, res, next) => {
@@ -64,6 +74,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/sync', syncRouter);
+app.use('/api/upload', uploadRouter);
 
 // ==========================================
 // Production Static Hosting (React Frontend Dist)

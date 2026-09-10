@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { UserProfile, ActivityItem, ActivityLogEntry, HeatmapDay, HistoricalDayRecord, EmergencyTask } from './types';
+import { UserProfile, ActivityItem, ActivityLogEntry, HeatmapDay, HistoricalDayRecord, EmergencyTask, YearlyMatrixState, ThoughtItem } from './types';
 import {
   INITIAL_USER,
   INITIAL_LOGS,
@@ -12,7 +12,23 @@ import {
 } from './utils/streakEngine';
 import { soundFx } from './utils/audio';
 import { syncFullStateToSupabase, subscribeToSupabaseFullState, isSupabaseConfigured } from './services/supabase';
-import { BACKEND_API_BASE, syncAllViaBackend, syncCodolio, syncGitHub, syncLeetCode, syncCodeforces, syncGFG, fetchFullStateFromBackend, pushFullStateToBackend } from './services/apiSync';
+import {
+  BACKEND_API_BASE,
+  syncAllViaBackend,
+  syncCodolio,
+  syncGitHub,
+  syncLeetCode,
+  syncCodeforces,
+  syncGFG,
+  fetchFullStateFromBackend,
+  pushFullStateToBackend,
+  syncHabitToBackend,
+  deleteHabitFromBackend,
+  syncHabitTickToBackend,
+  syncThoughtsToBackend,
+  deleteThoughtFromBackend,
+  syncUserPhotosToBackend,
+} from './services/apiSync';
 import { pushStateToCloud, subscribeToCloudSync, DEVICE_ID } from './services/cloudSync';
 import { onAuthStateChange, logOutUser, getCurrentUserToken } from './services/supabaseAuth';
 import { SyncSetupCard } from './components/SyncSetupCard';
@@ -20,7 +36,6 @@ import { SyncSetupCard } from './components/SyncSetupCard';
 import { AestheticHeaderTracker } from './components/AestheticHeaderTracker';
 import { WeeklyConsistencyOverview } from './components/WeeklyConsistencyOverview';
 import { MasterMonthlyHabitGrid } from './components/MasterMonthlyHabitGrid';
-
 import { WidgetSimulatorModal } from './components/WidgetSimulatorModal';
 import { LiveSyncModal } from './components/LiveSyncModal';
 import { SoloLevelingModal } from './components/SoloLevelingModal';
@@ -30,7 +45,25 @@ import { EfficiencyAnalyticsModal } from './components/EfficiencyAnalyticsModal'
 import { AddHabitModal } from './components/AddHabitModal';
 import { AuthModal } from './components/AuthModal';
 import { LivePerformanceDeck } from './components/LivePerformanceDeck';
+import { AddEmergencyDirectiveModal } from './components/AddEmergencyDirectiveModal';
+import { ThemeDiscReelModal } from './components/ThemeDiscReelModal';
+import { getThemeById, applyThemeToDocument, DEFAULT_THEME_ID } from './utils/themeManager';
 import { Sparkles } from 'lucide-react';
+
+const MAX_EMERGENCY_TTL_MS = 2 * 24 * 60 * 60 * 1000; // 48 Hours
+
+const pruneExpiredEmergencyTasks = (tasks: EmergencyTask[]): EmergencyTask[] => {
+  if (!Array.isArray(tasks)) return [];
+  const now = Date.now();
+  return tasks
+    .filter((t) => {
+      const createdAt = t.createdAt || now;
+      const age = now - createdAt;
+      // Stored only for 2 days maximum (48 hours)
+      return age <= MAX_EMERGENCY_TTL_MS && (t.deadlineAt ? t.deadlineAt > now || t.completed : true);
+    })
+    .slice(0, 3); // At most 3 emergency tasks
+};
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -55,16 +88,37 @@ export const App: React.FC = () => {
   // Main persistent state with safe JSON parsing & fallback defaults
   const [user, setUser] = useState<UserProfile>(() => {
     try {
+      const savedAuth = localStorage.getItem('effstreak_auth_user');
+      let authDefaults: Partial<UserProfile> = {};
+      if (savedAuth) {
+        const parsedAuth = JSON.parse(savedAuth);
+        if (parsedAuth && parsedAuth.uid && parsedAuth.uid !== 'guest_user_local') {
+          authDefaults = {
+            uid: parsedAuth.uid,
+            email: parsedAuth.email,
+            name: parsedAuth.displayName || parsedAuth.name || 'Hunter',
+            avatarUrl: parsedAuth.photoURL || parsedAuth.avatarUrl,
+          };
+        }
+      }
+
       const saved = localStorage.getItem('effstreak_user');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
           return {
             ...INITIAL_USER,
+            ...authDefaults,
             ...parsed,
             attributes: { ...INITIAL_USER.attributes, ...(parsed.attributes || {}) },
           };
         }
+      }
+      if (authDefaults.uid) {
+        return {
+          ...INITIAL_USER,
+          ...authDefaults,
+        };
       }
     } catch (e) {
       console.warn('User cache parse error, resetting to initial user:', e);
@@ -83,17 +137,32 @@ export const App: React.FC = () => {
     return [];
   });
 
-  // Emergency Work Tasks (24h-48h, +5 XP, no streaks)
+  // Emergency Work Tasks (Stored strictly for max 2 days / 48h, max 3 tasks)
   const [emergencyTasks, setEmergencyTasks] = useState<EmergencyTask[]>(() => {
     try {
       const saved = localStorage.getItem('effstreak_emergency_tasks');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) return pruneExpiredEmergencyTasks(parsed);
       }
     } catch { /* ignore */ }
-    return INITIAL_EMERGENCY_TASKS;
+    return pruneExpiredEmergencyTasks(INITIAL_EMERGENCY_TASKS);
   });
+
+  // ⏰ Periodic 30s auto-cleanup to prune expired emergency tasks (> 2 days / 48h)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEmergencyTasks((prev) => {
+        const pruned = pruneExpiredEmergencyTasks(prev);
+        if (pruned.length !== prev.length) {
+          localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(pruned));
+          return pruned;
+        }
+        return prev;
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [logs, setLogs] = useState<ActivityLogEntry[]>(() => {
     try {
@@ -105,6 +174,46 @@ export const App: React.FC = () => {
     } catch { /* ignore */ }
     return INITIAL_LOGS;
   });
+
+  // ─── Thoughts & Ideas (Personal, Financial, Technical) ────────────────────
+  const [thoughts, setThoughts] = useState<ThoughtItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('effstreak_thoughts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('effstreak_thoughts', JSON.stringify(thoughts));
+  }, [thoughts]);
+
+  const handleAddThought = (thought: ThoughtItem) => {
+    const next = [thought, ...thoughts];
+    setThoughts(next);
+    syncThoughtsToBackend(activeSyncKey, next).catch(() => {});
+  };
+
+  const handleUpdateThought = (id: string, updated: Partial<ThoughtItem>) => {
+    const next = thoughts.map((t) => (t.id === id ? { ...t, ...updated, updatedAt: Date.now() } : t));
+    setThoughts(next);
+    syncThoughtsToBackend(activeSyncKey, next).catch(() => {});
+  };
+
+  const handleDeleteThought = (id: string) => {
+    const next = thoughts.filter((t) => t.id !== id);
+    setThoughts(next);
+    deleteThoughtFromBackend(activeSyncKey, id).catch(() => {});
+  };
+
+  const handleToggleStarThought = (id: string) => {
+    const next = thoughts.map((t) => (t.id === id ? { ...t, isStarred: !t.isStarred, updatedAt: Date.now() } : t));
+    setThoughts(next);
+    syncThoughtsToBackend(activeSyncKey, next).catch(() => {});
+  };
 
   const [history, setHistory] = useState<HistoricalDayRecord[]>(() => generateHistoricalRecords(30));
   const [_heatmapData, setHeatmapData] = useState<HeatmapDay[]>(() => generateHeatmapData(90));
@@ -119,14 +228,61 @@ export const App: React.FC = () => {
     return new Date(selectedYear, mIdx !== -1 ? mIdx + 1 : 8, 0).getDate();
   }, [selectedMonth, selectedYear]);
 
-  // 30-31 Day Monthly Habit Checkbox Matrix state
-  const [matrixState, setMatrixState] = useState<Record<string, boolean[]>>(() => {
-    const saved = localStorage.getItem('streak_monthly_matrix');
-    if (saved) {
-      try { return JSON.parse(saved); } catch { /* fallback */ }
-    }
+  // 1-Year Month-Wise Habit Matrix storage (e.g. "2026-January", "2026-February"...)
+  const [yearlyMatrixState, setYearlyMatrixState] = useState<YearlyMatrixState>(() => {
+    try {
+      const savedYearly = localStorage.getItem('streak_yearly_matrix');
+      if (savedYearly) {
+        const parsed = JSON.parse(savedYearly);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+      const legacy = localStorage.getItem('streak_monthly_matrix');
+      if (legacy) {
+        const parsedLegacy = JSON.parse(legacy);
+        if (parsedLegacy && typeof parsedLegacy === 'object') {
+          return { [`${currentRealYear}-${currentRealMonth}`]: parsedLegacy };
+        }
+      }
+    } catch { /* fallback */ }
     return {};
   });
+
+  const currentMonthKey = `${selectedYear}-${selectedMonth}`;
+  const currentMonthKeyRef = useRef(currentMonthKey);
+  useEffect(() => {
+    currentMonthKeyRef.current = currentMonthKey;
+  }, [currentMonthKey]);
+
+  // Active month's 30-31 Day Checkbox Matrix with full month-wise activity auto-fill
+  const matrixState = useMemo<Record<string, boolean[]>>(() => {
+    const storedMonth = yearlyMatrixState[currentMonthKey] || yearlyMatrixState[selectedMonth] || {};
+    const fullMonthMatrix: Record<string, boolean[]> = { ...storedMonth };
+    
+    // Ensure every activity has a full row for this selected month
+    activities.forEach((act) => {
+      if (!Array.isArray(fullMonthMatrix[act.id]) || fullMonthMatrix[act.id].length < daysInMonth) {
+        const existing = Array.isArray(fullMonthMatrix[act.id]) ? fullMonthMatrix[act.id] : [];
+        fullMonthMatrix[act.id] = Array.from({ length: daysInMonth }, (_, i) => existing[i] || false);
+      }
+    });
+
+    return fullMonthMatrix;
+  }, [yearlyMatrixState, currentMonthKey, selectedMonth, activities, daysInMonth]);
+
+  const setMatrixState = React.useCallback((updater: Record<string, boolean[]> | ((prev: Record<string, boolean[]>) => Record<string, boolean[]>)) => {
+    setYearlyMatrixState((prevYearly) => {
+      const activeKey = currentMonthKeyRef.current;
+      const currentMonthData = prevYearly[activeKey] || {};
+      const nextMonthData = typeof updater === 'function' ? updater(currentMonthData) : updater;
+      const nextYearly = {
+        ...prevYearly,
+        [activeKey]: nextMonthData,
+      };
+      localStorage.setItem('streak_yearly_matrix', JSON.stringify(nextYearly));
+      localStorage.setItem('streak_monthly_matrix', JSON.stringify(nextMonthData));
+      return nextYearly;
+    });
+  }, []);
 
   // ─── Sync Identity (Gmail & Phone Number deterministic account mapping) ────
   const [syncEmail, setSyncEmail] = useState<string>(() => {
@@ -137,7 +293,7 @@ export const App: React.FC = () => {
       localStorage.setItem('effstreak_sync_email', oldKey);
       return oldKey;
     }
-    return 'user@example.com';
+    return '';
   });
   const [syncPhone, setSyncPhone] = useState<string>(() => {
     const saved = localStorage.getItem('effstreak_sync_phone');
@@ -147,7 +303,7 @@ export const App: React.FC = () => {
       localStorage.setItem('effstreak_sync_phone', oldKey);
       return oldKey;
     }
-    return '+1 555 010 0000';
+    return '';
   });
 
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState<boolean>(false);
@@ -158,11 +314,11 @@ export const App: React.FC = () => {
       return user.uid;
     }
     const cleanEmail = (user.email || syncEmail || '').trim().toLowerCase();
-    if (cleanEmail && cleanEmail !== 'user@example.com' && cleanEmail.includes('@')) {
+    if (cleanEmail && cleanEmail.includes('@')) {
       return 'user_email_' + cleanEmail.replace(/[^a-z0-9]/g, '_');
     }
     const cleanPhone = (user.phoneNumber || syncPhone || '').trim();
-    if (cleanPhone && cleanPhone !== '+1 555 010 0000' && cleanPhone.length > 5) {
+    if (cleanPhone && cleanPhone.length > 5) {
       return 'user_phone_' + cleanPhone.replace(/[^0-9]/g, '');
     }
     return user.uid || 'guest_user_local';
@@ -171,13 +327,13 @@ export const App: React.FC = () => {
   // Ref tracking current active user ID to catch account switches
   const currentAuthUid = React.useRef<string>(user.uid);
 
-  // Real-time Firebase Authentication State Listener
+  // Real-time Supabase / OAuth Authentication State Listener
   useEffect(() => {
-    const unsubAuth = onAuthStateChange((firebaseUser) => {
-      if (firebaseUser && firebaseUser.uid) {
-        const nextUid = firebaseUser.uid;
+    const unsubAuth = onAuthStateChange((authUser, event) => {
+      if (authUser && authUser.uid) {
+        const nextUid = authUser.uid;
         if (nextUid !== currentAuthUid.current) {
-          console.log(`🔐 [Auth Change] Account switched from ${currentAuthUid.current} → ${nextUid}`);
+          console.log(`🔐 [Auth Change] Account session active for: ${nextUid}`);
           currentAuthUid.current = nextUid;
           
           // Stop any pending push from previous account
@@ -186,7 +342,7 @@ export const App: React.FC = () => {
             pendingCloudPush.current = null;
           }
 
-          // Lock writes until new user's document is loaded from Firestore / Backend
+          // Lock writes until user's document is loaded from Firestore / Backend
           isApplyingRemote.current = true;
           setHasLoadedFromCloud(false);
           initialRemoteLoaded.current = false;
@@ -195,15 +351,22 @@ export const App: React.FC = () => {
         setUser((prev) => {
           const nextUser = {
             ...prev,
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || prev.email,
-            name: firebaseUser.displayName || prev.name || 'Hunter',
-            avatarUrl: firebaseUser.photoURL || prev.avatarUrl,
+            uid: authUser.uid,
+            email: authUser.email || prev.email,
+            name: authUser.displayName || prev.name || 'Hunter',
+            avatarUrl: authUser.photoURL || prev.avatarUrl,
           };
           localStorage.setItem('effstreak_user', JSON.stringify(nextUser));
+          localStorage.setItem('effstreak_auth_user', JSON.stringify({
+            uid: authUser.uid,
+            email: authUser.email,
+            displayName: authUser.displayName,
+            photoURL: authUser.photoURL,
+          }));
           return nextUser;
         });
-      } else {
+      } else if (event === 'SIGNED_OUT') {
+        // ONLY clear when the user intentionally logged out, NOT on app reload or temporary null auth
         if (currentAuthUid.current !== 'guest_user_local') {
           currentAuthUid.current = 'guest_user_local';
           isApplyingRemote.current = true;
@@ -211,12 +374,14 @@ export const App: React.FC = () => {
           initialRemoteLoaded.current = false;
           setUser({ ...INITIAL_USER, uid: 'guest_user_local' });
           setActivities([]);
-          setMatrixState({});
+          setYearlyMatrixState({});
           setEmergencyTasks([]);
           setLogs([]);
           localStorage.removeItem('effstreak_user');
+          localStorage.removeItem('effstreak_auth_user');
           localStorage.removeItem('effstreak_activities');
           localStorage.removeItem('streak_monthly_matrix');
+          localStorage.removeItem('streak_yearly_matrix');
           localStorage.removeItem('effstreak_logs');
           localStorage.removeItem('effstreak_emergency_tasks');
         }
@@ -239,17 +404,18 @@ export const App: React.FC = () => {
       uid: 'guest_user_local',
     };
     const freshActivities: ActivityItem[] = [];
-    const freshMatrix: Record<string, boolean[]> = {};
 
     setUser(freshUser);
     setActivities(freshActivities);
     setEmergencyTasks([]);
     setLogs([]);
-    setMatrixState(freshMatrix);
+    setYearlyMatrixState({});
 
     localStorage.removeItem('effstreak_user');
+    localStorage.removeItem('effstreak_auth_user');
     localStorage.removeItem('effstreak_activities');
     localStorage.removeItem('streak_monthly_matrix');
+    localStorage.removeItem('streak_yearly_matrix');
     localStorage.removeItem('effstreak_logs');
     localStorage.removeItem('effstreak_emergency_tasks');
 
@@ -284,8 +450,25 @@ export const App: React.FC = () => {
     setUser((prev) => {
       const nextUser = { ...prev, ...updated };
       localStorage.setItem('effstreak_user', JSON.stringify(nextUser));
+      if (nextUser.uid && nextUser.uid !== 'guest_user_local') {
+        localStorage.setItem('effstreak_auth_user', JSON.stringify({
+          uid: nextUser.uid,
+          email: nextUser.email,
+          displayName: nextUser.name,
+          photoURL: nextUser.avatarUrl,
+        }));
+      }
       return nextUser;
     });
+
+    if (updated.headerImage !== undefined || updated.dailyMantraImage !== undefined || updated.avatarUrl !== undefined) {
+      syncUserPhotosToBackend(activeSyncKey, {
+        headerImage: updated.headerImage,
+        dailyMantraImage: updated.dailyMantraImage,
+        avatarUrl: updated.avatarUrl,
+      }).catch(() => {});
+    }
+
     if (updated.email !== undefined || updated.phoneNumber !== undefined) {
       const nextEmail = (updated.email !== undefined ? updated.email : syncEmail).trim().toLowerCase();
       const nextPhone = (updated.phoneNumber !== undefined ? updated.phoneNumber : syncPhone).trim();
@@ -315,40 +498,53 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTodayActivityOpen, setIsTodayActivityOpen] = useState(false);
   const [isEfficiencyAnalyticsOpen, setIsEfficiencyAnalyticsOpen] = useState(false);
-  const [_isEmergencyWorkOpen, setIsEmergencyWorkOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
+  const [isAddEmergencyOpen, setIsAddEmergencyOpen] = useState(false);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
+  const [currentThemeId, setCurrentThemeId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('effstreak_theme');
+      if (saved) return saved;
+    } catch {}
+    return localStorage.getItem('effstreak_dark_mode') === 'true' ? 'cyber-obsidian' : DEFAULT_THEME_ID;
+  });
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return localStorage.getItem('effstreak_dark_mode') === 'true';
+    const theme = getThemeById(currentThemeId);
+    return theme.isDark;
   });
 
   useEffect(() => {
-    document.documentElement.classList.remove('dark');
-    document.documentElement.classList.add('light');
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    }
-  }, [isDarkMode]);
+    const theme = getThemeById(currentThemeId);
+    applyThemeToDocument(theme);
+    setIsDarkMode(theme.isDark);
+    localStorage.setItem('effstreak_theme', currentThemeId);
+    localStorage.setItem('effstreak_dark_mode', String(theme.isDark));
+  }, [currentThemeId]);
 
   useEffect(() => {
     document.title = 'Streak';
   }, []);
 
   const handleToggleTheme = () => {
-    setIsDarkMode((prev) => {
-      const next = !prev;
-      localStorage.setItem('effstreak_dark_mode', String(next));
-      if (next) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+    // Toggle between primary dark (Solo Leveling Obsidian) and signature light (Warm Parchment)
+    setCurrentThemeId((prev) => {
+      const next = prev === 'warm-parchment' ? 'cyber-obsidian' : 'warm-parchment';
       return next;
     });
+  };
+
+  const handleSelectTheme = (themeId: string) => {
+    setCurrentThemeId(themeId);
+    const theme = getThemeById(themeId);
+    applyThemeToDocument(theme);
+    setIsDarkMode(theme.isDark);
+    localStorage.setItem('effstreak_theme', themeId);
+    localStorage.setItem('effstreak_dark_mode', String(theme.isDark));
   };
 
   // Sync to local storage for offline fast load
@@ -386,7 +582,7 @@ export const App: React.FC = () => {
 
     const syncKey = activeSyncKey;
     const writeTime = Date.now();
-    const payload = { user, activities, matrixState, emergencyTasks, logs, updatedAt: writeTime };
+    const payload = { user, activities, matrixState, yearlyMatrixState, emergencyTasks, thoughts, logs, updatedAt: writeTime };
 
     // Debounce: cancel previous pending push, schedule new one in 800ms
     if (pendingCloudPush.current) clearTimeout(pendingCloudPush.current);
@@ -396,12 +592,13 @@ export const App: React.FC = () => {
       pushStateToCloud(syncKey, payload);
       syncFullStateToSupabase(syncKey, payload);
     }, 800);
-  }, [user, activities, matrixState, emergencyTasks, logs, activeSyncKey, hasLoadedFromCloud]);
+  }, [user, activities, matrixState, yearlyMatrixState, emergencyTasks, thoughts, logs, activeSyncKey, hasLoadedFromCloud]);
 
   const userRef = useRef(user);
   const activitiesRef = useRef(activities);
   const matrixStateRef = useRef(matrixState);
   const emergencyTasksRef = useRef(emergencyTasks);
+  const thoughtsRef = useRef(thoughts);
   const logsRef = useRef(logs);
 
   useEffect(() => {
@@ -409,8 +606,9 @@ export const App: React.FC = () => {
     activitiesRef.current = activities;
     matrixStateRef.current = matrixState;
     emergencyTasksRef.current = emergencyTasks;
+    thoughtsRef.current = thoughts;
     logsRef.current = logs;
-  }, [user, activities, matrixState, emergencyTasks, logs]);
+  }, [user, activities, matrixState, emergencyTasks, thoughts, logs]);
 
   // ⚡ 2. 2-WAY INSTANT REAL-TIME CLOUD LISTENER (Mobile ⇄ Laptop)
   useEffect(() => {
@@ -421,88 +619,76 @@ export const App: React.FC = () => {
 
     // ⚡ Parallel Instant Sync: Query Backend Express API immediately on key attach
     fetchFullStateFromBackend(syncKey, userRef.current.email).then((bState) => {
-      if (bState && (bState.activities?.length > 0 || Object.keys(bState.matrixState || bState.matrix || {}).length > 0)) {
+      if (bState && (
+        (Array.isArray(bState.activities) && bState.activities.length > 0) ||
+        (bState.matrix && Object.keys(bState.matrix).length > 0) ||
+        (bState.matrixState && Object.keys(bState.matrixState).length > 0) ||
+        (bState.user && (bState.user.overallStreak > 0 || bState.user.currentXP > 0))
+      )) {
         console.log('⚡ [Backend Instant Sync] State preloaded from backend API for:', syncKey);
         applyRemoteState(bState, true);
       }
     }).catch(() => {});
 
     const applyRemoteState = (remoteState: any, exists: boolean = true) => {
-      console.log('⚡ [Cloud Sync] Received remote state from Firestore. Exists:', exists);
+      console.log('⚡ [Cloud Sync] Received remote state from Firestore / SQLite. Exists:', exists);
       
       resolved = true;
       setHasLoadedFromCloud(true);
 
+      // IF RESET IS TRIGGERED BY ANY DEVICE EXPLICITLY, FORCE WIPE TO CLEAN STATE
+      if (remoteState?.isReset) {
+        console.log('⚡ [Reset Triggered] Wiping all data to clean 0 across devices...');
+        isApplyingRemote.current = true;
+        if (remoteState.user) setUser(remoteState.user);
+        if (remoteState.activities) setActivities(remoteState.activities);
+        if (remoteState.matrixState) setMatrixState(remoteState.matrixState);
+        setEmergencyTasks([]);
+        setLogs([]);
+        if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
+        return;
+      }
+
       const hasRemoteHabits = remoteState && (
         (Array.isArray(remoteState.activities) && remoteState.activities.length > 0) ||
         (remoteState.matrixState && Object.keys(remoteState.matrixState).length > 0) ||
-        (remoteState.matrix && Object.keys(remoteState.matrix).length > 0)
+        (remoteState.matrix && Object.keys(remoteState.matrix).length > 0) ||
+        (remoteState.user && (remoteState.user.overallStreak > 0 || remoteState.user.currentXP > 0 || remoteState.user.level > 0)) ||
+        (Array.isArray(remoteState.emergencyTasks) && remoteState.emergencyTasks.length > 0) ||
+        (Array.isArray(remoteState.logs) && remoteState.logs.length > 0)
       );
 
       if (!exists || !remoteState || !hasRemoteHabits) {
-        // If this device already has local activities created, preserve and push them to the cloud account!
+        // If this device already has local state created, preserve and push it to the cloud account!
         const localActs = activitiesRef.current;
-        if (localActs.length > 0) {
-          console.log(`✨ [Cloud Sync] Migrating ${localActs.length} local activities to cloud UID: ${syncKey}...`);
+        const localUser = userRef.current;
+        const localEmergency = emergencyTasksRef.current;
+        const localLogs = logsRef.current;
+        const localMatrix = matrixStateRef.current;
+
+        const hasLocalData = localActs.length > 0 || 
+          (localEmergency && localEmergency.length > 0) || 
+          (localLogs && localLogs.length > 0) ||
+          (localMatrix && Object.keys(localMatrix).length > 0) ||
+          (localUser && (localUser.overallStreak > 0 || localUser.currentXP > 0 || localUser.dailyMantraImage || localUser.headerImage));
+
+        if (hasLocalData) {
+          console.log(`✨ [Cloud Sync] Preserving and uploading local state for cloud UID: ${syncKey}...`);
           const existingPayload = {
-            user: { ...userRef.current, uid: syncKey },
+            user: { ...localUser, uid: syncKey },
             activities: localActs,
-            matrixState: matrixStateRef.current,
-            emergencyTasks: emergencyTasksRef.current,
-            logs: logsRef.current,
+            matrixState: localMatrix,
+            emergencyTasks: localEmergency,
+            logs: localLogs,
             updatedAt: Date.now(),
           };
           syncFullStateToSupabase(syncKey, existingPayload);
-          pushFullStateToBackend(syncKey, existingPayload, userRef.current.email).catch(() => {});
-          if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-          remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
-          return;
+          pushFullStateToBackend(syncKey, existingPayload, localUser.email).catch(() => {});
         }
-
-        if (!exists || !remoteState) {
-          console.log(`✨ [Cloud Sync] New or empty account detected for UID: ${syncKey}.`);
-          isApplyingRemote.current = true;
-          initialRemoteLoaded.current = true;
-
-          const freshUser: UserProfile = {
-            ...INITIAL_USER,
-            uid: syncKey,
-            email: userRef.current.email || '',
-            name: userRef.current.name || 'New Hunter',
-            avatarUrl: userRef.current.avatarUrl,
-            overallStreak: 0,
-            longestStreak: 0,
-            currentXP: 0,
-            level: 0,
-            hunterRank: 'E',
-            attributes: { strength: 0, intelligence: 0, discipline: 0, skill: 0, knowledge: 0, professional: 0 },
-          };
-
-          const freshActivities: ActivityItem[] = [];
-          const freshMatrix: Record<string, boolean[]> = {};
-
-          setUser(freshUser);
-          setActivities(freshActivities);
-          setEmergencyTasks([]);
-          setLogs([]);
-          setMatrixState(freshMatrix);
-
-          // Save fresh 0-streak initial state for this new user to Firestore & Backend
-          const initPayload = {
-            user: freshUser,
-            activities: freshActivities,
-            matrixState: freshMatrix,
-            emergencyTasks: [],
-            logs: [],
-            updatedAt: Date.now(),
-          };
-          syncFullStateToSupabase(syncKey, initPayload);
-          pushFullStateToBackend(syncKey, initPayload, userRef.current.email).catch(() => {});
-
-          if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-          remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
-          return;
-        }
+        if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
+        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
+        return;
       }
 
       const remoteTime = Number(remoteState.updatedAt || 0);
@@ -521,33 +707,33 @@ export const App: React.FC = () => {
       // Update local timestamp to keep in sync
       lastSyncTimestamp.current = remoteTime || Date.now();
 
-      // IF RESET IS TRIGGERED BY ANY DEVICE, FORCE WIPE TO CLEAN STATE
-      if (remoteState.isReset) {
-        console.log('⚡ [Reset Triggered] Wiping all data to clean 0 across devices...');
-        isApplyingRemote.current = true;
-        if (remoteState.user) setUser(remoteState.user);
-        if (remoteState.activities) setActivities(remoteState.activities);
-        if (remoteState.matrixState) setMatrixState(remoteState.matrixState);
-        setEmergencyTasks([]);
-        setLogs([]);
-        if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
-        remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
-        return;
-      }
-
       // Set guard: don't re-echo what we're about to apply
       isApplyingRemote.current = true;
       if (remoteEchoTimeout.current) clearTimeout(remoteEchoTimeout.current);
       remoteEchoTimeout.current = setTimeout(() => { isApplyingRemote.current = false; }, 300);
 
       // Overwrite local state directly with remote state (Single Source of Truth)
-      if (remoteState.activities && Array.isArray(remoteState.activities)) {
+      if (remoteState.activities && Array.isArray(remoteState.activities) && remoteState.activities.length > 0) {
         setActivities(remoteState.activities);
       }
 
-      if (remoteState.matrixState && typeof remoteState.matrixState === 'object') {
+      if (remoteState.yearlyMatrixState && typeof remoteState.yearlyMatrixState === 'object' && Object.keys(remoteState.yearlyMatrixState).length > 0) {
+        setYearlyMatrixState((prev) => {
+          const merged = { ...prev, ...remoteState.yearlyMatrixState };
+          localStorage.setItem('streak_yearly_matrix', JSON.stringify(merged));
+          return merged;
+        });
+      } else if (remoteState.yearlyMatrix && typeof remoteState.yearlyMatrix === 'object' && Object.keys(remoteState.yearlyMatrix).length > 0) {
+        setYearlyMatrixState((prev) => {
+          const merged = { ...prev, ...remoteState.yearlyMatrix };
+          localStorage.setItem('streak_yearly_matrix', JSON.stringify(merged));
+          return merged;
+        });
+      }
+
+      if (remoteState.matrixState && typeof remoteState.matrixState === 'object' && Object.keys(remoteState.matrixState).length > 0) {
         setMatrixState(remoteState.matrixState);
-      } else if (remoteState.matrix && typeof remoteState.matrix === 'object') {
+      } else if (remoteState.matrix && typeof remoteState.matrix === 'object' && Object.keys(remoteState.matrix).length > 0) {
         setMatrixState(remoteState.matrix);
       }
 
@@ -556,11 +742,17 @@ export const App: React.FC = () => {
           ...prev,
           ...remoteState.user,
           uid: syncKey,
+          email: remoteState.user.email || prev.email,
+          name: remoteState.user.name || prev.name,
         }));
       }
 
       if (remoteState.emergencyTasks && Array.isArray(remoteState.emergencyTasks)) {
         setEmergencyTasks(remoteState.emergencyTasks);
+      }
+
+      if (remoteState.thoughts && Array.isArray(remoteState.thoughts)) {
+        setThoughts(remoteState.thoughts);
       }
 
       if (remoteState.logs && Array.isArray(remoteState.logs)) {
@@ -578,7 +770,11 @@ export const App: React.FC = () => {
         console.log('⏰ [Cloud Sync Safeguard] Permitting local writes & querying backend fallback for:', syncKey);
         setHasLoadedFromCloud(true);
         fetchFullStateFromBackend(syncKey, userRef.current.email).then((bState) => {
-          if (bState && (bState.activities?.length > 0 || Object.keys(bState.matrix || {}).length > 0)) {
+          if (bState && (
+            (Array.isArray(bState.activities) && bState.activities.length > 0) ||
+            (bState.matrix && Object.keys(bState.matrix).length > 0) ||
+            (bState.matrixState && Object.keys(bState.matrixState).length > 0)
+          )) {
             console.log('⚡ [Backend Sync] Successfully loaded state from backend fallback!');
             applyRemoteState(bState, true);
           }
@@ -593,7 +789,7 @@ export const App: React.FC = () => {
       // Reset on key change so next identity switch re-loads from DB unconditionally
       initialRemoteLoaded.current = false;
     };
-  }, [activeSyncKey]);
+  }, [activeSyncKey, setMatrixState]);
 
   // ⚡ 4. RENDER BACKEND WAKE-UP PING
   // Render Free Tier shuts down after 15min inactivity (30-50s cold boot).
@@ -731,7 +927,7 @@ export const App: React.FC = () => {
     return () => {
       if (es) es.close();
     };
-  }, [activeSyncKey]);
+  }, [activeSyncKey, setMatrixState]);
 
   // Calculations
   const summary = useMemo(() => calculateSummary(activities), [activities]);
@@ -845,12 +1041,20 @@ export const App: React.FC = () => {
       handleAwardXP(10);
     }
 
-    // ⚡ Broadcast this matrix toggle to ALL peer devices via backend SSE
+    // ⚡ Persist Habit Tick with status: 'done' to Backend SQLite & Supabase
     const syncKey = activeSyncKey;
     const mIdx = MONTH_NAMES.indexOf(selectedMonth);
     const monthStr = String(mIdx !== -1 ? mIdx + 1 : 8).padStart(2, '0');
     const dayStr = String(dayIndex + 1).padStart(2, '0');
     const dateStr = `${selectedYear}-${monthStr}-${dayStr}`;
+
+    syncHabitTickToBackend(syncKey, {
+      habitId,
+      date: dateStr,
+      status: 'done',
+      completed: newCompleted,
+      xpEarned: 20,
+    }).catch(() => {});
 
     fetchBackend(`${BACKEND_API_BASE}/sync/toggle`, {
       method: 'POST',
@@ -902,10 +1106,18 @@ export const App: React.FC = () => {
         return { ...prev, [id]: updatedDays };
       });
 
-      // Broadcast toggle to Mobile Phone & Cloud
-      // Use local date (not UTC ISO) to avoid IST timezone off-by-one before 5:30am
+      // Broadcast toggle to Mobile Phone, SQLite & Supabase with status 'done'
       const now = new Date();
       const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      syncHabitTickToBackend(activeSyncKey, {
+        habitId: id,
+        date: localDate,
+        status: 'done',
+        completed: targetAct.completed,
+        xpEarned: targetAct.xpReward || 20,
+      }).catch(() => {});
+
       fetchBackend(`${BACKEND_API_BASE}/sync/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1160,7 +1372,11 @@ export const App: React.FC = () => {
         handleApplyFullSync({
           habits: res.data.habits,
           matrixState: res.data.matrixState,
-          user: res.data.user,
+          user: {
+            ...res.data.user,
+            lastSyncedAt: new Date().toISOString(),
+            syncStatus: 'synced',
+          },
         });
         soundFx.playLevelUp();
         setSyncToast({
@@ -1233,6 +1449,8 @@ export const App: React.FC = () => {
         overallStreak: finalStreak,
         longestStreak: Math.max(user.longestStreak || 0, finalStreak),
         platformStats: newPlatformStats,
+        lastSyncedAt: new Date().toISOString(),
+        syncStatus: 'synced' as const,
       };
 
       setUser(updatedUserObj);
@@ -1362,13 +1580,17 @@ export const App: React.FC = () => {
     localStorage.setItem('effstreak_activities', JSON.stringify(nextActs));
     localStorage.setItem('streak_monthly_matrix', JSON.stringify(nextMatrix));
 
-    // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT ADDITION
+    // ⚡ Persist Habit in relational SQLite and Supabase
     const syncKey = activeSyncKey;
+    syncHabitToBackend(syncKey, newAct).catch(() => {});
+
+    // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT ADDITION
     const payload = {
       user,
       activities: nextActs,
       matrixState: nextMatrix,
       emergencyTasks,
+      thoughts,
       logs,
       updatedAt: Date.now(),
     };
@@ -1396,13 +1618,17 @@ export const App: React.FC = () => {
     setActivities(nextActs);
     setMatrixState(nextMatrix);
 
-    // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT DELETION
+    // ⚡ Delete from relational SQLite and Supabase
     const syncKey = activeSyncKey;
+    deleteHabitFromBackend(syncKey, id).catch(() => {});
+
+    // ⚡ INSTANT REAL-TIME CLOUD & PEER BROADCAST FOR HABIT DELETION
     const payload = {
       user,
       activities: nextActs,
       matrixState: nextMatrix,
       emergencyTasks,
+      thoughts,
       logs,
       updatedAt: Date.now(),
     };
@@ -1421,36 +1647,78 @@ export const App: React.FC = () => {
     soundFx.playClick();
   };
 
+  const handleEditActivityName = (id: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const nextActs = activities.map((a) => (a.id === id ? { ...a, name: trimmed } : a));
+    setActivities(nextActs);
+
+    const syncKey = activeSyncKey;
+    const payload = {
+      user,
+      activities: nextActs,
+      matrixState,
+      emergencyTasks,
+      logs,
+      updatedAt: Date.now(),
+    };
+
+    if (hasLoadedFromCloud) {
+      pushStateToCloud(syncKey, payload);
+      syncFullStateToSupabase(syncKey, payload);
+    }
+
+    fetchBackend(`${BACKEND_API_BASE}/sync/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: syncKey, state: payload }),
+    }).catch((err) => console.warn('Habit edit sync warning:', err));
+
+    soundFx.playClick();
+  };
+
   const handleToggleActivityStreakInclusion = (id: string) => {
     setActivities((prev) =>
       prev.map((act) => (act.id === id ? { ...act, countsTowardOverallStreak: !act.countsTowardOverallStreak } : act))
     );
   };
 
-  // Emergency Work Task Handlers
+  // Emergency Work Task Handlers (Stored for max 2 days, max 3 directives)
   const handleAddEmergencyTask = (newTask: EmergencyTask) => {
-    setEmergencyTasks((prev) => [newTask, ...prev]);
+    setEmergencyTasks((prev) => {
+      const pruned = pruneExpiredEmergencyTasks(prev);
+      if (pruned.length >= 3) return pruned;
+      const next = [newTask, ...pruned].slice(0, 3);
+      localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(next));
+      return next;
+    });
     soundFx.playClick();
   };
 
   const handleCompleteEmergencyTask = (id: string) => {
-    setEmergencyTasks((prev) =>
-      prev.map((t) => {
+    setEmergencyTasks((prev) => {
+      const next = prev.map((t) => {
         if (t.id === id) {
           const nextCompleted = !t.completed;
           if (nextCompleted) {
-            handleAwardXP(t.xpReward);
+            handleAwardXP(t.xpReward || 15);
             soundFx.playCheck();
           }
           return { ...t, completed: nextCompleted };
         }
         return t;
-      })
-    );
+      });
+      localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(next));
+      return next;
+    });
   };
 
   const handleDeleteEmergencyTask = (id: string) => {
-    setEmergencyTasks((prev) => prev.filter((t) => t.id !== id));
+    setEmergencyTasks((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(next));
+      return next;
+    });
     soundFx.playClick();
   };
 
@@ -1459,8 +1727,8 @@ export const App: React.FC = () => {
     if (window.confirm('Are you sure you want to reset all data? This will clear all level, XP, overall streaks, emergency directives, platform streaks to 0, and reset efficiency to 0%.')) {
       const cleanUser: UserProfile = {
         ...INITIAL_USER,
-        name: user.name || 'Aditya Singh',
-        email: user.email || 'user@example.com',
+        name: user.name || 'Hunter',
+        email: user.email || '',
         overallStreak: 0,
         longestStreak: 0,
         currentXP: 0,
@@ -1560,11 +1828,13 @@ export const App: React.FC = () => {
           completedMonthHabits={completedMonthHabits}
           totalMonthHabits={totalMonthHabits}
           isDarkMode={isDarkMode}
+          currentThemeId={currentThemeId}
           onToggleTheme={handleToggleTheme}
+          onOpenThemeModal={() => setIsThemeModalOpen(true)}
           onOpenSoloLeveling={() => setIsSoloLevelingOpen(true)}
           onOpenTodayActivity={() => setIsTodayActivityOpen(true)}
           onOpenEfficiencyMatrix={() => setIsEfficiencyAnalyticsOpen(true)}
-          onOpenEmergencyWork={() => setIsEmergencyWorkOpen(true)}
+          onOpenEmergencyWork={() => setIsAddEmergencyOpen(true)}
           onOpenSimulator={() => setIsSimulatorOpen(true)}
           onOpenSync={handleLiveSync10Days}
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -1573,7 +1843,11 @@ export const App: React.FC = () => {
             const next = soundFx.toggleSound();
             setUser((prev) => ({ ...prev, soundEnabled: next }));
           }}
+          onUpdateHeaderImage={(newImage) => handleUpdateUser({ headerImage: newImage })}
           isSyncing={isSyncing}
+          emergencyTasks={emergencyTasks}
+          onCompleteEmergencyTask={handleCompleteEmergencyTask}
+          onAddEmergencyTask={handleAddEmergencyTask}
         />
 
         {/* Live Sync Real-Time Toast Banner */}
@@ -1596,36 +1870,46 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* 2. WEEKLY CONSISTENCY OVERVIEW (5 WEEK COLUMNS + TOP 10 HABITS) */}
+        {/* 2. WEEKLY CONSISTENCY OVERVIEW (5 WEEK COLUMNS + TOP 10 HABITS + LIVE MISSION COUNTDOWN + DAILY MANTRA PHOTO) */}
         <WeeklyConsistencyOverview
           daysData={daysData}
           weeksSummary={weeksSummary}
           topHabits={topHabits}
           isDarkMode={isDarkMode}
+          dailyMantraImage={user.dailyMantraImage}
+          onUpdateMantraImage={(newImage) => handleUpdateUser({ dailyMantraImage: newImage })}
+          emergencyTasks={emergencyTasks}
+          onCompleteEmergencyTask={handleCompleteEmergencyTask}
+          onDeleteEmergencyTask={handleDeleteEmergencyTask}
+          onOpenAddEmergencyModal={() => setIsAddEmergencyOpen(true)}
         />
 
-        {/* 3. CORE CENTERPIECE: MASTER 30-DAY MONTHLY HABIT MATRIX GRID */}
+        {/* 4. CORE CENTERPIECE: MASTER 30-DAY MONTHLY HABIT MATRIX GRID */}
         <MasterMonthlyHabitGrid
           activities={activities}
           matrixState={matrixState}
           onToggleMatrixCell={handleToggleMatrixCell}
           onAddHabit={() => setIsAddHabitOpen(true)}
+          onEditHabit={handleEditActivityName}
           onDeleteHabit={handleDeleteActivity}
           isDarkMode={isDarkMode}
           daysInMonth={daysInMonth}
           todayDayNumber={todayDayNumber}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
         />
 
-        {/* 4. ⚡ LIVE PERFORMANCE & PLATFORM DECK — Collapsible Inline Card */}
+        {/* 5. ⚡ IDEAS, THOUGHTS & PLATFORM DECK — Collapsible Inline Card */}
         <LivePerformanceDeck
           user={user}
           activities={activities}
-          emergencyTasks={emergencyTasks}
+          thoughts={thoughts}
           matrixState={matrixState}
           isDarkMode={isDarkMode}
-          onAddEmergencyTask={handleAddEmergencyTask}
-          onCompleteEmergencyTask={handleCompleteEmergencyTask}
-          onDeleteEmergencyTask={handleDeleteEmergencyTask}
+          onAddThought={handleAddThought}
+          onUpdateThought={handleUpdateThought}
+          onDeleteThought={handleDeleteThought}
+          onToggleStarThought={handleToggleStarThought}
         />
       </main>
 
@@ -1645,6 +1929,9 @@ export const App: React.FC = () => {
         isOpen={isEfficiencyAnalyticsOpen}
         onClose={() => setIsEfficiencyAnalyticsOpen(false)}
         activities={activities}
+        yearlyMatrixState={yearlyMatrixState}
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
         isDarkMode={isDarkMode}
       />
 
@@ -1707,8 +1994,24 @@ export const App: React.FC = () => {
         isDarkMode={isDarkMode}
       />
 
+      <AddEmergencyDirectiveModal
+        isOpen={isAddEmergencyOpen}
+        onClose={() => setIsAddEmergencyOpen(false)}
+        onAddDirective={handleAddEmergencyTask}
+        currentCount={emergencyTasks.filter((t) => !t.completed).length}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* 🎡 8-THEME DISK REEL SWITCHER MODAL */}
+      <ThemeDiscReelModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentThemeId={currentThemeId}
+        onSelectTheme={handleSelectTheme}
+      />
+
       {/* ⚡ EMAIL / PHONE NUMBER SYNC SETUP MODAL OVERLAY */}
-      {!syncEmail && !syncPhone && (
+      {!syncEmail && !syncPhone && !user.email && (!user.uid || user.uid === 'guest_user_local' || user.uid.startsWith('guest_')) && (
         <SyncSetupCard
           onConfirm={handleConfirmSyncIdentity}
           currentEmail={syncEmail}

@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  ChevronUp, ChevronDown, AlertTriangle, BarChart3, Code2, Lightbulb,
-  Zap, Flame, Clock, Calendar, TrendingUp, CheckCircle2, Circle,
-  Timer, X, Target, Brain, Activity, BookOpen, Layers
+  ChevronUp, ChevronDown, Code2, Lightbulb,
+  Zap, Flame, Calendar, CheckCircle2, Circle,
+  X, Target, Brain, Activity, BookOpen, Layers,
+  TrendingUp, Star, Trash2, Edit3, Copy, Check, Plus, Search, Tag, Sparkles
 } from 'lucide-react';
-import { ActivityItem, EmergencyTask, UserProfile } from '../types';
+import { ActivityItem, UserProfile, ThoughtItem, ThoughtCategory } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface LivePerformanceDeckProps {
   user: UserProfile;
   activities: ActivityItem[];
-  emergencyTasks: EmergencyTask[];
+  thoughts: ThoughtItem[];
   matrixState: Record<string, boolean[]>;
   isDarkMode: boolean;
-  onAddEmergencyTask?: (task: EmergencyTask) => void;
-  onCompleteEmergencyTask?: (id: string) => void;
-  onDeleteEmergencyTask?: (id: string) => void;
+  onAddThought?: (thought: ThoughtItem) => void;
+  onUpdateThought?: (id: string, updated: Partial<ThoughtItem>) => void;
+  onDeleteThought?: (id: string) => void;
+  onToggleStarThought?: (id: string) => void;
 }
 
-type Tab = 'emergency' | 'efficiency' | 'profiles' | 'improve';
-type EffView = 'day' | 'month' | 'year';
+type Tab = 'personal' | 'financial' | 'technical' | 'profiles' | 'improve';
 
 // ─── Platform metadata with SVG logos ────────────────────────────────────────
 const PLATFORMS = [
@@ -99,93 +100,39 @@ const PLATFORMS = [
   },
 ];
 
-// ─── Countdown timer ──────────────────────────────────────────────────────────
-function Countdown({ deadlineAt }: { deadlineAt: number }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const remaining = deadlineAt - now;
-  if (remaining <= 0) return <span style={{ color: '#f87171', fontWeight: 800, fontSize: 12 }}>EXPIRED</span>;
-  const h = Math.floor(remaining / 3600000);
-  const m = Math.floor((remaining % 3600000) / 60000);
-  const s = Math.floor((remaining % 60000) / 1000);
-  const urgent = h < 6;
-  return (
-    <span style={{ color: urgent ? '#f87171' : '#fbbf24', fontWeight: 800, fontSize: 13, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.05em' }}>
-      {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
-    </span>
-  );
-}
-
-// ─── Animated half-circle gauge ───────────────────────────────────────────────
-function HalfGauge({ pct, color, size = 100, label }: { pct: number; color: string; size?: number; label: string }) {
-  const r = size * 0.4;
-  const cx = size / 2;
-  const cy = size * 0.55;
-  const len = Math.PI * r;
-  const offset = len * (1 - Math.min(100, Math.max(0, pct)) / 100);
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <svg width={size} height={size * 0.62} viewBox={`0 0 ${size} ${size * 0.62}`} style={{ overflow: 'visible' }}>
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-          fill="none" stroke="rgba(128,128,128,0.15)" strokeWidth={size * 0.085} strokeLinecap="round"/>
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-          fill="none" stroke={color} strokeWidth={size * 0.085} strokeLinecap="round"
-          strokeDasharray={`${len} ${len}`} strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)', filter: `drop-shadow(0 0 6px ${color}80)` }}/>
-        <text x={cx} y={cy - 3} textAnchor="middle" fill={color} fontSize={size * 0.22} fontWeight="900" fontFamily="system-ui">
-          {Math.round(pct)}%
-        </text>
-      </svg>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(128,128,128,0.8)', marginTop: -4, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
-    </div>
-  );
-}
-
-// ─── Sparkline bars ───────────────────────────────────────────────────────────
-function SparkBars({ data, color, height = 40 }: { data: number[]; color: string; height?: number }) {
-  const max = Math.max(...data, 1);
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height }}>
-      {data.map((v, i) => (
-        <div key={i} style={{
-          flex: 1, background: color,
-          opacity: 0.3 + (v / max) * 0.7,
-          height: `${Math.max(6, (v / max) * 100)}%`,
-          borderRadius: '2px 2px 0 0',
-          transition: 'height 0.6s ease',
-        }}/>
-      ))}
-    </div>
-  );
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
-  user, activities, emergencyTasks, matrixState, isDarkMode,
-  onAddEmergencyTask, onCompleteEmergencyTask, onDeleteEmergencyTask,
+  user, activities, thoughts = [], isDarkMode,
+  onAddThought, onUpdateThought, onDeleteThought, onToggleStarThought,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('emergency');
-  const [effView, setEffView] = useState<EffView>('day');
+  const [activeTab, setActiveTab] = useState<Tab>('personal');
+  
+  // Thought Form State
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newHours, setNewHours] = useState<24 | 48>(24);
-  const [newPriority, setNewPriority] = useState(3);
-  const [newTag, setNewTag] = useState('CRITICAL');
+  const [editingThoughtId, setEditingThoughtId] = useState<string | null>(null);
+  const [thoughtTitle, setThoughtTitle] = useState('');
+  const [thoughtContent, setThoughtContent] = useState('');
+  const [thoughtCategory, setThoughtCategory] = useState<ThoughtCategory>('personal');
+  const [thoughtTags, setThoughtTags] = useState('');
+  const [thoughtPriority, setThoughtPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [isStarredInput, setIsStarredInput] = useState(false);
+  
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilterTag, setActiveFilterTag] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // ─── Design Tokens ────────────────────────────────────────────────────────
   const D = useMemo(() => isDarkMode ? {
-    outerBg:   'linear-gradient(180deg, #0a0a14 0%, #0d1022 100%)',
-    panelBg:   'rgba(15, 20, 35, 0.95)',
-    cardBg:    'rgba(255,255,255,0.04)',
+    panelBg:   '#0f1422',
+    cardBg:    '#171e31',
+    cardBorder:'rgba(255,255,255,0.08)',
     border:    'rgba(255,255,255,0.08)',
     borderAcc: 'rgba(99,102,241,0.3)',
     text:      '#f1f5f9',
-    textSub:   'rgba(255,255,255,0.6)',
-    textMut:   'rgba(255,255,255,0.35)',
+    textSub:   '#94a3b8',
+    textMut:   '#64748b',
     accent:    '#818cf8',
     accentGr:  'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
     green:     '#34d399',
@@ -193,19 +140,18 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
     red:       '#f87171',
     yellow:    '#fbbf24',
     tabBg:     'rgba(255,255,255,0.04)',
-    inputBg:   'rgba(255,255,255,0.06)',
-    footerBg:  '#0b0f19',
+    inputBg:   '#121622',
     btnBg:     '#1e1b4b',
     btnBorder: 'rgba(99,102,241,0.4)',
     btnHover:  '#2e2a75',
   } : {
-    outerBg:   'linear-gradient(180deg, #f0f4ff 0%, #fafafa 100%)',
-    panelBg:   'rgba(255, 255, 255, 0.98)',
-    cardBg:    'rgba(99,102,241,0.03)',
-    border:    'rgba(99,102,241,0.12)',
+    panelBg:   '#ffffff',
+    cardBg:    '#ffffff',
+    cardBorder:'rgba(0,0,0,0.08)',
+    border:    'rgba(0,0,0,0.08)',
     borderAcc: 'rgba(99,102,241,0.25)',
-    text:      '#0f172a',
-    textSub:   '#475569',
+    text:      '#000000',
+    textSub:   '#334155',
     textMut:   '#64748b',
     accent:    '#6366f1',
     accentGr:  'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
@@ -215,306 +161,523 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
     yellow:    '#d97706',
     tabBg:     'rgba(99,102,241,0.05)',
     inputBg:   '#ffffff',
-    footerBg:  '#F4EFE6',
     btnBg:     '#ffffff',
-    btnBorder: 'rgba(15,23,42,0.15)',
+    btnBorder: 'rgba(0,0,0,0.15)',
     btnHover:  '#f8fafc',
   }, [isDarkMode]);
 
-  // ─── Data calculations ─────────────────────────────────────────────────────
-  const todayIdx = new Date().getDate() - 1;
-  const curMonth = new Date().getMonth();
-  const dayDone  = activities.filter(a => a.completed).length;
-  const dayTotal = activities.length || 1;
-  const dayEff   = Math.round((dayDone / dayTotal) * 100);
-
-  const monthDone = activities.reduce((s, act) => {
-    const arr = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
-    return s + arr.slice(0, todayIdx + 1).filter(Boolean).length;
-  }, 0);
-  const monthPoss = dayTotal * (todayIdx + 1) || 1;
-  const monthEff  = Math.round((monthDone / monthPoss) * 100);
-  const yearEff   = Math.min(99, Math.round(monthEff * 0.97 + 2));
-
-  const monthBars = useMemo(() => Array.from({ length: 30 }, (_, i) => {
-    const done = activities.reduce((s, act) => {
-      const arr = Array.isArray(matrixState?.[act.id]) ? matrixState[act.id] : [];
-      return s + (arr[i] ? 1 : 0);
-    }, 0);
-    return dayTotal > 0 ? Math.round((done / dayTotal) * 100) : 0;
-  }), [activities, matrixState, dayTotal]);
-
-  const yearBars = useMemo(() => Array.from({ length: 12 }, (_, i) => {
-    if (i === curMonth) return monthEff;
-    return Math.min(98, Math.round(78 + Math.sin(i * 0.7) * 12 + ((i * 13) % 7)));
-  }), [monthEff, curMonth]);
-
-  const effColor = (pct: number) => pct >= 85 ? D.green : pct >= 60 ? D.yellow : D.red;
-  const effGrade = (pct: number) => pct >= 90 ? 'S' : pct >= 80 ? 'A' : pct >= 65 ? 'B' : pct >= 50 ? 'C' : 'D';
-  const gradeColor: Record<string, string> = { S: '#a78bfa', A: D.green, B: D.yellow, C: D.orange, D: D.red };
-
-  // ─── Improvement tips ─────────────────────────────────────────────────────
-  const tips = useMemo(() => {
-    const t: { icon: React.ReactNode; title: string; desc: string; level: 'high' | 'med' | 'low' }[] = [];
-    if (dayEff < 70)  t.push({ icon: <Flame size={14}/>, title: 'Complete Today\'s Habits', desc: `${dayDone}/${dayTotal} done. Need ${Math.ceil(dayTotal*0.85)-dayDone} more to hit 85%.`, level: 'high' });
-    if (monthEff < 80) t.push({ icon: <Calendar size={14}/>, title: 'Month Consistency Gap', desc: `Monthly: ${monthEff}%. Target 85%+ for Grade A performance.`, level: 'high' });
-    const codingActs = activities.filter(a => a.category === 'coding');
-    const pendingCode = codingActs.filter(a => !a.completed).length;
-    if (pendingCode > 0) t.push({ icon: <Code2 size={14}/>, title: `${pendingCode} Coding Habit(s) Pending`, desc: 'Solve at least one problem per platform today to keep streaks alive.', level: 'high' });
-    const maxStreak = codingActs.length > 0 ? Math.max(...codingActs.map(a => a.streak)) : 0;
-    if (maxStreak < 7) t.push({ icon: <Flame size={14}/>, title: 'Build a 7-Day Streak', desc: 'Solve 1 problem daily for 7 days straight. Consistency beats intensity.', level: 'med' });
-    if (!activities.find(a => a.category === 'fitness')) t.push({ icon: <Activity size={14}/>, title: 'Add a Fitness Habit', desc: '20 min workout increases brain dopamine by 30% — boosts coding performance too.', level: 'med' });
-    t.push({ icon: <Brain size={14}/>, title: 'Deep Work Blocks', desc: 'Schedule 2–3h uninterrupted CP sessions. Put phone in DND mode.', level: 'low' });
-    t.push({ icon: <BookOpen size={14}/>, title: 'Daily DSA Revision', desc: 'Spend 30 min/day reviewing solved problems. Spaced repetition = 60% better recall.', level: 'low' });
-    t.push({ icon: <Target size={14}/>, title: 'Set Weekly Problem Targets', desc: 'Track specific weekly goals (e.g. 15 LC Mediums). Measurement drives performance.', level: 'low' });
-    return t;
-  }, [dayEff, monthEff, dayDone, dayTotal, activities]);
-
-  // ─── Add task handler ──────────────────────────────────────────────────────
-  const handleAdd = () => {
-    if (!newTitle.trim() || !onAddEmergencyTask) return;
-    onAddEmergencyTask({
-      id: `em_${Date.now()}`,
-      title: newTitle.trim(),
-      createdAt: Date.now(),
-      deadlineHours: newHours,
-      deadlineAt: Date.now() + newHours * 3600000,
-      xpReward: 15,
-      priority: newPriority,
-      tag: newTag,
-    });
-    setNewTitle(''); setNewHours(24); setNewPriority(3); setShowAddForm(false);
-  };
-
-  const pColor = (p: number) => p >= 4 ? D.red : p === 3 ? D.orange : D.yellow;
-
+  // ─── Tabs Configuration ───────────────────────────────────────────────────
   const TABS: { id: Tab; icon: React.ReactNode; label: string; badge?: number }[] = [
-    { id: 'emergency',  icon: <AlertTriangle size={14}/>, label: 'Emergency',  badge: emergencyTasks.filter(t => !t.completed).length || undefined },
-    { id: 'efficiency', icon: <BarChart3 size={14}/>,     label: 'Efficiency' },
-    { id: 'profiles',   icon: <Code2 size={14}/>,         label: 'Profiles'   },
-    { id: 'improve',    icon: <Lightbulb size={14}/>,     label: 'Improve'    },
+    { 
+      id: 'personal',  
+      icon: <Brain size={14}/>, 
+      label: 'Personal Thoughts',
+      badge: thoughts.filter(t => t.category === 'personal').length || undefined 
+    },
+    { 
+      id: 'financial', 
+      icon: <TrendingUp size={14}/>, 
+      label: 'Financial Thoughts',
+      badge: thoughts.filter(t => t.category === 'financial').length || undefined 
+    },
+    { 
+      id: 'technical', 
+      icon: <Lightbulb size={14}/>, 
+      label: 'Technical Ideas',
+      badge: thoughts.filter(t => t.category === 'technical').length || undefined 
+    },
+    { 
+      id: 'profiles',   
+      icon: <Code2 size={14}/>,         
+      label: 'Coding Profiles'   
+    },
+    { 
+      id: 'improve',    
+      icon: <Sparkles size={14}/>,     
+      label: 'Improve'    
+    },
   ];
 
-  // ─── Emergency tab ─────────────────────────────────────────────────────────
-  const renderEmergency = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: D.text }}>🚨 Emergency Directives</div>
-          <div style={{ fontSize: 12, color: D.textSub, marginTop: 2 }}>Time-critical tasks with countdown. +15 XP each.</div>
-        </div>
-        <button onClick={() => setShowAddForm(v => !v)} style={{
-          padding: '7px 14px', border: 'none', borderRadius: 9, cursor: 'pointer',
-          background: D.accentGr, color: '#fff', fontSize: 12, fontWeight: 700,
-          boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
-        }}>+ New</button>
-      </div>
+  // ─── Thought Actions ──────────────────────────────────────────────────────
+  const openNewForm = (category: ThoughtCategory) => {
+    setEditingThoughtId(null);
+    setThoughtTitle('');
+    setThoughtContent('');
+    setThoughtCategory(category);
+    setThoughtTags('');
+    setThoughtPriority('medium');
+    setIsStarredInput(false);
+    setShowAddForm(true);
+  };
 
-      {showAddForm && (
-        <div style={{
-          background: isDarkMode ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.04)',
-          border: `1.5px solid ${D.borderAcc}`, borderRadius: 12, padding: 14,
-          display: 'flex', flexDirection: 'column', gap: 10,
-        }}>
-          <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
-            placeholder="Directive title (e.g. Submit assignment, Fix bug before demo…)"
-            style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${D.border}`, background: D.inputBg, color: D.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}/>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {/* Deadline */}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: D.textMut, marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Deadline</div>
-              <div style={{ display: 'flex', gap: 5 }}>
-                {([24, 48] as const).map(h => (
-                  <button key={h} onClick={() => setNewHours(h)} style={{
-                    flex: 1, padding: '7px 0', border: `1.5px solid ${newHours === h ? D.accent : D.border}`,
-                    borderRadius: 7, background: newHours === h ? D.accentGr : 'transparent',
-                    color: newHours === h ? '#fff' : D.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>{h}h</button>
-                ))}
-              </div>
-            </div>
-            {/* Priority */}
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: D.textMut, marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Priority</div>
-              <div style={{ display: 'flex', gap: 3 }}>
-                {[1,2,3,4,5].map(p => (
-                  <button key={p} onClick={() => setNewPriority(p)} style={{
-                    flex: 1, padding: '7px 0', border: 'none', borderRadius: 6, cursor: 'pointer',
-                    background: p <= newPriority ? pColor(newPriority) : D.tabBg,
-                    color: p <= newPriority ? '#fff' : D.textMut, fontSize: 11, fontWeight: 800,
-                  }}>{p}</button>
-                ))}
-              </div>
-            </div>
-            {/* Tag */}
-            <div style={{ flex: 1.4 }}>
-              <div style={{ fontSize: 11, color: D.textMut, marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tag</div>
-              <select value={newTag} onChange={e => setNewTag(e.target.value)} style={{
-                width: '100%', padding: '7px 8px', borderRadius: 7, border: `1.5px solid ${D.border}`,
-                background: D.inputBg, color: D.text, fontSize: 12, outline: 'none',
-              }}>
-                {['CRITICAL','24H URGENT','48H DIRECTIVE','EXAM','DEADLINE','PROJECT','REVIEW'].map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 7 }}>
-            <button onClick={handleAdd} style={{ flex: 1, padding: '9px 0', border: 'none', borderRadius: 8, cursor: 'pointer', background: D.accentGr, color: '#fff', fontSize: 13, fontWeight: 700 }}>🚨 Add Directive</button>
-            <button onClick={() => setShowAddForm(false)} style={{ padding: '9px 14px', border: `1.5px solid ${D.border}`, borderRadius: 8, background: 'transparent', color: D.textSub, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-          </div>
-        </div>
-      )}
+  const openEditForm = (thought: ThoughtItem) => {
+    setEditingThoughtId(thought.id);
+    setThoughtTitle(thought.title);
+    setThoughtContent(thought.content);
+    setThoughtCategory(thought.category);
+    setThoughtTags((thought.tags || []).join(', '));
+    setThoughtPriority(thought.priority || 'medium');
+    setIsStarredInput(!!thought.isStarred);
+    setShowAddForm(true);
+  };
 
-      {/* Task list */}
-      {emergencyTasks.length === 0 && !showAddForm ? (
-        <div style={{ textAlign: 'center', padding: '32px 20px', background: D.cardBg, borderRadius: 12, border: `1px dashed ${D.border}` }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🟢</div>
-          <div style={{ color: D.textMut, fontSize: 13 }}>No active directives. Plate is clean.</div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {emergencyTasks.map(task => {
-            const pctUsed = Math.min(100, Math.round(((Date.now() - task.createdAt) / (task.deadlineAt - task.createdAt)) * 100));
-            const urgent = (task.deadlineAt - Date.now()) < 6 * 3600000;
-            const done = !!task.completed;
-            return (
-              <div key={task.id} style={{
-                background: done ? (isDarkMode ? 'rgba(52,211,153,0.06)' : 'rgba(5,150,105,0.04)') : D.cardBg,
-                border: `1.5px solid ${done ? D.green + '40' : urgent ? D.red + '50' : D.border}`,
-                borderRadius: 12, padding: '12px 14px',
-                opacity: done ? 0.6 : 1, transition: 'all 0.2s',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <button onClick={() => onCompleteEmergencyTask?.(task.id)} style={{
-                    flexShrink: 0, width: 20, height: 20, borderRadius: '50%', marginTop: 2,
-                    border: `2px solid ${done ? D.green : D.border}`, background: done ? D.green : 'transparent', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{done && <CheckCircle2 size={11} color="#fff"/>}</button>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: D.text, textDecoration: done ? 'line-through' : 'none' }}>{task.title}</span>
-                      {task.tag && <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 5, background: urgent ? `${D.red}20` : `${D.orange}20`, color: urgent ? D.red : D.orange }}>{task.tag}</span>}
-                      <span style={{ fontSize: 10, color: D.textMut, background: D.tabBg, padding: '1px 6px', borderRadius: 4 }}>P{task.priority} · +{task.xpReward}XP</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-                      <Timer size={11} color={D.textMut}/>
-                      {done ? <span style={{ fontSize: 12, color: D.green, fontWeight: 700 }}>✓ Done</span> : <Countdown deadlineAt={task.deadlineAt}/>}
-                    </div>
-                    {!done && (
-                      <div style={{ marginTop: 7, background: D.tabBg, borderRadius: 3, height: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: 3, width: `${pctUsed}%`, background: pctUsed > 80 ? D.red : pctUsed > 50 ? D.orange : D.green, transition: 'width 1s ease' }}/>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => onDeleteEmergencyTask?.(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: D.textMut, padding: 2, flexShrink: 0 }}><X size={13}/></button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+  const handleSaveThought = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!thoughtTitle.trim()) return;
 
-      {/* Summary strip */}
-      {emergencyTasks.length > 0 && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[
-            { l: 'Total',    v: emergencyTasks.length,                              c: D.accent  },
-            { l: 'Done',     v: emergencyTasks.filter(t=>t.completed).length,       c: D.green   },
-            { l: 'Active',   v: emergencyTasks.filter(t=>!t.completed).length,      c: D.orange  },
-            { l: 'Critical', v: emergencyTasks.filter(t=>t.priority>=4&&!t.completed).length, c: D.red },
-          ].map(s => (
-            <div key={s.l} style={{ flex: 1, background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 9, padding: '8px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 19, fontWeight: 900, color: s.c }}>{s.v}</div>
-              <div style={{ fontSize: 10, color: D.textMut, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+    const parsedTags = thoughtTags
+      .split(',')
+      .map(t => t.trim().replace(/^#/, ''))
+      .filter(Boolean);
 
-  // ─── Efficiency tab ────────────────────────────────────────────────────────
-  const renderEfficiency = () => {
-    const pct   = effView === 'day' ? dayEff : effView === 'month' ? monthEff : yearEff;
-    const bars  = effView === 'day' ? [dayEff] : effView === 'month' ? monthBars : yearBars;
-    const grade = effGrade(pct);
-    const clr   = effColor(pct);
+    if (editingThoughtId) {
+      onUpdateThought?.(editingThoughtId, {
+        title: thoughtTitle.trim(),
+        content: thoughtContent.trim(),
+        category: thoughtCategory,
+        tags: parsedTags,
+        priority: thoughtPriority,
+        isStarred: isStarredInput,
+      });
+    } else {
+      const newThought: ThoughtItem = {
+        id: `thought_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        title: thoughtTitle.trim(),
+        content: thoughtContent.trim(),
+        category: thoughtCategory,
+        tags: parsedTags,
+        priority: thoughtPriority,
+        isStarred: isStarredInput,
+        createdAt: Date.now(),
+      };
+      onAddThought?.(newThought);
+    }
+
+    setShowAddForm(false);
+    setEditingThoughtId(null);
+  };
+
+  const handleCopyContent = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // ─── Render Thoughts Section for (personal | financial | technical) ───────
+  const renderThoughtsSection = (category: ThoughtCategory) => {
+    const config = {
+      personal: {
+        title: '🧠 Personal Thoughts & Mindset',
+        desc: 'Daily reflections, growth observations, mental models, and life principles.',
+        placeholder: 'e.g. Morning routine takeaway, discipline breakthrough...',
+        color: '#8b5cf6',
+        badgeBg: 'rgba(139,92,246,0.15)',
+        badgeText: '#7c3aed',
+      },
+      financial: {
+        title: '💰 Financial Thoughts & Strategy',
+        desc: 'Budgeting insights, investment thesis, revenue ideas, and wealth systems.',
+        placeholder: 'e.g. Monthly SIP review, passive income roadmap, expenditure rule...',
+        color: '#059669',
+        badgeBg: 'rgba(5,150,105,0.15)',
+        badgeText: '#047857',
+      },
+      technical: {
+        title: '💡 Technical Ideas & Architecture',
+        desc: 'System architectures, algorithm blueprints, app concepts & developer innovations.',
+        placeholder: 'e.g. Distributed caching architecture, React micro-optimization...',
+        color: '#3b82f6',
+        badgeBg: 'rgba(59,130,246,0.15)',
+        badgeText: '#2563eb',
+      },
+    }[category];
+
+    const categoryThoughts = thoughts.filter(t => t.category === category);
+    
+    // Filter by search & tags
+    const filtered = categoryThoughts.filter(t => {
+      const matchSearch = !searchQuery || 
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        t.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchTag = !activeFilterTag || 
+        (activeFilterTag === '__starred__' ? t.isStarred : (t.tags || []).includes(activeFilterTag));
+
+      return matchSearch && matchTag;
+    });
+
+    const allTags = Array.from(new Set(categoryThoughts.flatMap(t => t.tags || [])));
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: D.text }}>⚡ Efficiency Analytics</div>
-          <div style={{ fontSize: 12, color: D.textSub, marginTop: 2 }}>Track your performance across day, month & year horizons.</div>
+        {/* Header & New Thought Trigger */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: D.text }}>{config.title}</div>
+            <div style={{ fontSize: 12, color: D.textSub, marginTop: 2 }}>{config.desc}</div>
+          </div>
+          <button
+            onClick={() => openNewForm(category)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 16px',
+              borderRadius: 10,
+              border: 'none',
+              background: D.accentGr,
+              color: '#ffffff',
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(99,102,241,0.25)',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Plus size={14} />
+            <span>+ New {category === 'technical' ? 'Idea' : 'Thought'}</span>
+          </button>
         </div>
 
-        {/* Horizon tabs */}
-        <div style={{ display: 'flex', gap: 5, background: D.tabBg, borderRadius: 10, padding: 4 }}>
-          {(['day','month','year'] as EffView[]).map(v => (
-            <button key={v} onClick={() => setEffView(v)} style={{
-              flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 12,
-              background: effView === v ? D.accentGr : 'transparent',
-              color: effView === v ? '#fff' : D.textSub, textTransform: 'capitalize', transition: 'all 0.2s',
-            }}>{v}</button>
-          ))}
+        {/* Search & Tags Filter Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{
+            flex: 1, minWidth: 200, display: 'flex', alignItems: 'center', gap: 8,
+            background: D.inputBg, border: `1px solid ${D.border}`, borderRadius: 10, padding: '7px 12px',
+          }}>
+            <Search size={14} style={{ color: D.textMut }} />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={`Search in ${category} thoughts...`}
+              style={{
+                width: '100%', border: 'none', background: 'transparent', color: D.text,
+                fontSize: 12, fontWeight: 600, outline: 'none',
+              }}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: D.textMut, cursor: 'pointer' }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filter Badges */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setActiveFilterTag(null)}
+              style={{
+                padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${!activeFilterTag ? config.color : D.border}`,
+                background: !activeFilterTag ? config.badgeBg : 'transparent',
+                color: !activeFilterTag ? config.badgeText : D.textSub,
+              }}
+            >
+              All ({categoryThoughts.length})
+            </button>
+
+            <button
+              onClick={() => setActiveFilterTag(activeFilterTag === '__starred__' ? null : '__starred__')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${activeFilterTag === '__starred__' ? '#eab308' : D.border}`,
+                background: activeFilterTag === '__starred__' ? 'rgba(234,179,8,0.15)' : 'transparent',
+                color: activeFilterTag === '__starred__' ? '#ca8a04' : D.textSub,
+              }}
+            >
+              <Star size={11} fill={activeFilterTag === '__starred__' ? '#ca8a04' : 'none'} />
+              <span>Starred</span>
+            </button>
+
+            {allTags.slice(0, 5).map(tag => (
+              <button
+                key={tag}
+                onClick={() => setActiveFilterTag(activeFilterTag === tag ? null : tag)}
+                style={{
+                  padding: '5px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  border: `1px solid ${activeFilterTag === tag ? D.accent : D.border}`,
+                  background: activeFilterTag === tag ? D.tabBg : 'transparent',
+                  color: activeFilterTag === tag ? D.accent : D.textSub,
+                }}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Main gauge row */}
-        <div style={{
-          background: D.cardBg, border: `1.5px solid ${D.borderAcc}`, borderRadius: 14, padding: '18px 20px',
-          display: 'flex', alignItems: 'center', gap: 20,
-        }}>
-          <HalfGauge pct={pct} color={clr} size={110} label={`${effView} efficiency`}/>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 13, color: D.textSub, fontWeight: 600, textTransform: 'capitalize' }}>{effView} Score</span>
-              <span style={{ fontSize: 12, fontWeight: 900, padding: '2px 9px', borderRadius: 6, background: `${gradeColor[grade]}20`, color: gradeColor[grade], border: `1.5px solid ${gradeColor[grade]}40` }}>
-                Grade {grade}
+        {/* Add / Edit Form Modal/Card */}
+        {showAddForm && (
+          <form onSubmit={handleSaveThought} style={{
+            background: isDarkMode ? '#13192b' : '#f8fafc',
+            border: `1.5px solid ${config.color}50`,
+            borderRadius: 14,
+            padding: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: config.color }}>
+                {editingThoughtId ? 'Edit Entry' : `New ${category === 'technical' ? 'Technical Idea' : 'Thought'}`}
               </span>
+              <button type="button" onClick={() => setShowAddForm(false)} style={{ background: 'none', border: 'none', color: D.textMut, cursor: 'pointer' }}>
+                <X size={15} />
+              </button>
             </div>
-            <div style={{ fontSize: 13, color: D.textSub, lineHeight: 1.7 }}>
-              {effView === 'day'   ? `${dayDone}/${dayTotal} habits completed` :
-               effView === 'month' ? `${monthDone} completions / ${monthPoss} expected` :
-               `Estimated ${yearEff}% yearly completion rate`}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: clr, marginTop: 3 }}>
-              {pct >= 85 ? '🔥 Excellent — Keep crushing it!' : pct >= 65 ? '⚡ Good — Push harder!' : '⚠️ Needs focus — Don\'t stop!'}
-            </div>
-          </div>
-        </div>
 
-        {/* Chart */}
-        {effView !== 'day' && (
-          <div style={{ background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 12, padding: '14px 14px 8px' }}>
-            <div style={{ fontSize: 11, color: D.textMut, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-              {effView === 'month' ? '30-Day Completion Rate' : '12-Month Completion Rate'}
+            {/* Title */}
+            <input
+              value={thoughtTitle}
+              onChange={e => setThoughtTitle(e.target.value)}
+              placeholder="Title / Heading (e.g. Key takeaway, investment rule, architecture pattern...)"
+              required
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 9,
+                border: `1.5px solid ${D.border}`, background: D.inputBg, color: D.text,
+                fontSize: 13, fontWeight: 700, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+
+            {/* Content Note */}
+            <textarea
+              value={thoughtContent}
+              onChange={e => setThoughtContent(e.target.value)}
+              placeholder={config.placeholder}
+              rows={4}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 9,
+                border: `1.5px solid ${D.border}`, background: D.inputBg, color: D.text,
+                fontSize: 12, lineHeight: 1.6, outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+              }}
+            />
+
+            {/* Metadata inputs row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+              {/* Category */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: D.textMut, marginBottom: 4 }}>Category</div>
+                <select
+                  value={thoughtCategory}
+                  onChange={e => setThoughtCategory(e.target.value as ThoughtCategory)}
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${D.border}`,
+                    background: D.inputBg, color: D.text, fontSize: 12, fontWeight: 600, outline: 'none',
+                  }}
+                >
+                  <option value="personal">🧠 Personal</option>
+                  <option value="financial">💰 Financial</option>
+                  <option value="technical">💡 Technical</option>
+                </select>
+              </div>
+
+              {/* Priority */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: D.textMut, marginBottom: 4 }}>Priority</div>
+                <select
+                  value={thoughtPriority}
+                  onChange={e => setThoughtPriority(e.target.value as 'low' | 'medium' | 'high')}
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: 8, border: `1px solid ${D.border}`,
+                    background: D.inputBg, color: D.text, fontSize: 12, fontWeight: 600, outline: 'none',
+                  }}
+                >
+                  <option value="high">🔥 High Priority</option>
+                  <option value="medium">⚡ Medium Priority</option>
+                  <option value="low">🌿 Low Priority</option>
+                </select>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: D.textMut, marginBottom: 4 }}>Tags (comma-separated)</div>
+                <input
+                  value={thoughtTags}
+                  onChange={e => setThoughtTags(e.target.value)}
+                  placeholder="mindset, habit, scale"
+                  style={{
+                    width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${D.border}`,
+                    background: D.inputBg, color: D.text, fontSize: 12, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {/* Star Toggle */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 6 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: D.text, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isStarredInput}
+                    onChange={e => setIsStarredInput(e.target.checked)}
+                    style={{ accentColor: '#eab308' }}
+                  />
+                  <span>⭐ Favorite / Starred</span>
+                </label>
+              </div>
             </div>
-            <SparkBars data={bars} color={clr} height={44}/>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-              {effView === 'month'
-                ? <><span style={{ fontSize: 9, color: D.textMut }}>Day 1</span><span style={{ fontSize: 9, color: D.textMut }}>Day 30</span></>
-                : ['J','F','M','A','M','J','J','A','S','O','N','D'].map((m,i) => (
-                    <span key={i} style={{ fontSize: 9, color: i === curMonth ? D.accent : D.textMut, fontWeight: i === curMonth ? 800 : 400 }}>{m}</span>
-                  ))
-              }
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                style={{
+                  padding: '8px 16px', borderRadius: 8, border: `1px solid ${D.border}`,
+                  background: 'transparent', color: D.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                style={{
+                  padding: '8px 20px', borderRadius: 8, border: 'none',
+                  background: D.accentGr, color: '#ffffff', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+                }}
+              >
+                {editingThoughtId ? 'Update Entry' : 'Save to Database'}
+              </button>
             </div>
-          </div>
+          </form>
         )}
 
-        {/* KPI strip */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-          {[
-            { l: 'Today',  p: dayEff,   icon: <Clock size={14}/> },
-            { l: 'Month',  p: monthEff, icon: <Calendar size={14}/> },
-            { l: 'Year',   p: yearEff,  icon: <TrendingUp size={14}/> },
-          ].map(k => {
-            const c = effColor(k.p);
-            return (
-              <div key={k.l} style={{ background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 11, padding: '12px 0', textAlign: 'center' }}>
-                <div style={{ color: D.textMut, marginBottom: 3 }}>{k.icon}</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: c }}>{k.p}%</div>
-                <div style={{ fontSize: 10, color: D.textMut, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.l}</div>
+        {/* Thoughts List */}
+        {filtered.length === 0 ? (
+          <div style={{
+            textAlign: 'center', padding: '36px 20px', background: D.cardBg,
+            borderRadius: 14, border: `1.5px dashed ${D.border}`,
+          }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>{category === 'personal' ? '🧠' : category === 'financial' ? '💎' : '💡'}</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: D.text }}>No {category} thoughts recorded yet.</div>
+            <div style={{ fontSize: 12, color: D.textMut, marginTop: 4 }}>
+              Click "+ New {category === 'technical' ? 'Idea' : 'Thought'}" above to save your insights directly to database.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            {filtered.map(thought => (
+              <div
+                key={thought.id}
+                style={{
+                  background: D.cardBg,
+                  border: `1.5px solid ${thought.isStarred ? '#eab30860' : D.cardBorder}`,
+                  borderRadius: 14,
+                  padding: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: thought.isStarred ? '0 4px 16px rgba(234,179,8,0.1)' : '0 2px 8px rgba(0,0,0,0.03)',
+                  transition: 'all 0.2s',
+                  position: 'relative',
+                }}
+              >
+                <div>
+                  {/* Top Bar: Priority + Star */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 6,
+                        background: thought.priority === 'high' ? 'rgba(239,68,68,0.15)' : thought.priority === 'medium' ? 'rgba(234,179,8,0.15)' : 'rgba(16,185,129,0.15)',
+                        color: thought.priority === 'high' ? D.red : thought.priority === 'medium' ? D.yellow : D.green,
+                        textTransform: 'uppercase',
+                      }}>
+                        {thought.priority === 'high' ? '🔥 High' : thought.priority === 'medium' ? '⚡ Med' : '🌿 Low'}
+                      </span>
+                      <span style={{ fontSize: 10, color: D.textMut, fontWeight: 600 }}>
+                        {new Date(thought.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => onToggleStarThought?.(thought.id)}
+                      title={thought.isStarred ? 'Unstar' : 'Star'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                    >
+                      <Star
+                        size={15}
+                        fill={thought.isStarred ? '#eab308' : 'none'}
+                        color={thought.isStarred ? '#eab308' : D.textMut}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Title */}
+                  <div style={{ fontSize: 14, fontWeight: 900, color: D.text, lineHeight: 1.3, marginBottom: 6 }}>
+                    {thought.title}
+                  </div>
+
+                  {/* Content */}
+                  {thought.content && (
+                    <div style={{
+                      fontSize: 12, color: D.textSub, lineHeight: 1.6,
+                      whiteSpace: 'pre-line', marginBottom: 10,
+                      maxHeight: 120, overflowY: 'auto',
+                    }}>
+                      {thought.content}
+                    </div>
+                  )}
+
+                  {/* Tag chips */}
+                  {thought.tags && thought.tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+                      {thought.tags.map(t => (
+                        <span
+                          key={t}
+                          onClick={() => setActiveFilterTag(t)}
+                          style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                            background: D.tabBg, color: D.accent, cursor: 'pointer',
+                          }}
+                        >
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Controls */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  borderTop: `1px solid ${D.border}`, paddingTop: 8, marginTop: 4,
+                }}>
+                  <button
+                    onClick={() => handleCopyContent(thought.id, `${thought.title}\n\n${thought.content}`)}
+                    title="Copy note"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4, background: 'none',
+                      border: 'none', fontSize: 11, fontWeight: 700, color: D.textMut, cursor: 'pointer',
+                    }}
+                  >
+                    {copiedId === thought.id ? <Check size={12} color={D.green} /> : <Copy size={12} />}
+                    <span>{copiedId === thought.id ? 'Copied' : 'Copy'}</span>
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      onClick={() => openEditForm(thought)}
+                      title="Edit"
+                      style={{ background: 'none', border: 'none', color: D.textSub, cursor: 'pointer', padding: 3 }}
+                    >
+                      <Edit3 size={13} />
+                    </button>
+                    <button
+                      onClick={() => onDeleteThought?.(thought.id)}
+                      title="Delete"
+                      style={{ background: 'none', border: 'none', color: D.red, cursor: 'pointer', padding: 3 }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -526,7 +689,7 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: D.text }}>🧑‍💻 Coding Profiles Analysis</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: D.text }}>🧑‍💻 Coding Profiles Analysis</div>
           <div style={{ fontSize: 12, color: D.textSub, marginTop: 2 }}>Your competitive programming portfolio at a glance.</div>
         </div>
 
@@ -537,7 +700,7 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
             : 'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(139,92,246,0.05) 50%, rgba(16,185,129,0.04) 100%)',
           border: `1.5px solid ${D.borderAcc}`,
           borderRadius: 14, padding: '14px 18px',
-          display: 'flex', alignItems: 'center', gap: 0, justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           {[
             { label: 'Level',    value: `Lv. ${user.level || 0}`,    color: D.accent  },
@@ -574,12 +737,10 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
                 opacity: hasAccount ? 1 : 0.5,
                 transition: 'all 0.2s', position: 'relative', overflow: 'hidden',
               }}>
-                {/* Subtle top glow for active accounts */}
                 {hasAccount && (
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${p.gradFrom}, ${p.gradTo})`, opacity: 0.8 }}/>
                 )}
 
-                {/* Header row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                     <div style={{
@@ -596,7 +757,6 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
                       {username && <div style={{ fontSize: 10, color: D.textMut, marginTop: 1 }}>@{username}</div>}
                     </div>
                   </div>
-                  {/* Status dot */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     <div style={{
                       width: 8, height: 8, borderRadius: '50%',
@@ -609,7 +769,6 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
 
                 {hasAccount ? (
                   <>
-                    {/* Stats row */}
                     <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                       {stat.solved != null && <div style={{ fontSize: 12 }}><span style={{ fontWeight: 800, color: p.color }}>{stat.solved}</span><span style={{ color: D.textMut }}> solved</span></div>}
                       {stat.rating != null && <div style={{ fontSize: 12 }}><span style={{ fontWeight: 800, color: p.color }}>{stat.rating}</span><span style={{ color: D.textMut }}> rating</span></div>}
@@ -617,7 +776,6 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
                       <div style={{ fontSize: 12 }}><span style={{ fontWeight: 800, color: D.yellow }}>{streak}🔥</span></div>
                     </div>
 
-                    {/* Today status */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                       <span style={{ fontSize: 10, color: D.textMut }}>Today</span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: doneToday ? D.green : D.red }}>
@@ -638,106 +796,48 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
             );
           })}
         </div>
-
-        {/* Coding habits status */}
-        {activities.filter(a => a.category === 'coding').length > 0 && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: D.textSub, marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Active Coding Habits Today</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {activities.filter(a => a.category === 'coding').map(act => (
-                <div key={act.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: D.cardBg, borderRadius: 10, padding: '9px 13px',
-                  border: `1px solid ${act.completed ? D.green + '40' : D.border}`,
-                }}>
-                  {act.completed ? <CheckCircle2 size={15} color={D.green}/> : <Circle size={15} color={D.textMut}/>}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: D.text }}>{act.name}</div>
-                    <div style={{ fontSize: 11, color: D.textMut }}>{act.source} · {act.streak}d streak · +{act.xpReward}XP</div>
-                  </div>
-                  <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 5, fontWeight: 700, background: act.completed ? `${D.green}20` : `${D.orange}20`, color: act.completed ? D.green : D.orange }}>
-                    {act.completed ? 'Done' : 'Pending'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
 
   // ─── Improve tab ───────────────────────────────────────────────────────────
   const renderImprove = () => {
-    const high = tips.filter(t => t.level === 'high');
-    const med  = tips.filter(t => t.level === 'med');
-    const low  = tips.filter(t => t.level === 'low');
-
-    const renderGroup = (items: typeof tips, title: string, icon: React.ReactNode, color: string, bgColor: string) => (
-      items.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 800, color, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {icon} {title}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {items.map((tip, i) => (
-              <div key={i} style={{ background: isDarkMode ? bgColor : bgColor.replace('0.1', '0.06'), border: `1px solid ${color}25`, borderRadius: 11, padding: '11px 13px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
-                  <div style={{ color, flexShrink: 0, marginTop: 1 }}>{tip.icon}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: D.text, marginBottom: 2 }}>{tip.title}</div>
-                    <div style={{ fontSize: 12, color: D.textSub, lineHeight: 1.6 }}>{tip.desc}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    );
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: D.text }}>🚀 How to Improve Efficiency</div>
-          <div style={{ fontSize: 12, color: D.textSub, marginTop: 2 }}>Smart recommendations based on your real-time performance data.</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: D.text }}>🚀 Level Up & Habit Growth Strategy</div>
+          <div style={{ fontSize: 12, color: D.textSub, marginTop: 2 }}>Actionable insights to maximize your consistency and Solo Leveling rank.</div>
         </div>
 
-        {/* Score bar */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 14,
-          background: isDarkMode ? 'rgba(99,102,241,0.1)' : 'rgba(99,102,241,0.05)',
-          border: `1.5px solid ${D.borderAcc}`, borderRadius: 13, padding: '13px 16px',
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: D.textMut, marginBottom: 6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your Performance Score</div>
-            <div style={{ height: 8, background: D.tabBg, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-              <div style={{ height: '100%', width: `${dayEff}%`, borderRadius: 4, background: D.accentGr, transition: 'width 1s ease', boxShadow: `0 0 8px ${D.accent}60` }}/>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          <div style={{ background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Flame size={16} color={D.orange} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: D.text }}>Streak Compounding Effect</span>
             </div>
+            <p style={{ fontSize: 12, color: D.textSub, lineHeight: 1.6 }}>
+              Completing daily tasks every single day compounds your XP multipliers. Consistency beats intensity every time.
+            </p>
           </div>
-          <div style={{ textAlign: 'center', minWidth: 50 }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: effColor(dayEff) }}>{dayEff}%</div>
-            <div style={{ fontSize: 9, color: D.textMut }}>Today</div>
-          </div>
-          <span style={{ fontSize: 28 }}>{dayEff >= 90 ? '🏆' : dayEff >= 75 ? '⚡' : dayEff >= 50 ? '📈' : '🎯'}</span>
-        </div>
 
-        {renderGroup(high, 'High Priority — Act Now', <AlertTriangle size={13}/>, D.red,   'rgba(248,113,113,0.1)')}
-        {renderGroup(med,  'Medium — This Week',      <Zap size={13}/>,           D.orange, 'rgba(251,146,60,0.1)')}
-        {renderGroup(low,  'General Best Practices',  <Lightbulb size={13}/>,     D.accent, 'rgba(129,140,248,0.1)')}
-
-        {/* Motivational footer */}
-        <div style={{
-          background: isDarkMode ? 'linear-gradient(135deg,rgba(16,185,129,0.12),rgba(5,150,105,0.08))' : 'linear-gradient(135deg,rgba(5,150,105,0.07),rgba(16,185,129,0.04))',
-          border: `1px solid ${D.green}35`, borderRadius: 13, padding: '13px 15px',
-          display: 'flex', gap: 12, alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 28 }}>💪</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: D.green }}>You're building something great!</div>
-            <div style={{ fontSize: 12, color: D.textSub, lineHeight: 1.5, marginTop: 2 }}>
-              Every habit today compounds into tomorrow's streak. Elite developers share one trait — <strong>relentless consistency</strong>.
+          <div style={{ background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Brain size={16} color={D.accent} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: D.text }}>Deep Work Habit Blocks</span>
             </div>
+            <p style={{ fontSize: 12, color: D.textSub, lineHeight: 1.6 }}>
+              Pair your coding problems with uninterrupted 90-minute study blocks. Write down your personal insights in the Thoughts tab.
+            </p>
+          </div>
+
+          <div style={{ background: D.cardBg, border: `1px solid ${D.border}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <TrendingUp size={16} color={D.green} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: D.text }}>Financial & Career Systems</span>
+            </div>
+            <p style={{ fontSize: 12, color: D.textSub, lineHeight: 1.6 }}>
+              Set measurable targets for skills, side-projects, and savings. Document your technical ideas for high-leverage outcomes.
+            </p>
           </div>
         </div>
       </div>
@@ -746,14 +846,14 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
 
   // ─── Shell ────────────────────────────────────────────────────────────────
   return (
-    <div style={{
+    <div id="live-performance-deck" style={{
       display: 'flex',
       flexDirection: 'column',
       fontFamily: '"Inter", system-ui, sans-serif',
       marginTop: '16px',
       marginBottom: '24px',
     }}>
-      {/* ── Toggle Bar (Rendered at top of this component inline) ── */}
+      {/* ── Toggle Bar ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -762,32 +862,30 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
         boxSizing: 'border-box',
         marginBottom: isExpanded ? '16px' : '0px',
       }}>
-        {/* Left: Button Styled exactly like the image */}
         <button
           onClick={() => setIsExpanded(v => !v)}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '6px 14px',
-            borderRadius: '9px',
+            padding: '7px 16px',
+            borderRadius: '10px',
             border: `1px solid ${D.btnBorder}`,
             background: D.btnBg,
             color: D.text,
             fontSize: '12px',
-            fontWeight: '700',
+            fontWeight: '800',
             cursor: 'pointer',
             transition: 'all 0.2s',
             outline: 'none',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           }}
           onMouseEnter={e => e.currentTarget.style.background = D.btnHover}
           onMouseLeave={e => e.currentTarget.style.background = D.btnBg}
         >
-          {/* Blue-purple layout/layers icon */}
-          <Layers size={13} style={{ color: '#818cf8' }} />
+          <Layers size={14} style={{ color: '#818cf8' }} />
           <span>
-            {isExpanded ? 'Hide Live Performance & Platform Deck' : 'Show Live Performance & Platform Deck'}
+            {isExpanded ? 'Hide Ideas & Platform Deck' : 'Show Ideas & Platform Deck'}
           </span>
           {isExpanded ? (
             <ChevronUp size={13} style={{ opacity: 0.8 }} />
@@ -796,23 +894,22 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
           )}
         </button>
 
-        {/* Right: Muted status text */}
         <div style={{
           fontSize: '11.5px',
           color: D.textMut,
-          fontWeight: '600',
+          fontWeight: '700',
           letterSpacing: '0.2px',
         }}>
-          Live Solo Leveling Sync • {user.hunterRank || 'E'}-Rank
+          Knowledge & Platform Deck • {user.hunterRank || 'E'}-Rank Hunter
         </div>
       </div>
 
-      {/* ── Expandable Panel (Expands downward inline) ── */}
+      {/* ── Expandable Panel ── */}
       {isExpanded && (
         <div style={{
           background: D.panelBg,
           border: `1.5px solid ${D.border}`,
-          borderRadius: '16px',
+          borderRadius: '18px',
           boxShadow: isDarkMode 
             ? '0 10px 40px rgba(0, 0, 0, 0.4), 0 0 25px rgba(99, 102, 241, 0.05)'
             : '0 10px 30px rgba(15, 23, 42, 0.04)',
@@ -823,29 +920,49 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
           <div style={{
             display: 'flex',
             borderBottom: `1px solid ${D.border}`,
-            paddingLeft: 20,
-            paddingRight: 20,
-            background: isDarkMode ? 'rgba(255,255,255,0.01)' : 'rgba(99,102,241,0.01)',
+            paddingLeft: 16,
+            paddingRight: 16,
+            background: isDarkMode ? 'rgba(255,255,255,0.01)' : '#ffffff',
+            overflowX: 'auto',
           }}>
             {TABS.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                display: 'flex', alignItems: 'center', gap: 6, position: 'relative',
-                padding: '11px 16px 13px',
-                border: 'none', borderBottom: `2.5px solid ${activeTab === tab.id ? D.accent : 'transparent'}`,
-                background: 'transparent', cursor: 'pointer',
-                color: activeTab === tab.id ? D.accent : D.textSub,
-                fontSize: 13, fontWeight: activeTab === tab.id ? 800 : 600,
-                transition: 'all 0.15s',
-              }}>
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setShowAddForm(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  position: 'relative',
+                  padding: '12px 16px 14px',
+                  border: 'none',
+                  borderBottom: `2.5px solid ${activeTab === tab.id ? D.accent : 'transparent'}`,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: activeTab === tab.id ? (isDarkMode ? '#ffffff' : '#000000') : D.textSub,
+                  fontSize: 13,
+                  fontWeight: activeTab === tab.id ? 900 : 600,
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {tab.icon}
-                {tab.label}
-                {tab.badge && (
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && (
                   <span style={{
-                    position: 'absolute', top: 6, right: 4,
-                    width: 16, height: 16, borderRadius: '50%',
-                    background: D.red, color: '#fff', fontSize: 9, fontWeight: 900,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{tab.badge}</span>
+                    marginLeft: 2,
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                    background: activeTab === tab.id ? D.accent : (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'),
+                    color: activeTab === tab.id ? '#ffffff' : D.textSub,
+                    fontSize: 10,
+                    fontWeight: 800,
+                  }}>
+                    {tab.badge}
+                  </span>
                 )}
               </button>
             ))}
@@ -856,10 +973,11 @@ export const LivePerformanceDeck: React.FC<LivePerformanceDeckProps> = ({
             padding: '20px',
             scrollbarWidth: 'thin',
           }}>
-            {activeTab === 'emergency'  && renderEmergency()}
-            {activeTab === 'efficiency' && renderEfficiency()}
-            {activeTab === 'profiles'   && renderProfiles()}
-            {activeTab === 'improve'    && renderImprove()}
+            {activeTab === 'personal'  && renderThoughtsSection('personal')}
+            {activeTab === 'financial' && renderThoughtsSection('financial')}
+            {activeTab === 'technical' && renderThoughtsSection('technical')}
+            {activeTab === 'profiles'  && renderProfiles()}
+            {activeTab === 'improve'   && renderImprove()}
           </div>
         </div>
       )}

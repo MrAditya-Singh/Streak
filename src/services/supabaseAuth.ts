@@ -30,14 +30,16 @@ export async function signInWithGoogle(): Promise<{ user: AuthUser | null; token
     const user = sessionData?.session?.user;
 
     if (user) {
+      const authUser: AuthUser = {
+        uid: user.id,
+        id: user.id,
+        email: user.email,
+        displayName: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
+        photoURL: user.user_metadata?.avatar_url,
+      };
+      localStorage.setItem('effstreak_auth_user', JSON.stringify(authUser));
       return {
-        user: {
-          uid: user.id,
-          id: user.id,
-          email: user.email,
-          displayName: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
-          photoURL: user.user_metadata?.avatar_url,
-        },
+        user: authUser,
         token: sessionData.session?.access_token,
       };
     }
@@ -58,21 +60,28 @@ export async function signInWithEmail(email: string, pass: string): Promise<{ us
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password: pass,
     });
 
     if (error) throw error;
     if (!data.user) throw new Error('User not found');
 
+    const authUser: AuthUser = {
+      uid: data.user.id,
+      id: data.user.id,
+      email: data.user.email,
+      displayName: data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0],
+      photoURL: data.user.user_metadata?.avatar_url,
+    };
+
+    localStorage.setItem('effstreak_auth_user', JSON.stringify(authUser));
+    if (data.user.email) {
+      localStorage.setItem('effstreak_sync_email', data.user.email);
+    }
+
     return {
-      user: {
-        uid: data.user.id,
-        id: data.user.id,
-        email: data.user.email,
-        displayName: data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0],
-        photoURL: data.user.user_metadata?.avatar_url,
-      },
+      user: authUser,
       token: data.session?.access_token,
     };
   } catch (err: any) {
@@ -90,20 +99,27 @@ export async function registerWithEmail(email: string, pass: string): Promise<{ 
 
   try {
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.trim().toLowerCase(),
       password: pass,
     });
 
     if (error) throw error;
     if (!data.user) throw new Error('Registration failed');
 
+    const authUser: AuthUser = {
+      uid: data.user.id,
+      id: data.user.id,
+      email: data.user.email,
+      displayName: data.user.user_metadata?.full_name || email.split('@')[0],
+    };
+
+    localStorage.setItem('effstreak_auth_user', JSON.stringify(authUser));
+    if (data.user.email) {
+      localStorage.setItem('effstreak_sync_email', data.user.email);
+    }
+
     return {
-      user: {
-        uid: data.user.id,
-        id: data.user.id,
-        email: data.user.email,
-        displayName: data.user.user_metadata?.full_name || email.split('@')[0],
-      },
+      user: authUser,
       token: data.session?.access_token,
     };
   } catch (err: any) {
@@ -128,31 +144,60 @@ export async function getCurrentUserToken(): Promise<string | null> {
  * ⚡ Sign Out
  */
 export async function logOutUser(): Promise<void> {
+  localStorage.removeItem('effstreak_auth_user');
   if (supabase) {
     await supabase.auth.signOut();
   }
 }
 
 /**
- * ⚡ Auth State Listener
+ * ⚡ Auth State Listener with Immediate Auto-Login Session Check
  */
-export function onAuthStateChange(callback: (user: AuthUser | null) => void): () => void {
+export function onAuthStateChange(callback: (user: AuthUser | null, event?: string) => void): () => void {
+  // Check stored auth session first for instant synchronous load
+  try {
+    const saved = localStorage.getItem('effstreak_auth_user');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.uid && parsed.uid !== 'guest_user_local') {
+        callback(parsed, 'PERSISTED_STORAGE');
+      }
+    }
+  } catch { /* ignore */ }
+
   if (!supabase || !isSupabaseConfigured) {
-    callback(null);
     return () => {};
   }
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+  // Check current session from Supabase immediately
+  supabase.auth.getSession().then(({ data: { session } }) => {
     if (session?.user) {
-      callback({
+      const user: AuthUser = {
         uid: session.user.id,
         id: session.user.id,
         email: session.user.email,
         displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
         photoURL: session.user.user_metadata?.avatar_url,
-      });
-    } else {
-      callback(null);
+      };
+      localStorage.setItem('effstreak_auth_user', JSON.stringify(user));
+      callback(user, 'INITIAL_SESSION');
+    }
+  }).catch(() => {});
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    if (session?.user) {
+      const user: AuthUser = {
+        uid: session.user.id,
+        id: session.user.id,
+        email: session.user.email,
+        displayName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0],
+        photoURL: session.user.user_metadata?.avatar_url,
+      };
+      localStorage.setItem('effstreak_auth_user', JSON.stringify(user));
+      callback(user, event);
+    } else if (event === 'SIGNED_OUT') {
+      localStorage.removeItem('effstreak_auth_user');
+      callback(null, event);
     }
   });
 

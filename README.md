@@ -7,7 +7,7 @@
 [![React + Vite](https://img.shields.io/badge/Frontend-React_19_+_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![License](https://img.shields.io/badge/License-MIT-purple?style=for-the-badge)](LICENSE)
 
-> **EffStreak** is an enterprise-grade, gamified personal productivity and activity-tracking platform inspired by **Duolingo streaks** and **Solo Leveling RPG progression**. It aggregates coding practice (LeetCode, Codeforces, GFG, AtCoder, GitHub), learning, and daily habits into a real-time, cross-device synchronization hub powered by **Supabase Cloud PostgreSQL** and an **Embedded SQLite Local Database Engine**.
+> **EffStreak** is an enterprise-grade, gamified personal productivity, habit-tracking, and coding practice platform inspired by **Duolingo streaks** and **Solo Leveling RPG progression**. It unifies coding practice (LeetCode, Codeforces, GFG, AtCoder, GitHub), learning directives, and daily routines into a real-time, cross-device synchronization hub powered by **Supabase Cloud PostgreSQL** and an **Embedded SQLite Local Database Engine**.
 
 ---
 
@@ -19,116 +19,99 @@
 
 ---
 
-## 🌟 Core Architecture & Principles
+## 🌟 Latest Major Upgrades & New Features
 
-EffStreak utilizes a resilient dual-database architecture ensuring instant offline performance and real-time multi-device cloud synchronization:
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│              EFFSTREAK SUPABASE & SQLITE ARCHITECTURE                   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│    ┌─────────────────┐       ┌─────────────────┐       ┌──────────────┐ │
-│    │ Multiple Users  │       │ Multi-Device    │       │ Supabase     │ │
-│    │ (UID / Google)  │ ────► │ Realtime Sync   │ ────► │ Cloud        │ │
-│    └─────────────────┘       └─────────────────┘       │ PostgreSQL   │ │
-│                                                        └──────┬───────┘ │
-│    ┌─────────────────┐       ┌─────────────────┐              │         │
-│    │ Embedded SQLite │       │ Local Offline   │ ◄────────────┘         │
-│    │ (effstreak.db)  │ ────► │ Persistence     │                        │
-│    └─────────────────┘       └─────────────────┘                        │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-1. **Embedded SQLite Local Database (`backend/data/effstreak.db`)**: High-performance, zero-latency relational storage running on disk in WAL mode. Guarantees 100% offline availability with transactional reliability for all habits, matrix states, and activity logs.
-2. **Supabase Cloud Database & Authentication**: Cloud PostgreSQL tables (`user_profiles`, `user_state`, `activity_logs`, `custom_platforms`) with Row-Level Security (RLS) policies, Realtime publication channels, and Google OAuth / Email authentication.
-3. **No Accidental Data Overwrites**: Atomic upserts and conflict resolution preserve user state during simultaneous multi-device sync.
-4. **Real-time Cross-Device Synchronization**: Instant state propagation via Supabase Realtime Channels and client-side `BroadcastChannel`.
-5. **Multi-Platform Live API Integration**: Fast, direct sync with **LeetCode**, **Codeforces**, **GitHub**, **GeeksforGeeks**, **AtCoder**, **HackerRank**, and **YouTube** via Codolio & platform APIs.
+### 🎡 1. Theme Reel Dial & 7 Bespoke Aesthetic Universes
+- **Interactive Mechanical Reel Dial**: Click the top header **Moon / Theme icon** to open a vintage **View-Master rotating disc dial** with 7 symmetric apertures (`51.4°` step increments) and mechanical sound effects.
+- **7 World-Class Unique Themes**:
+  1. ⚡ **Solo Leveling Obsidian** `[HUNTER S-RANK • ⚡ CYBER MANA]`: Deep space obsidian (`#060a12`), Holographic Cyber Grid & Electric Mana Blue Glow (`#38bdf8`).
+  2. 🌿 **Emerald Matrix Zen** `[BIO-MATRIX ZEN • 🌿 NEURAL GROVE]`: Deep bamboo velvet (`#02150e`), Matrix Rain drops & Luminous Jade Mint (`#10b981`).
+  3. ☀️ **Solar Flare Royale** `[SUPERNOVA 5000K • ☀️ SOLAR CORE]`: Volcanic stellar core (`#15060d`), Molten Amber-Gold (`#f59e0b`) & Corona Radiance.
+  4. ❄️ **Arctic Glacier Frost** `[CRYO FROST -40° • ❄️ POLAR AURORA]`: Sub-zero oceanic navy (`#040e1b`), Crystalline Cyan (`#38bdf8`) & Aurora Waves.
+  5. 🩸 **Shadow Monarch Crimson** `[SHADOW MONARCH • 🩸 BLOOD ECLIPSE]`: Gothic crypt (`#0d0411`), Vampire Blood Crimson (`#ef4444`) & Royal Purple.
+  6. ⚜️ **24K Golden Prestige** `[24K HAUTE PRESTIGE • ⚜️ ROYAL GOLD]`: Brushed titanium noir (`#08080a`), 24K Champagne Gold Foil (`#fbbf24`) & Haute Horlogerie Sheen.
+  7. 📜 **Renaissance Parchment** `[FLORENCE 1520 • 📜 ITALIAN VELLUM]`: Florentine vellum paper (`#f4efe6`), Espresso typography & Tuscan Gold (`#b45309`).
+- **Live UI Mini-Preview in Cards**: Every theme card displays a live preview of how habit checkmarks, streak fire pills, and progress bars look under that theme.
+- **Dual View Modes**: Switch seamlessly between **🎡 Reel Dial View** and **🗂️ Gallery Grid View**.
 
 ---
 
-## 🚀 Key Features
-
-### 1. 🔥 Duolingo-Inspired Streak Engine
-- **Unified Overall Streak**: Tracks daily consistency across all learning and practice tracks. Completing any qualifying activity maintains the global flame.
-- **Per-Platform Flame Counters**: Dedicated streaks for **LeetCode**, **Codeforces**, **GeeksforGeeks**, **GitHub**, **AtCoder**, and **YouTube**.
-- **Interactive Monthly Matrix Grid**: 31-day visual habit completion matrix with automatic date fill from live platform submission calendars.
-
-### 2. ⚔️ Solo Leveling Hunter Progression System
-- **Hunter Ranks**: Advance from **E-Rank** to **D-Rank**, **C-Rank**, **B-Rank**, **A-Rank**, **S-Rank**, and **National Level Hunter**.
-- **Dynamic RPG Attributes**: Real-time attribute accumulation for *Strength*, *Intelligence*, *Discipline*, *Skill*, *Knowledge*, and *Professionalism*.
-- **Web Audio FX & Confetti**: Immersive audio chimes on task completion and level-up fanfares with particle celebrations.
-
-### 3. 🔄 Multi-Platform Live Sync Engine
-- **LeetCode**: Full 365-day submission calendar integration, total problems solved by difficulty (Easy/Medium/Hard), and daily POTD detection.
-- **Codeforces**: Real-time user status API integration for contest ratings and submission verdicts.
-- **GitHub**: Complete annual contribution map (`developmentActivity`) with public repo counts and commit verification.
-- **GeeksforGeeks**: Verified practice history, total solved count, and streak detection.
-- **AtCoder & HackerRank**: Live submission checks and contest activity sync.
-
-### 4. 🟩 Activity Heatmap & Consistency Analytics
-- Interactive consistency overviews, completion metrics, and streak status across custom and predefined habits.
-- Focus time statistics, efficiency percentage calculation (planned vs completed minutes), and trend curves.
+### 📷 2. Interactive Photo Disc Wheel (Daily Mantra & Header Focus)
+- **Rotating View-Master Photo Reel**: Integrated above the daily mantra and header photo card with 6 rotating photo apertures.
+- **Add / Remove / Switch Focus Images**: Click any lens aperture to rotate and select that photo as your active daily visual anchor.
+- **Persistent JPG Storage**: Uploaded images are stored in `.jpg` format in `backend/data/uploads` and synced to the user profile in Supabase & SQLite.
 
 ---
 
-## 📂 Repository Structure
+### 💾 3. Complete End-to-End Database Sync (SQLite & Supabase)
+- **All User Inputs Persisted**:
+  - **Habit Ticks**: Stored in `habit_ticks` with `done` status and timestamps.
+  - **Custom Habits**: Dynamically creates habit records synced across frontend, local SQLite (`effstreak.db`), and Supabase PostgreSQL.
+  - **Thoughts & Notes**: Saved to `thoughts` / `activity_logs` under the user's profile.
+  - **Photo Reel & Theme Preferences**: Stored in `user_profiles` and cached locally.
+- **Realtime Cross-Device Synchronization**: Instant updates across phone, laptop, and browser tabs.
 
-```
-Streak/
-├── .github/                            # CI/CD GitHub Actions Workflows
-├── dist/                               # Production Web Build
-├── electron/                           # Desktop Electron Shell
-│   └── main.cjs
-├── public/                             # Public static assets & web manifest
-├── src/                                # Frontend Application (React 19 + TypeScript + Vite)
-│   ├── components/                     # Modular UI Components & Modals
-│   │   ├── AddHabitModal.tsx           # Add Custom Habit & Platform Modal
-│   │   ├── AestheticHeaderTracker.tsx  # Header Progress Bar & Hunter Rank Banner
-│   │   ├── AuthModal.tsx               # Supabase Authentication Modal (Google & Email)
-│   │   ├── EfficiencyAnalyticsModal.tsx# Analytics & Completion Gauges
-│   │   ├── LivePerformanceDeck.tsx     # Solo Leveling RPG Deck & Quick Stats
-│   │   ├── LiveSyncModal.tsx           # Multi-Platform Parallel Live Sync Modal
-│   │   ├── MasterMonthlyHabitGrid.tsx  # 31-Day Monthly Habit Checkbox Matrix
-│   │   ├── SettingsModal.tsx           # Profile, Integrations & Platform Settings
-│   │   ├── SoloLevelingModal.tsx       # RPG Stats, Quests & Hunter Rank Modal
-│   │   ├── SyncSetupCard.tsx           # Cross-Device Sync Identity Setup Card
-│   │   ├── TodayActivityModal.tsx      # Today's Action Items & Directives
-│   │   ├── WeeklyConsistencyOverview.tsx # Weekly Habit Consistency Cards
-│   │   └── WidgetSimulatorModal.tsx    # Desktop & Phone Widget Simulator
-│   ├── services/                       # Data & Cloud Services
-│   │   ├── apiSync.ts                  # Multi-Platform Fast API Integration Engine
-│   │   ├── authService.ts              # Authentication & Guest Mode Helper
-│   │   ├── cloudSync.ts                # Real-Time Cloud & Cross-Tab Sync Engine
-│   │   ├── exportService.ts            # JSON & CSV Data Export Utilities
-│   │   ├── supabase.ts                 # Supabase Web Client & Cloud Database Sync
-│   │   └── supabaseAuth.ts             # Supabase Auth Provider & Session Tokens
-│   ├── types/                          # TypeScript Interfaces & Types
-│   ├── utils/                          # Engine Utilities & Synthesizer
-│   │   ├── audio.ts                    # Web Audio API Sound FX
-│   │   └── streakEngine.ts             # Streak Calculations & Progression Logic
-│   ├── App.tsx                         # Core Application Lifecycle & State Management
-│   ├── index.css                       # Tailwind CSS & Cyber Glassmorphism Design
-│   └── main.tsx                        # Error Boundary & React Root Entry
-├── backend/                            # Node.js / Express Backend Engine
-│   ├── data/                           # effstreak.db (SQLite Database in WAL Mode)
-│   ├── src/
-│   │   ├── config/                     # Database Configurations (sqlite.js, supabase.js)
-│   │   ├── integrations/               # Platform Adapters (GitHub, LeetCode, Codeforces, etc.)
-│   │   ├── middleware/                 # Supabase Auth JWT Middleware
-│   │   ├── routes/                     # REST API Routes (auth, health, integrations, sync)
-│   │   ├── services/                   # Backend Streak Engine & Cron Auto-Sync
-│   │   ├── utils/                      # Encryption & Helper Utilities
-│   │   ├── app.js                      # Express App Configuration & CORS
-│   │   └── server.js                   # Backend Server Entrypoint
-│   └── package.json
-├── windows/                            # Rainmeter Desktop Widgets & Sync Bridge
-├── android/ & android_wrapper/         # Android Companion App & Native Project
-├── supabase_schema.sql                 # Supabase Database Migration & RLS Script
-├── package.json                        # Frontend NPM Dependencies & Scripts
-├── tailwind.config.js                  # Tailwind Configuration
-└── tsconfig.json                       # TypeScript Configuration
+---
+
+### 🚨 4. Emergency Directive System
+- **Quick Time-Boxed Directives**: Create immediate high-priority focus action items with custom durations, audio timers, and XP rewards.
+
+---
+
+## 📱 Installation Guide (Laptop & Mobile)
+
+EffStreak is built as an installable **Progressive Web App (PWA)** for native-app performance on both desktop laptops and mobile devices.
+
+### 💻 A. Install on Laptop (Windows / macOS / Linux)
+
+1. **Via Google Chrome or Microsoft Edge**:
+   - Open **[https://effstreak-tracker.surge.sh](https://effstreak-tracker.surge.sh)** in Chrome or Edge.
+   - Look at the right side of the address/URL bar and click the **Install App (🖥️ / 📥)** icon.
+   - Click **Install**. EffStreak will launch as a standalone desktop window with its own taskbar/dock icon and launch menu shortcut.
+2. **Via Desktop Shortcut Script (Windows)**:
+   - Run the included PowerShell script:
+     ```powershell
+     .\create_desktop_shortcut.ps1
+     ```
+3. **Via Electron Desktop Launcher**:
+   - Run `npm run electron:dev` for the native Electron desktop shell.
+
+---
+
+### 📱 B. Install on Mobile (Android & iPhone / iPad)
+
+#### On Android (Google Chrome / Brave / Edge):
+1. Open **[https://effstreak-tracker.surge.sh](https://effstreak-tracker.surge.sh)** in Chrome on your phone.
+2. Tap the **Three Dots Menu (⋮)** in the top-right corner.
+3. Select **"Install app"** or **"Add to Home screen"**.
+4. Tap **Install**. The EffStreak icon will appear on your app drawer and home screen. It opens in full-screen standalone mode without browser bars!
+
+#### On iPhone / iPad (Safari):
+1. Open **[https://effstreak-tracker.surge.sh](https://effstreak-tracker.surge.sh)** in Safari.
+2. Tap the **Share Button (⎋ with arrow up)** at the bottom bar.
+3. Scroll down and tap **"Add to Home Screen" (+)**.
+4. Tap **Add** in the top right. EffStreak is now installed as an iOS Web App!
+
+---
+
+## 🚀 Deploy on Vercel (Frontend & Backend)
+
+The project includes a ready-to-deploy `vercel.json` and `api/index.js` serverless bridge that hosts both the **React Vite frontend** and the **Express backend API**:
+
+### Option 1: Automatic 1-Click Vercel Git Integration (Recommended)
+1. Push your repository to GitHub: `https://github.com/MrAditya-Singh/Streak`.
+2. Go to **[https://vercel.com/new](https://vercel.com/new)** and import your `Streak` GitHub repository.
+3. In **Environment Variables**, add:
+   ```env
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+   NODE_ENV=production
+   ```
+4. Click **Deploy**. Vercel will build both the frontend and configure the `/api/*` serverless backend routes automatically!
+
+### Option 2: Deploy via Vercel CLI
+```bash
+npx vercel --prod
 ```
 
 ---
@@ -147,53 +130,41 @@ Streak/
    cd Streak
    ```
 
-2. **Install Frontend & Backend Dependencies**:
+2. **Install Dependencies**:
    ```bash
    npm install
    cd backend && npm install && cd ..
    ```
 
-3. **Configure Environment Variables (Optional)**:
-   Copy `.env.example` to `.env` and add your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=https://your-project-id.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key-here
-   ```
-
-4. **Start Local Development Server**:
+3. **Start Frontend & Backend Development**:
    ```bash
+   # Terminal 1: Frontend Vite App
    npm run dev
-   ```
-   Open `http://localhost:5173` in your browser.
 
-5. **Start Backend Server & Embedded SQLite Engine**:
-   ```bash
-   cd backend
-   npm start
+   # Terminal 2: Backend Express & SQLite Engine
+   cd backend && npm start
    ```
-   The backend API will run on `http://localhost:5000` with the SQLite database active at `backend/data/effstreak.db`.
+   - Frontend: `http://localhost:5173`
+   - Backend API: `http://localhost:5000`
 
-6. **Build Production Bundle**:
+4. **Build Production Bundle**:
    ```bash
    npm run build
    ```
 
 ---
 
-## 🔒 Security & Data Isolation
+## 🔒 Security & Data Integrity
 
-- **Row-Level Security (RLS)**: Cloud database access is protected via Supabase security policies.
-- **Embedded Local SQLite Database**: Data is stored securely on your local disk with WAL journaling.
-- **Zero Accidental Wipes**: Client-side state hydration includes safe `try / catch` fallback shields, preventing broken cache states from corrupting user profiles.
-- **Client Shield**: Network failures fallback gracefully to local offline storage without clearing habit completion history.
+- **Row-Level Security (RLS)**: Enforced across all Supabase PostgreSQL tables.
+- **Embedded Local SQLite**: High-performance WAL mode on disk (`backend/data/effstreak.db`).
+- **Conflict-Free Atomic Upserts**: Safe state reconciliation prevents data loss when switching between mobile, laptop, and cloud.
 
 ---
 
 ## 📄 License
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
-
----
+Distributed under the **MIT License**.
 
 <p align="center">
   <b>Built with ❤️ by Aditya Singh for developers, competitive coders, and lifelong learners.</b>

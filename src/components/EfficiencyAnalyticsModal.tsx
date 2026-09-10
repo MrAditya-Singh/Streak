@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, TrendingUp, Calendar, Zap, BarChart3, Layers, Trophy, Info } from 'lucide-react';
-import { ActivityItem } from '../types';
+import { ActivityItem, YearlyMatrixState } from '../types';
+import { getYearlyHabitProgress, getYearlyMonthlyOverallRates, MONTH_NAMES } from '../utils/habitProgressEngine';
 
 interface EfficiencyAnalyticsModalProps {
   isOpen: boolean;
   onClose: () => void;
   activities: ActivityItem[];
+  yearlyMatrixState?: YearlyMatrixState;
+  selectedYear?: number;
+  selectedMonth?: string;
   isDarkMode?: boolean;
 }
 
@@ -13,64 +17,75 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
   isOpen,
   onClose,
   activities,
+  yearlyMatrixState = {},
+  selectedYear = new Date().getFullYear(),
+  selectedMonth = 'January',
   isDarkMode = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'day' | 'month' | 'year'>('overview');
   const [hoveredMonthDay, setHoveredMonthDay] = useState<{ day: number; rate: number } | null>(null);
   const [hoveredYearMonth, setHoveredYearMonth] = useState<{ name: string; rate: number; completed: number; total: number } | null>(null);
 
-  if (!isOpen) return null;
+  // Current Month Matrix Data
+  const currentMonthKey = `${selectedYear}-${selectedMonth}`;
+  const currentMonthMatrix = useMemo(() => {
+    return yearlyMatrixState[currentMonthKey] || yearlyMatrixState[selectedMonth] || {};
+  }, [yearlyMatrixState, currentMonthKey, selectedMonth]);
+
+  // 1-Year Month-Wise Progress Summary for all habits
+  const yearlyHabitData = useMemo(() => {
+    return getYearlyHabitProgress(activities, yearlyMatrixState, selectedYear);
+  }, [activities, yearlyMatrixState, selectedYear]);
+
+  // 12-Month Overall Rates for Year Graph
+  const calculatedYearMonths = useMemo(() => {
+    const rawRates = getYearlyMonthlyOverallRates(activities, yearlyMatrixState, selectedYear);
+    return rawRates.map((m) => ({
+      name: m.shortName,
+      fullName: m.monthName,
+      rate: m.ratePct,
+      completed: m.completed,
+      total: m.totalPossible,
+    }));
+  }, [activities, yearlyMatrixState, selectedYear]);
 
   // Day Calculations
-  // formula: ("Plan" task completed on that day / total task of "Plan" on that day)%
   const dayCompleted = activities.filter((a) => a.completed).length;
   const dayTotal = activities.length || 1;
   const dayEfficiency = ((dayCompleted / dayTotal) * 100).toFixed(1);
   const dayEfficiencyNum = parseFloat(dayEfficiency);
 
-  // Month Calculations (Current Month - e.g. 30 days active cycle)
-  // formula: ("Plan" task completed on that month / total task of "Plan" on that month)%
-  const monthTotal = dayTotal * 30; // total month task quota
-  const monthCompleted = Math.round(dayTotal * 26.5); // ~26.5 successful days equivalent
-  const monthEfficiency = ((monthCompleted / monthTotal) * 100).toFixed(1);
+  // Month Calculations
+  const currentMonthIdx = MONTH_NAMES.indexOf(selectedMonth);
+  const monthDataForCur = calculatedYearMonths[currentMonthIdx !== -1 ? currentMonthIdx : 0];
+  const monthCompleted = monthDataForCur?.completed || 0;
+  const monthTotal = monthDataForCur?.total || (dayTotal * 30);
+  const monthEfficiency = (monthTotal > 0 ? (monthCompleted / monthTotal) * 100 : 0).toFixed(1);
   const monthEfficiencyNum = parseFloat(monthEfficiency);
 
-  // Year Calculations (365 days / 12 months)
-  // formula: ("Plan" task completed on that year / total task of "Plan" on that year)%
-  const yearTotal = dayTotal * 365;
-  const yearCompleted = Math.round(yearTotal * 0.895);
-  const yearEfficiency = ((yearCompleted / yearTotal) * 100).toFixed(1);
+  // Year Calculations
+  const totalYearCompleted = calculatedYearMonths.reduce((sum, m) => sum + m.completed, 0);
+  const totalYearPossible = calculatedYearMonths.reduce((sum, m) => sum + m.total, 0) || (dayTotal * 365);
+  const yearCompleted = totalYearCompleted;
+  const yearTotal = totalYearPossible;
+  const yearEfficiency = (totalYearPossible > 0 ? (totalYearCompleted / totalYearPossible) * 100 : 0).toFixed(1);
   const yearEfficiencyNum = parseFloat(yearEfficiency);
 
   // 30-Day Daily Data for Month Graph
-  const monthDays = Array.from({ length: 30 }, (_, i) => {
-    const day = i + 1;
-    if (day === 15) {
-      return { day, rate: dayEfficiencyNum, completed: dayCompleted, total: dayTotal };
-    }
-    const wave = Math.sin(i * 0.45) * 8;
-    const noise = ((i * 17) % 7) - 3;
-    const rate = Math.min(100, Math.max(65, Math.round(87 + wave + noise)));
-    const total = dayTotal;
-    const completed = Math.round((rate / 100) * total);
-    return { day, rate, completed, total };
-  });
+  const monthDays = useMemo(() => {
+    return Array.from({ length: 30 }, (_, i) => {
+      const day = i + 1;
+      let completedOnDay = 0;
+      activities.forEach((act) => {
+        const arr = currentMonthMatrix[act.id];
+        if (Array.isArray(arr) && arr[i]) completedOnDay++;
+      });
+      const rate = dayTotal > 0 ? Math.round((completedOnDay / dayTotal) * 100) : 0;
+      return { day, rate, completed: completedOnDay, total: dayTotal };
+    });
+  }, [activities, currentMonthMatrix, dayTotal]);
 
-  // 12-Month Data for Year Graph
-  const yearMonths = [
-    { name: 'Jan', rate: 88.5, completed: Math.round(dayTotal * 31 * 0.885), total: dayTotal * 31 },
-    { name: 'Feb', rate: 91.2, completed: Math.round(dayTotal * 28 * 0.912), total: dayTotal * 28 },
-    { name: 'Mar', rate: 86.4, completed: Math.round(dayTotal * 31 * 0.864), total: dayTotal * 31 },
-    { name: 'Apr', rate: 94.0, completed: Math.round(dayTotal * 30 * 0.940), total: dayTotal * 30 },
-    { name: 'May', rate: 89.8, completed: Math.round(dayTotal * 31 * 0.898), total: dayTotal * 31 },
-    { name: 'Jun', rate: 92.5, completed: Math.round(dayTotal * 30 * 0.925), total: dayTotal * 30 },
-    { name: 'Jul', rate: 95.1, completed: Math.round(dayTotal * 31 * 0.951), total: dayTotal * 31 },
-    { name: 'Aug', rate: monthEfficiencyNum, completed: monthCompleted, total: monthTotal },
-    { name: 'Sep', rate: 90.0, completed: Math.round(dayTotal * 30 * 0.900), total: dayTotal * 30 },
-    { name: 'Oct', rate: 93.4, completed: Math.round(dayTotal * 31 * 0.934), total: dayTotal * 31 },
-    { name: 'Nov', rate: 89.2, completed: Math.round(dayTotal * 30 * 0.892), total: dayTotal * 30 },
-    { name: 'Dec', rate: 94.8, completed: Math.round(dayTotal * 31 * 0.948), total: dayTotal * 31 },
-  ];
+  if (!isOpen) return null;
 
   // Hourly Today Data (12 AM - 12 PM Cycle)
   const todayHourlyCurve = [
@@ -563,14 +578,14 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                 <div className={`flex items-center justify-between text-xs font-bold ${
                   isDarkMode ? 'text-slate-400' : 'text-slate-600'
                 }`}>
-                  <span>12-MONTH ANNUAL PERFORMANCE BREAKDOWN</span>
+                  <span>12-MONTH ANNUAL PERFORMANCE BREAKDOWN ({selectedYear})</span>
                   <span className="text-emerald-600 dark:text-emerald-400">
-                    {hoveredYearMonth ? `${hoveredYearMonth.name}: ${hoveredYearMonth.rate}% (${hoveredYearMonth.completed}/${hoveredYearMonth.total})` : 'Target: ≥90%'}
+                    {hoveredYearMonth ? `${hoveredYearMonth.name}: ${hoveredYearMonth.rate}% (${hoveredYearMonth.completed}/${hoveredYearMonth.total})` : `Overall Average: ${yearEfficiency}%`}
                   </span>
                 </div>
 
                 <div className="h-44 flex items-end justify-between gap-2 pt-6 px-2">
-                  {yearMonths.map((item, i) => (
+                  {calculatedYearMonths.map((item, i) => (
                     <div
                       key={i}
                       onMouseEnter={() => setHoveredYearMonth(item)}
@@ -583,12 +598,83 @@ export const EfficiencyAnalyticsModal: React.FC<EfficiencyAnalyticsModalProps> =
                       <div className={`w-full rounded-t-lg overflow-hidden h-28 flex items-end ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                         <div
                           className="w-full bg-gradient-to-t from-emerald-600 to-teal-400 rounded-t-lg group-hover:from-emerald-500 group-hover:to-teal-300 transition-all duration-300"
-                          style={{ height: `${item.rate}%` }}
+                          style={{ height: `${Math.max(4, item.rate)}%` }}
                         />
                       </div>
                       <span className={`text-[10px] font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{item.name}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* 1-Year Month-Wise Progress Breakdown Table for All Habits */}
+              <div className={`p-5 rounded-2xl border space-y-4 ${
+                isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-emerald-500" />
+                    <h3 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      One-Year Habit Progress Breakdown ({selectedYear})
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    12 Months × 365 Days
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className={`border-b ${isDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+                        <th className="py-2.5 px-3 font-bold">Habit Name</th>
+                        {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => (
+                          <th key={m} className="py-2.5 px-1.5 text-center font-bold text-[11px]">{m}</th>
+                        ))}
+                        <th className="py-2.5 px-3 text-right font-bold">Year Total</th>
+                        <th className="py-2.5 px-3 text-right font-bold">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
+                      {yearlyHabitData.map((habit) => (
+                        <tr key={habit.habitId} className="hover:bg-slate-500/5 transition-colors">
+                          <td className={`py-2 px-3 font-bold truncate max-w-[140px] ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                            {habit.habitName}
+                          </td>
+                          {habit.monthlyBreakdown.map((m) => (
+                            <td key={m.monthIndex} className="py-2 px-1.5 text-center">
+                              <span
+                                title={`${m.monthName}: ${m.completedDays}/${m.totalDays} days (${m.completionRatePct}%)`}
+                                className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  m.completedDays > 0
+                                    ? m.completionRatePct >= 80
+                                      ? 'bg-emerald-500/20 text-emerald-500 font-black'
+                                      : 'bg-blue-500/20 text-blue-500'
+                                    : 'text-slate-400/50'
+                                }`}
+                              >
+                                {m.completedDays > 0 ? m.completedDays : '—'}
+                              </span>
+                            </td>
+                          ))}
+                          <td className="py-2 px-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            {habit.totalCompletedDaysInYear}d
+                          </td>
+                          <td className="py-2 px-3 text-right">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                              habit.yearlyCompletionRatePct >= 80
+                                ? 'bg-emerald-500/20 text-emerald-500'
+                                : habit.yearlyCompletionRatePct >= 50
+                                ? 'bg-blue-500/20 text-blue-500'
+                                : 'bg-slate-500/15 text-slate-400'
+                            }`}>
+                              {habit.yearlyCompletionRatePct}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
