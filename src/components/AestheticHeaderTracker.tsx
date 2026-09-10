@@ -1,6 +1,26 @@
 import React, { useState } from 'react';
 import { UserProfile, EmergencyTask } from '../types';
-import { Sparkles, Smartphone, Settings, RefreshCw, Flame, Volume2, VolumeX, Sun, Moon, Zap, ShieldAlert, BarChart3, CheckCircle2, Users, Clock, Camera, Disc } from 'lucide-react';
+import {
+  Sparkles,
+  Smartphone,
+  Settings,
+  RefreshCw,
+  Flame,
+  Volume2,
+  VolumeX,
+  Sun,
+  Moon,
+  Zap,
+  ShieldAlert,
+  BarChart3,
+  CheckCircle2,
+  Users,
+  Clock,
+  Camera,
+  Disc,
+  Bell,
+  RotateCcw,
+} from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import { openImagePicker } from '../utils/imageUtils';
 import { PhotoDiscWheel } from './PhotoDiscWheel';
@@ -31,6 +51,10 @@ interface AestheticHeaderTrackerProps {
   emergencyTasks?: EmergencyTask[];
   onCompleteEmergencyTask?: (id: string) => void;
   onAddEmergencyTask?: (task: EmergencyTask) => void;
+  onAppRefresh?: () => void;
+  onOpenNotifications?: () => void;
+  undoneEmergencyCount?: number;
+  undoneHabitsCount?: number;
 }
 
 const MONTHS = [
@@ -73,12 +97,11 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
   emergencyTasks = [],
   onCompleteEmergencyTask,
   onAddEmergencyTask: _onAddEmergencyTask,
+  onAppRefresh,
+  onOpenNotifications,
+  undoneEmergencyCount = 0,
+  undoneHabitsCount = 0,
 }) => {
-  const radius = 30;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, dailyProgressPct)) / 100) * circumference;
-
-  const [_hoveredWavePoint, _setHoveredWavePoint] = useState<{ x: number; y: number; label: string; value: string } | null>(null);
   const [isHeaderReelActive, setIsHeaderReelActive] = useState<boolean>(false);
   const [isHeaderModalOpen, setIsHeaderModalOpen] = useState<boolean>(false);
 
@@ -525,6 +548,59 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
                   <span className="whitespace-nowrap">Login / Sync</span>
                 </>
               )}
+            </button>
+          )}
+
+          {onOpenNotifications && (
+            <button
+              type="button"
+              onClick={() => {
+                soundFx.playClick();
+                onOpenNotifications();
+              }}
+              title={
+                ((undoneEmergencyCount || 0) + (undoneHabitsCount || 0)) > 0
+                  ? `Notifications: ${undoneEmergencyCount || 0} emergency directives & ${undoneHabitsCount || 0} undone habits remaining`
+                  : 'Notifications: All missions & daily habits completed!'
+              }
+              className={`relative flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl font-black transition-all border cursor-pointer shadow-xs text-[10px] sm:text-xs ${
+                (undoneEmergencyCount || 0) > 0
+                  ? 'bg-gradient-to-r from-rose-950/80 to-pink-950/80 border-rose-500/80 text-rose-300 shadow-rose-500/20 animate-pulse'
+                  : ((undoneHabitsCount || 0) > 0)
+                  ? isDarkMode ? 'bg-[#182035] hover:bg-[#1f2a44] text-amber-300 border-amber-500/50' : 'bg-amber-50/80 hover:bg-amber-100/80 text-amber-800 border-amber-300'
+                  : isDarkMode ? 'bg-[#182035] hover:bg-[#1f2a44] text-slate-100 border-slate-700/80' : 'bg-white hover:bg-slate-50 text-black border-slate-300/80'
+              }`}
+            >
+              <Bell className={`w-3.5 h-3.5 shrink-0 ${
+                (undoneEmergencyCount || 0) > 0 ? 'text-rose-400 animate-bounce' : ((undoneHabitsCount || 0) > 0) ? 'text-amber-400' : 'text-slate-400'
+              }`} />
+              <span className="whitespace-nowrap hidden sm:inline">Notifications</span>
+              {((undoneEmergencyCount || 0) + (undoneHabitsCount || 0)) > 0 ? (
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black font-mono shrink-0 ${
+                  (undoneEmergencyCount || 0) > 0 ? 'bg-rose-600 text-white' : 'bg-amber-500 text-black'
+                }`}>
+                  {(undoneEmergencyCount || 0) + (undoneHabitsCount || 0)}
+                </span>
+              ) : (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              )}
+            </button>
+          )}
+
+          {onAppRefresh && (
+            <button
+              type="button"
+              onClick={() => {
+                soundFx.playClick();
+                onAppRefresh();
+              }}
+              title="Refresh / Reload App"
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl font-black transition-all border cursor-pointer shadow-xs text-[10px] sm:text-xs ${
+                isDarkMode ? 'bg-[#182035] hover:bg-[#1f2a44] text-cyan-300 border-slate-700/80' : 'bg-white hover:bg-slate-50 text-cyan-800 border-slate-300/80'
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="whitespace-nowrap hidden sm:inline">App Refresh</span>
             </button>
           )}
 

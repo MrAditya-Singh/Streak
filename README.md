@@ -21,7 +21,23 @@
 
 ## 🌟 Latest Major Upgrades & New Features
 
-### 🎡 1. Theme Reel Dial & 7 Bespoke Aesthetic Universes
+### 🔔 1. Mission Notification Center & Undone Task Directive Popup
+- **Real-Time Notification Bell & Counter Badge**: The header toolbar features an interactive **Notification Bell** with a dynamic counter showing total pending work (`Undone Emergency Directives + Undone Habits for Today`).
+- **Urgent Pulsing Visual Alerts**: Whenever an emergency directive is pending, the bell and badge pulse with an energetic crimson alert glow.
+- **Interactive Multi-Tab Modal (`NotificationModal`)**:
+  - 🚨 **Emergency Directives Tab**: Shows active urgent directives with real-time countdown timers (`CRITICAL`, `24H URGENT`, `48H DIRECTIVE`), priority levels, XP tags, and 1-click **"Mark Done"** completion.
+  - ⚡ **Today's Habits Tab**: Displays habits pending for the current day with planned duration, streak counts, and 1-click **"Complete Today"** checkoff.
+  - 🏆 **All Clear Celebration**: Shows an animated victory badge when all daily tasks and directives are 100% completed.
+
+---
+
+### 🔄 2. Instant App Refresh & Full-Stack Reload
+- **Header "App Refresh" Button**: Located right in the quick access header toolbar and inside the Notification Center.
+- **Smooth State Flush & Clean Re-Sync**: Flushes all local caches cleanly to local storage and reloads the application (`window.location.reload()`) with pleasant audio feedback (`soundFx.playClick()`) and toast notifications.
+
+---
+
+### 🎡 3. Theme Reel Dial & 7 Bespoke Aesthetic Universes
 - **Interactive Mechanical Reel Dial**: Click the top header **Moon / Theme icon** to open a vintage **View-Master rotating disc dial** with 7 symmetric apertures (`51.4°` step increments) and mechanical sound effects.
 - **7 World-Class Unique Themes**:
   1. ⚡ **Solo Leveling Obsidian** `[HUNTER S-RANK • ⚡ CYBER MANA]`: Deep space obsidian (`#060a12`), Holographic Cyber Grid & Electric Mana Blue Glow (`#38bdf8`).
@@ -36,14 +52,14 @@
 
 ---
 
-### 📷 2. Interactive Photo Disc Wheel (Daily Mantra & Header Focus)
+### 📷 4. Interactive Photo Disc Wheel (Daily Mantra & Header Focus)
 - **Rotating View-Master Photo Reel**: Integrated above the daily mantra and header photo card with 6 rotating photo apertures.
 - **Add / Remove / Switch Focus Images**: Click any lens aperture to rotate and select that photo as your active daily visual anchor.
 - **Persistent JPG Storage**: Uploaded images are stored in `.jpg` format in `backend/data/uploads` and synced to the user profile in Supabase & SQLite.
 
 ---
 
-### 💾 3. Complete End-to-End Database Sync (SQLite & Supabase)
+### 💾 5. Complete End-to-End Database Sync (SQLite & Supabase)
 - **All User Inputs Persisted**:
   - **Habit Ticks**: Stored in `habit_ticks` with `done` status and timestamps.
   - **Custom Habits**: Dynamically creates habit records synced across frontend, local SQLite (`effstreak.db`), and Supabase PostgreSQL.
@@ -53,7 +69,7 @@
 
 ---
 
-### 🚨 4. Emergency Directive System
+### 🚨 6. Emergency Directive System
 - **Quick Time-Boxed Directives**: Create immediate high-priority focus action items with custom durations, audio timers, and XP rewards.
 
 ---

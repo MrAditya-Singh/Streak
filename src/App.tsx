@@ -46,6 +46,7 @@ import { AddHabitModal } from './components/AddHabitModal';
 import { AuthModal } from './components/AuthModal';
 import { LivePerformanceDeck } from './components/LivePerformanceDeck';
 import { AddEmergencyDirectiveModal } from './components/AddEmergencyDirectiveModal';
+import { NotificationModal } from './components/NotificationModal';
 import { ThemeDiscReelModal } from './components/ThemeDiscReelModal';
 import { getThemeById, applyThemeToDocument, DEFAULT_THEME_ID } from './utils/themeManager';
 import { Sparkles } from 'lucide-react';
@@ -501,6 +502,7 @@ export const App: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
   const [isAddEmergencyOpen, setIsAddEmergencyOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -1694,6 +1696,24 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAppRefresh = () => {
+    soundFx.playClick();
+    setSyncToast({
+      message: '⚡ Refreshing Application & Synchronizing Latest Data...',
+      type: 'info',
+    });
+    try {
+      localStorage.setItem('effstreak_user', JSON.stringify(user));
+      localStorage.setItem('effstreak_activities', JSON.stringify(activities));
+      localStorage.setItem('streak_monthly_matrix', JSON.stringify(matrixState));
+      localStorage.setItem('effstreak_emergency_tasks', JSON.stringify(emergencyTasks));
+      localStorage.setItem('effstreak_thoughts', JSON.stringify(thoughts));
+      localStorage.setItem('effstreak_logs', JSON.stringify(logs));
+    } catch {}
+    setTimeout(() => {
+      window.location.reload();
+    }, 250);
+  };
 
   return (
     <div className={`min-h-screen w-full overflow-x-hidden transition-colors duration-300 ${
@@ -1733,6 +1753,10 @@ export const App: React.FC = () => {
           emergencyTasks={emergencyTasks}
           onCompleteEmergencyTask={handleCompleteEmergencyTask}
           onAddEmergencyTask={handleAddEmergencyTask}
+          onAppRefresh={handleAppRefresh}
+          onOpenNotifications={() => setIsNotificationOpen(true)}
+          undoneEmergencyCount={emergencyTasks.filter((t) => !t.completed).length}
+          undoneHabitsCount={activities.filter((a) => !a.completed).length}
         />
 
         {/* Live Sync Real-Time Toast Banner */}
@@ -1885,6 +1909,23 @@ export const App: React.FC = () => {
         onAddDirective={handleAddEmergencyTask}
         currentCount={emergencyTasks.filter((t) => !t.completed).length}
         isDarkMode={isDarkMode}
+      />
+
+      {/* 🔔 UNDONE & EMERGENCY DIRECTIVE NOTIFICATIONS MODAL */}
+      <NotificationModal
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        emergencyTasks={emergencyTasks}
+        activities={activities}
+        onCompleteEmergencyTask={handleCompleteEmergencyTask}
+        onToggleActivity={handleToggleActivity}
+        onOpenAddEmergency={() => {
+          setIsNotificationOpen(false);
+          setIsAddEmergencyOpen(true);
+        }}
+        onAppRefresh={handleAppRefresh}
+        isDarkMode={isDarkMode}
+        todayDayNumber={todayDayNumber}
       />
 
       {/* 🎡 8-THEME DISK REEL SWITCHER MODAL */}
