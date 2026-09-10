@@ -209,16 +209,18 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
   const activeEmergencyTasks = emergencyTasks.slice(0, 3);
 
   return (
-    <section className={`w-full rounded-2xl sm:rounded-3xl p-4 sm:p-6 border transition-all duration-300 ${
+    <section className={`w-full rounded-2xl sm:rounded-3xl p-3 sm:p-5 lg:p-6 border transition-all duration-300 ${
       isDarkMode 
         ? 'bg-[#0f1422]/95 border-slate-800/80 text-white shadow-2xl backdrop-blur-md' 
         : 'bg-[#FCFBF8] border-[#E8E3D9] text-slate-900 shadow-sm'
     }`}>
-      <div className="dashboard-weekly-grid grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+      <div className="dashboard-weekly-grid grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5 lg:gap-6 items-stretch">
         
         {/* 1. Left: Luxury Polaroid / Motivation Card with 6-Hole Rotating Photo Disc Reel */}
-        <div className="dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm group relative min-h-[380px]">
-          <div className="w-full h-52 sm:h-58 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
+        <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative min-h-[340px] sm:min-h-[380px] ${
+          isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white' : 'bg-white border-slate-200/90 text-slate-900'
+        }`}>
+          <div className="w-full h-44 sm:h-54 md:h-58 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
             
             {/* View Mode 1: Main Photo with Ambient Overlay */}
             {!isMantraReelActive ? (
@@ -226,17 +228,17 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                 <img
                   src={dailyMantraImage || "/images/char_hero.jpg"}
                   alt="Focus Motivation"
-                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out cursor-pointer"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out cursor-pointer"
                   onDoubleClick={() => {
                     soundFx.playLevelUp();
                     setIsMantraModalOpen(true);
                   }}
                   title="Double click to Open 6-Slot Photo Disc Manager"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent pointer-events-none" />
                 
                 {/* Daily Mantra Badge */}
-                <span className="absolute top-2.5 left-2.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/95 text-black backdrop-blur-md shadow-xs font-mono">
+                <span className="absolute top-2.5 left-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-white/95 text-black backdrop-blur-md shadow-xs font-mono">
                   Daily Mantra
                 </span>
               </>
@@ -259,7 +261,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             )}
 
             {/* Top Right Controls: Toggle Disc Reel Lens */}
-            <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5">
+            <div className="absolute top-2 sm:top-2.5 right-2 sm:right-2.5 z-30 flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => {
@@ -267,13 +269,13 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   setIsMantraReelActive(!isMantraReelActive);
                 }}
                 title={isMantraReelActive ? 'Switch to Full Photo View' : 'Open Interactive 6-Hole Disc Reel Wheel'}
-                className={`p-1.5 rounded-full backdrop-blur-md transition-all duration-200 border shadow-md cursor-pointer flex items-center gap-1 text-[10px] font-bold px-2.5 ${
+                className={`p-1 sm:p-1.5 rounded-full backdrop-blur-md transition-all duration-200 border shadow-md cursor-pointer flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-2 sm:px-2.5 ${
                   isMantraReelActive
                     ? 'bg-rose-600 text-white border-rose-400 scale-105 shadow-rose-600/30'
                     : 'bg-black/70 hover:bg-black/90 text-white border-white/20 hover:scale-105'
                 }`}
               >
-                <Disc className={`w-3.5 h-3.5 ${isMantraReelActive ? 'animate-spin-slow text-white' : 'text-rose-400'}`} />
+                <Disc className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isMantraReelActive ? 'animate-spin-slow text-white' : 'text-rose-400'}`} />
                 <span>{isMantraReelActive ? 'Photo View' : 'Reel Dial'}</span>
               </button>
             </div>
@@ -282,7 +284,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             {!isMantraReelActive && (
               <div
                 onClick={() => setIsMantraReelActive(true)}
-                className="absolute bottom-2.5 inset-x-2.5 py-1 px-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[9px] font-mono text-center flex items-center justify-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors shadow-sm"
+                className="absolute bottom-2 sm:bottom-2.5 inset-x-2 sm:inset-x-2.5 py-1 px-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[8px] sm:text-[9px] font-mono text-center flex items-center justify-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors shadow-sm"
               >
                 <Disc className="w-3 h-3 text-rose-400 animate-spin-slow" />
                 <span>Click <b>Reel Dial</b> to spin 6 disc slots</span>
@@ -290,31 +292,39 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             )}
           </div>
 
-          <div className="text-center mt-2.5 px-2">
-            <div className="font-serif-title italic font-black text-base text-black">
+          <div className="text-center mt-2 sm:mt-2.5 px-2">
+            <div className={`font-serif-title italic font-black text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-black'}`}>
               I am ...
             </div>
-            <p className="font-calligraphy italic text-sm text-slate-800 font-bold mt-0.5 leading-snug">
+            <p className={`font-calligraphy italic text-xs sm:text-sm font-bold mt-0.5 leading-snug ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
               Focused, intentional, and ready for the month ahead.
             </p>
           </div>
         </div>
 
-        {/* 2. Center: Fixed-Size 5-Week Grouped Bar Chart & Weekly Circular Efficiency Gauges + Emergency Countdown Hub (Image 3) */}
-        <div className="dashboard-weekly-chart lg:col-span-6 flex flex-col justify-between space-y-3 p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm relative overflow-hidden min-h-[380px]">
+        {/* 2. Center: Fixed-Size 5-Week Grouped Bar Chart & Weekly Circular Efficiency Gauges + Emergency Countdown Hub */}
+        <div className={`dashboard-weekly-chart lg:col-span-6 flex flex-col justify-between space-y-3 p-3.5 sm:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden min-h-[340px] sm:min-h-[380px] ${
+          isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white shadow-md' : 'bg-white border-slate-200/90 text-slate-900 shadow-sm'
+        }`}>
           
-          {/* ⚡ Real-Time Emergency Mission Countdown Banner (Innovative HUD Time Display) */}
+          {/* Real-Time Emergency Mission Countdown Banner */}
           {activeEmergencyTasks.length > 0 && (
-            <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-500/10 via-pink-500/5 to-purple-500/10 border border-rose-300/80 space-y-2 shadow-2xs">
+            <div className={`p-2.5 sm:p-3 rounded-2xl border space-y-2 shadow-2xs ${
+              isDarkMode 
+                ? 'bg-gradient-to-r from-rose-950/40 via-pink-950/20 to-purple-950/40 border-rose-800/60' 
+                : 'bg-gradient-to-r from-rose-500/10 via-pink-500/5 to-purple-500/10 border-rose-300/80'
+            }`}>
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-rose-600 to-pink-600 text-white flex items-center justify-center shadow-xs">
-                    <Flame className="w-3.5 h-3.5 animate-bounce" />
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-gradient-to-tr from-rose-600 to-pink-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                    <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-bounce" />
                   </div>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-rose-700 font-mono flex items-center gap-1">
-                    Emergency Sprint Countdown
+                  <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider font-mono flex items-center gap-1 ${
+                    isDarkMode ? 'text-rose-300' : 'text-rose-700'
+                  }`}>
+                    Emergency Sprint
                   </span>
-                  <span className="text-[9px] font-bold px-2 py-0.2 rounded-full bg-rose-600 text-white font-mono">
+                  <span className="text-[8px] sm:text-[9px] font-bold px-1.5 sm:px-2 py-0.2 rounded-full bg-rose-600 text-white font-mono">
                     {activeEmergencyTasks.filter((t) => !t.completed).length}/3 Active
                   </span>
                 </div>
@@ -323,10 +333,10 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   <button
                     type="button"
                     onClick={onOpenAddEmergencyModal}
-                    className="text-[10px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer hover:underline font-mono"
+                    className="text-[9px] sm:text-[10px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-0.5 cursor-pointer hover:underline font-mono"
                   >
                     <Plus className="w-3 h-3" />
-                    <span>New Sprint</span>
+                    <span>New</span>
                   </button>
                 )}
               </div>
@@ -346,17 +356,19 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
           )}
 
           {/* Week Header Labels */}
-          <div className="grid grid-cols-5 text-center text-xs font-serif-title italic font-black border-b border-slate-200 pb-2">
-            <span className="text-blue-700">week 1</span>
-            <span className="text-pink-700">week 2</span>
-            <span className="text-teal-700">week 3</span>
-            <span className="text-amber-700">week 4</span>
-            <span className="text-purple-700">week 5</span>
+          <div className={`grid grid-cols-5 text-center text-[10px] sm:text-xs font-serif-title italic font-black border-b pb-1.5 sm:pb-2 ${
+            isDarkMode ? 'border-slate-800' : 'border-slate-200'
+          }`}>
+            <span className="text-blue-500 dark:text-blue-400">week 1</span>
+            <span className="text-pink-500 dark:text-pink-400">week 2</span>
+            <span className="text-teal-500 dark:text-teal-400">week 3</span>
+            <span className="text-amber-500 dark:text-amber-400">week 4</span>
+            <span className="text-purple-500 dark:text-purple-400">week 5</span>
           </div>
 
           {/* Daily 30 Bars with Hover Tooltips */}
           <div className="overflow-x-auto touch-pan-x pb-1 relative scroller-smooth">
-            <div className="min-w-[420px] sm:min-w-[480px] h-32 flex items-end justify-between gap-1 pt-1">
+            <div className="min-w-[360px] sm:min-w-[460px] h-28 sm:h-32 flex items-end justify-between gap-0.5 sm:gap-1 pt-1">
               {daysData.map((d) => (
                 <div
                   key={d.day}
@@ -364,7 +376,9 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   onMouseEnter={() => setHoveredDay(d)}
                   onMouseLeave={() => setHoveredDay(null)}
                 >
-                  <div className="w-full bg-slate-100 rounded-t-md h-24 flex items-end overflow-hidden p-0.5 group-hover:bg-slate-200 transition-colors">
+                  <div className={`w-full rounded-t-md h-20 sm:h-24 flex items-end overflow-hidden p-0.5 transition-colors ${
+                    isDarkMode ? 'bg-slate-900/80 group-hover:bg-slate-800/80' : 'bg-slate-100 group-hover:bg-slate-200'
+                  }`}>
                     <div
                       className={`w-full rounded-t-sm transition-all duration-500 shadow-xs ${getBarGradient(d.weekIndex, d.percentage)}`}
                       style={{ height: `${Math.max(6, d.percentage)}%` }}
@@ -376,13 +390,15 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
 
             {/* Hover Tooltip */}
             {hoveredDay && (
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-3 py-1 rounded-lg border border-slate-700 shadow-lg pointer-events-none z-20 font-mono">
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-[9px] sm:text-[10px] font-bold px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-lg border border-slate-700 shadow-lg pointer-events-none z-20 font-mono">
                 Day {hoveredDay.day}: {hoveredDay.count}/{hoveredDay.total} Habits ({hoveredDay.percentage.toFixed(0)}%)
               </div>
             )}
 
             {/* Percentage row under bars */}
-            <div className="min-w-[480px] flex items-center justify-between text-[8px] font-mono font-bold text-slate-600 pt-1.5 border-t border-slate-200">
+            <div className={`min-w-[360px] sm:min-w-[460px] flex items-center justify-between text-[7px] sm:text-[8px] font-mono font-bold pt-1 border-t ${
+              isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-600 border-slate-200'
+            }`}>
               {daysData.map((d) => (
                 <span key={`pct-${d.day}`} className="flex-1 text-center truncate">
                   {d.percentage.toFixed(0)}%
@@ -391,7 +407,9 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             </div>
 
             {/* Count row under bars */}
-            <div className="min-w-[480px] flex items-center justify-between text-[9px] font-mono font-black text-black pt-0.5">
+            <div className={`min-w-[360px] sm:min-w-[460px] flex items-center justify-between text-[8px] sm:text-[9px] font-mono font-black pt-0.5 ${
+              isDarkMode ? 'text-white' : 'text-black'
+            }`}>
               {daysData.map((d) => (
                 <span key={`cnt-${d.day}`} className="flex-1 text-center">
                   {d.count}
@@ -401,42 +419,44 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
           </div>
 
           {/* 5 Weekly Circular Efficiency Gauges */}
-          <div className="grid grid-cols-5 gap-2 pt-2.5 border-t border-slate-200">
+          <div className={`grid grid-cols-5 gap-1 sm:gap-2 pt-2 sm:pt-2.5 border-t ${
+            isDarkMode ? 'border-slate-800' : 'border-slate-200'
+          }`}>
             {weeksSummary.map((w) => {
-              const radius = 22;
+              const radius = 18;
               const circ = 2 * Math.PI * radius;
               const offset = circ - (w.efficiency / 100) * circ;
 
               return (
                 <div key={w.week} className="flex flex-col items-center text-center group">
-                  <div className="relative w-15 h-15 flex items-center justify-center">
-                    <svg className="w-15 h-15 transform -rotate-90">
+                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center">
+                    <svg className="w-12 h-12 sm:w-14 sm:h-14 transform -rotate-90">
                       <circle
-                        cx="30"
-                        cy="30"
+                        cx="24"
+                        cy="24"
                         r={radius}
-                        className="stroke-slate-200"
-                        strokeWidth="4"
+                        className={isDarkMode ? 'stroke-slate-800' : 'stroke-slate-200'}
+                        strokeWidth="3.5"
                         fill="transparent"
                       />
                       <circle
-                        cx="30"
-                        cy="30"
+                        cx="24"
+                        cy="24"
                         r={radius}
                         stroke={w.color}
-                        strokeWidth="4"
+                        strokeWidth="3.5"
                         fill="transparent"
                         strokeDasharray={circ}
                         strokeDashoffset={offset}
                         strokeLinecap="round"
-                        className="transition-all duration-1000 ease-out group-hover:stroke-width-5"
+                        className="transition-all duration-1000 ease-out group-hover:stroke-width-4"
                       />
                     </svg>
-                    <span className="absolute text-xs font-black text-black font-mono">
+                    <span className={`absolute text-[10px] sm:text-xs font-black font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}>
                       {w.efficiency.toFixed(1)}%
                     </span>
                   </div>
-                  <span className="text-[9px] font-serif-title italic font-bold text-black mt-0.5">
+                  <span className={`text-[8px] sm:text-[9px] font-serif-title italic font-bold mt-0.5 ${isDarkMode ? 'text-slate-300' : 'text-black'}`}>
                     Wk {w.week}
                   </span>
                 </div>
@@ -446,47 +466,59 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         </div>
 
         {/* 3. Right: Top 10 Habits / Activities Ranked Leaderboard */}
-        <div className="dashboard-leaderboard lg:col-span-3 flex flex-col justify-between rounded-2xl bg-white border border-slate-200/90 p-4.5 shadow-sm min-h-[380px]">
+        <div className={`dashboard-leaderboard lg:col-span-3 flex flex-col justify-between rounded-2xl border p-3.5 sm:p-4.5 shadow-sm min-h-[340px] sm:min-h-[380px] transition-all duration-300 ${
+          isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white' : 'bg-white border-slate-200/90 text-slate-900'
+        }`}>
           {/* Header */}
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+          <div className={`flex items-center justify-between pb-2 sm:pb-2.5 border-b ${
+            isDarkMode ? 'border-slate-800' : 'border-slate-200'
+          }`}>
             <div className="flex items-center gap-1.5">
               <Trophy className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-[11px] font-black uppercase tracking-wider text-black">
+              <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-black'}`}>
                 TOP 10 HABITS
               </span>
             </div>
-            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/50 font-mono">
+            <span className={`text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full font-mono ${
+              isDarkMode ? 'bg-amber-950/70 text-amber-300 border border-amber-800' : 'bg-amber-100 text-amber-900 border border-amber-300/50'
+            }`}>
               Ranked
             </span>
           </div>
 
           {/* Table Header */}
-          <div className="flex items-center justify-between text-[9px] font-serif-title italic font-black text-black bg-slate-100 px-2.5 py-1.5 rounded-lg mt-2.5 border border-slate-200">
+          <div className={`flex items-center justify-between text-[8px] sm:text-[9px] font-serif-title italic font-black px-2.5 py-1 sm:py-1.5 rounded-lg mt-2 sm:mt-2.5 border ${
+            isDarkMode ? 'bg-slate-900/80 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-black'
+          }`}>
             <span>daily habit</span>
             <span>progress</span>
           </div>
 
           {/* Habits Ranked List */}
-          <div className="space-y-1.5 my-2.5 flex-1 overflow-y-auto max-h-[175px] pr-1">
+          <div className="space-y-1 sm:space-y-1.5 my-2 sm:my-2.5 flex-1 overflow-y-auto max-h-[160px] sm:max-h-[175px] pr-1">
             {topHabits.slice(0, 10).map((h) => {
               const rankBadge = h.rank === 1 ? '🥇' : h.rank === 2 ? '🥈' : h.rank === 3 ? '🥉' : `${h.rank}`;
 
               return (
-                <div key={h.name} className="flex items-center justify-between text-xs py-1 px-1 rounded hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-2 truncate pr-1">
-                    <span className="text-[10px] font-mono text-black font-black w-4 text-center">{rankBadge}</span>
-                    <span className="font-black text-black text-xs truncate">
+                <div key={h.name} className={`flex items-center justify-between text-xs py-1 px-1 rounded transition-colors ${
+                  isDarkMode ? 'hover:bg-slate-900/60' : 'hover:bg-slate-50'
+                }`}>
+                  <div className="flex items-center gap-1.5 sm:gap-2 truncate pr-1">
+                    <span className={`text-[9px] sm:text-[10px] font-mono font-black w-4 text-center shrink-0 ${isDarkMode ? 'text-slate-300' : 'text-black'}`}>{rankBadge}</span>
+                    <span className={`font-black text-[11px] sm:text-xs truncate ${isDarkMode ? 'text-slate-100' : 'text-black'}`}>
                       {h.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-12 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <div className={`w-10 sm:w-12 rounded-full h-1.5 overflow-hidden ${
+                      isDarkMode ? 'bg-slate-800' : 'bg-slate-200'
+                    }`}>
                       <div
-                        className="bg-blue-600 h-full rounded-full"
+                        className="bg-blue-600 dark:bg-blue-400 h-full rounded-full"
                         style={{ width: `${Math.min(100, h.progressPct)}%` }}
                       />
                     </div>
-                    <span className="text-[11px] font-mono font-black text-black w-11 text-right">
+                    <span className={`text-[10px] sm:text-[11px] font-mono font-black w-10 sm:w-11 text-right ${isDarkMode ? 'text-white' : 'text-black'}`}>
                       {h.progressPct.toFixed(1)}%
                     </span>
                   </div>
@@ -496,7 +528,9 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
           </div>
 
           {/* Subtitle Footer */}
-          <div className="pt-2.5 border-t border-slate-200 text-[10px] text-slate-700 text-center font-bold italic">
+          <div className={`pt-2 sm:pt-2.5 border-t text-[9px] sm:text-[10px] text-center font-bold italic ${
+            isDarkMode ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-700'
+          }`}>
             Over 100% on 0 habits — keep going! 🚀
           </div>
         </div>
