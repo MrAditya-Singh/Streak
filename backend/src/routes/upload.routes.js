@@ -4,12 +4,24 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { verifySupabaseToken } from '../middleware/supabaseAuth.middleware.js';
 
+import os from 'os';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const uploadsDir = path.resolve(__dirname, '../../data/uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+let uploadsDir = path.resolve(__dirname, '../../data/uploads');
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  uploadsDir = path.join(os.tmpdir(), 'effstreak-uploads');
+}
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (e) {
+  uploadsDir = path.join(os.tmpdir(), 'effstreak-uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
 }
 
 export const uploadRouter = Router();

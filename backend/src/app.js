@@ -14,10 +14,22 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Ensure data/uploads directory exists
-const uploadsPath = path.resolve(__dirname, '../../data/uploads');
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+import os from 'os';
+
+// Ensure data/uploads directory exists (with fallback to /tmp in serverless environments)
+let uploadsPath = path.resolve(__dirname, '../../data/uploads');
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  uploadsPath = path.join(os.tmpdir(), 'effstreak-uploads');
+}
+try {
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+} catch (e) {
+  uploadsPath = path.join(os.tmpdir(), 'effstreak-uploads');
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
 }
 
 // ==========================================
