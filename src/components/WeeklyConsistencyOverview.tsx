@@ -222,10 +222,10 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
       <div className="dashboard-weekly-grid grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5 lg:gap-6 items-stretch">
         
         {/* 1. Left: Luxury Polaroid / Motivation Card with 6-Hole Rotating Photo Disc Reel */}
-        <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative min-h-[340px] sm:min-h-[380px] ${
+        <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative min-h-[400px] sm:min-h-[440px] ${
           isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white' : 'bg-white border-slate-200/90 text-slate-900'
         }`}>
-          <div className="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
+          <div className="w-full flex-1 min-h-[300px] sm:min-h-[340px] md:min-h-[380px] rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
             
             {/* View Mode 1: Main Photo with Ambient Overlay */}
             {!isMantraReelActive ? (
