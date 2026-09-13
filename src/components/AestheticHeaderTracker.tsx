@@ -199,7 +199,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
 
         {/* Center Section: Aesthetic Showcase Banner with Rotating Disc Reel */}
         <div className="dashboard-header-banner lg:col-span-6 flex flex-col items-center justify-center">
-          <div className="w-full h-36 sm:h-48 md:h-54 relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-purple-400/30 dark:border-purple-500/40 shadow-xl shadow-purple-500/10 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)] group transition-all duration-500 hover:shadow-purple-500/25 bg-slate-950 flex items-center justify-center">
+          <div className="w-full h-44 sm:h-52 md:h-60 lg:h-54 relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-purple-400/30 dark:border-purple-500/40 shadow-xl shadow-purple-500/10 dark:shadow-[0_0_30px_rgba(168,85,247,0.2)] group transition-all duration-500 hover:shadow-purple-500/25 bg-slate-950 flex items-center justify-center">
             
             {/* Top Ambient Glow Edge */}
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-pink-400 to-transparent z-10 opacity-75" />
