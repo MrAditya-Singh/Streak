@@ -219,7 +219,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         {/* 1. Left: Luxury Polaroid / Motivation Card with 6-Hole Rotating Photo Disc Reel */}
         <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative ${isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white' : 'bg-white border-slate-200/90 text-slate-900'
           }`}>
-          <div className="w-full aspect-[2/4] rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
+          <div className="w-full flex-1 min-h-[220px] rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
 
             {/* View Mode 1: Main Photo with Ambient Overlay */}
             {!isMantraReelActive ? (
@@ -308,11 +308,11 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             </div>
           </div>
 
-          <div className="text-center mt-3 sm:mt-4 px-2">
+          <div className="text-center mt-2.5 sm:mt-3 px-2 shrink-0">
             <div className={`font-serif-title italic font-black text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-black'}`}>
               I am ...
             </div>
-            <p className={`font-calligraphy italic text-xs sm:text-sm font-bold mt-1 leading-snug ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+            <p className={`font-calligraphy italic text-xs sm:text-sm font-bold mt-0.5 leading-snug ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
               Focused, intentional, and ready for the month ahead.
             </p>
           </div>
