@@ -393,7 +393,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
 
           {/* Daily 30 Bars with Hover Tooltips */}
           <div className="overflow-x-auto touch-pan-x pb-1 relative scroller-smooth">
-            <div className="min-w-[360px] sm:min-w-[460px] h-28 sm:h-32 flex items-end justify-between gap-0.5 sm:gap-1 pt-1">
+            <div className="min-w-[320px] sm:min-w-[460px] h-28 sm:h-32 flex items-end justify-between gap-0.5 sm:gap-1 pt-1">
               {daysData.map((d) => (
                 <div
                   key={d.day}
@@ -421,7 +421,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             )}
 
             {/* Percentage row under bars */}
-            <div className={`min-w-[360px] sm:min-w-[460px] flex items-center justify-between text-[7px] sm:text-[8px] font-mono font-bold pt-1 border-t ${
+            <div className={`min-w-[320px] sm:min-w-[460px] flex items-center justify-between text-[7px] sm:text-[8px] font-mono font-bold pt-1 border-t ${
               isDarkMode ? 'text-slate-400 border-slate-800' : 'text-slate-600 border-slate-200'
             }`}>
               {daysData.map((d) => (
@@ -432,7 +432,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             </div>
 
             {/* Count row under bars */}
-            <div className={`min-w-[360px] sm:min-w-[460px] flex items-center justify-between text-[8px] sm:text-[9px] font-mono font-black pt-0.5 ${
+            <div className={`min-w-[320px] sm:min-w-[460px] flex items-center justify-between text-[8px] sm:text-[9px] font-mono font-black pt-0.5 ${
               isDarkMode ? 'text-white' : 'text-black'
             }`}>
               {daysData.map((d) => (
@@ -455,7 +455,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
               return (
                 <div key={w.week} className="flex flex-col items-center text-center group">
                   <div className="relative w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center">
-                    <svg className="w-12 h-12 sm:w-14 sm:h-14 transform -rotate-90">
+                    <svg className="w-12 h-12 sm:w-14 sm:h-14 transform -rotate-90" viewBox="0 0 48 48">
                       <circle
                         cx="24"
                         cy="24"

@@ -317,7 +317,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
 
             {/* Circular Ring for Habits Count */}
             <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center shrink-0">
-              <svg className="w-14 h-14 sm:w-16 sm:h-16 transform -rotate-90">
+              <svg className="w-14 h-14 sm:w-16 sm:h-16 transform -rotate-90" viewBox="0 0 56 56">
                 <circle
                   cx="28"
                   cy="28"
