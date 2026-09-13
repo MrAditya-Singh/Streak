@@ -222,10 +222,10 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
       <div className="dashboard-weekly-grid grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-5 lg:gap-6 items-stretch">
         
         {/* 1. Left: Luxury Polaroid / Motivation Card with 6-Hole Rotating Photo Disc Reel */}
-        <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative min-h-[400px] sm:min-h-[440px] ${
+        <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative ${
           isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white' : 'bg-white border-slate-200/90 text-slate-900'
         }`}>
-          <div className="w-full flex-1 min-h-[300px] sm:min-h-[340px] md:min-h-[380px] rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
+          <div className="w-full aspect-[4/3] rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
             
             {/* View Mode 1: Main Photo with Ambient Overlay */}
             {!isMantraReelActive ? (
@@ -240,12 +240,21 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   }}
                   title="Double click to Open 6-Slot Photo Disc Manager"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
                 
                 {/* Daily Mantra Badge */}
-                <span className="absolute top-2.5 left-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-black/60 text-white backdrop-blur-md shadow-xs font-mono border border-white/20">
+                <span className="absolute top-2.5 left-2.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/95 text-black backdrop-blur-md shadow-xs font-mono">
                   Daily Mantra
                 </span>
+
+                {/* Bottom Floating Tip on Photo */}
+                <div
+                  onClick={() => setIsMantraReelActive(true)}
+                  className="absolute bottom-2.5 inset-x-3 py-1.5 px-2.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[9px] font-mono text-center flex items-center justify-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors shadow-sm"
+                >
+                  <Disc className="w-3 h-3 text-rose-400 animate-spin-slow" />
+                  <span>Click <b>Reel Dial</b> to spin 6 disc slots</span>
+                </div>
 
                 {/* Modal Instance when triggered from Photo View */}
                 {isMantraModalOpen && (
@@ -286,7 +295,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
             )}
 
             {/* Top Right Controls: Toggle Disc Reel Lens */}
-            <div className="absolute top-2 sm:top-2.5 right-2 sm:right-2.5 z-30 flex items-center gap-1.5">
+            <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => {
@@ -294,23 +303,23 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   setIsMantraReelActive(!isMantraReelActive);
                 }}
                 title={isMantraReelActive ? 'Switch to Full Photo View' : 'Open Interactive 6-Hole Disc Reel Wheel'}
-                className={`p-1 sm:p-1.5 rounded-full backdrop-blur-md transition-all duration-200 border shadow-md cursor-pointer flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-2 sm:px-2.5 ${
+                className={`p-1.5 rounded-full backdrop-blur-md transition-all duration-200 border shadow-md cursor-pointer flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-2.5 ${
                   isMantraReelActive
                     ? 'bg-rose-600 text-white border-rose-400 scale-105 shadow-rose-600/30'
                     : 'bg-black/70 hover:bg-black/90 text-white border-white/20 hover:scale-105'
                 }`}
               >
-                <Disc className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isMantraReelActive ? 'animate-spin-slow text-white' : 'text-rose-400'}`} />
+                <Disc className={`w-3.5 h-3.5 ${isMantraReelActive ? 'animate-spin-slow text-white' : 'text-rose-400'}`} />
                 <span>{isMantraReelActive ? 'Photo View' : 'Reel Dial'}</span>
               </button>
             </div>
           </div>
 
-          <div className="text-center mt-2 sm:mt-2.5 px-2">
+          <div className="text-center mt-3 sm:mt-4 px-2">
             <div className={`font-serif-title italic font-black text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-black'}`}>
               I am ...
             </div>
-            <p className={`font-calligraphy italic text-xs sm:text-sm font-bold mt-0.5 leading-snug ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
+            <p className={`font-calligraphy italic text-xs sm:text-sm font-bold mt-1 leading-snug ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
               Focused, intentional, and ready for the month ahead.
             </p>
           </div>
