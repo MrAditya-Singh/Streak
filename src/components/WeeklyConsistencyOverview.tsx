@@ -225,7 +225,7 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
         <div className={`dashboard-mantra-card lg:col-span-3 flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border transition-all duration-300 shadow-sm group relative min-h-[340px] sm:min-h-[380px] ${
           isDarkMode ? 'bg-[#121826]/90 border-slate-800/90 text-white' : 'bg-white border-slate-200/90 text-slate-900'
         }`}>
-          <div className="w-full h-60 sm:h-72 md:h-80 lg:h-58 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
+          <div className="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-2xl overflow-hidden relative shadow-inner flex items-center justify-center bg-slate-950">
             
             {/* View Mode 1: Main Photo with Ambient Overlay */}
             {!isMantraReelActive ? (
@@ -240,10 +240,10 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                   }}
                   title="Double click to Open 6-Slot Photo Disc Manager"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                 
                 {/* Daily Mantra Badge */}
-                <span className="absolute top-2.5 left-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-white/95 text-black backdrop-blur-md shadow-xs font-mono">
+                <span className="absolute top-2.5 left-2.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-black/60 text-white backdrop-blur-md shadow-xs font-mono border border-white/20">
                   Daily Mantra
                 </span>
 
@@ -304,17 +304,6 @@ export const WeeklyConsistencyOverview: React.FC<WeeklyConsistencyOverviewProps>
                 <span>{isMantraReelActive ? 'Photo View' : 'Reel Dial'}</span>
               </button>
             </div>
-
-            {/* Bottom Floating Tip on Photo */}
-            {!isMantraReelActive && (
-              <div
-                onClick={() => setIsMantraReelActive(true)}
-                className="absolute bottom-2 sm:bottom-2.5 inset-x-2 sm:inset-x-2.5 py-1 px-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-white/90 text-[8px] sm:text-[9px] font-mono text-center flex items-center justify-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors shadow-sm"
-              >
-                <Disc className="w-3 h-3 text-rose-400 animate-spin-slow" />
-                <span>Click <b>Reel Dial</b> to spin 6 disc slots</span>
-              </div>
-            )}
           </div>
 
           <div className="text-center mt-2 sm:mt-2.5 px-2">

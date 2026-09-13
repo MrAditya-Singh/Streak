@@ -217,7 +217,7 @@ export const AestheticHeaderTracker: React.FC<AestheticHeaderTrackerProps> = ({
                   }}
                   title="Double click to Open 6-Slot Photo Disc Manager"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                 <div className="absolute bottom-2 sm:bottom-3 left-3 sm:left-4 z-10 flex items-center gap-2">
                   <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-pink-500/20 border border-pink-400/40 backdrop-blur-md flex items-center justify-center">
                     <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-300 animate-pulse" />
